@@ -1,0 +1,1741 @@
+{
+ "count": 217,
+ "cards": [
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/01_raii-is-the-pattern-behind-every-other-c-pat_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "RAII is the pattern behind every other C++ pattern"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/02_the-rule-of-zero-beats-the-rule-of-five_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "The Rule of Zero beats the Rule of Five"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/03_meyers-singleton-thread-safe-since-c-11_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "Meyers Singleton — thread-safe since C++11"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/04_crtp-polymorphism-with-zero-vtables_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "CRTP — polymorphism with zero vtables"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/05_pimpl-the-compile-time-firewall_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "PIMPL — the compile-time firewall"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/06_visitor-without-a-class-hierarchy_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "Visitor without a class hierarchy"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/07_strategy-pattern-is-often-just-std-function_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "Strategy pattern is often just std::function"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/08_std-move-doesn-t-move-anything_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "std::move doesn't move anything"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/09_a-base-class-without-a-virtual-destructor-is_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "A base class without a virtual destructor is a trap"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/10_string-view-is-a-borrow-not-a-string_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "string_view is a borrow, not a string"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/11_the-observer-pattern-s-modern-problem-is-lif_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "The Observer pattern's modern problem is lifetime, not dispatch"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/12_if-constexpr-killed-half-of-template-metapro_concept.md",
+   "type": "fact",
+   "track": "core",
+   "level": "concept",
+   "title": "if constexpr killed half of template metaprogramming"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/13_what-does-this-print_quiz.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "quiz",
+   "title": "What does this print?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/14_which-singleton-implementation-is-thread-saf_quiz.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "quiz",
+   "title": "Which singleton implementation is thread-safe without locks?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/15_how-many-copy-constructions-happen_quiz.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "quiz",
+   "title": "How many copy constructions happen?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/16_what-is-wrong-with-this-design_quiz.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "quiz",
+   "title": "What is wrong with this design?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/17_what-does-this-print_quiz.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "quiz",
+   "title": "What does this print?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/18_you-need-many-parts-of-the-app-to-react-when_quiz.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "quiz",
+   "title": "You need many parts of the app to react when a download finishes, without the downloader knowing who they are. Which pattern?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/19_what-mechanism-does-this-code-use_quiz.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "quiz",
+   "title": "What mechanism does this code use?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/20_what-happens-here_quiz.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "quiz",
+   "title": "What happens here?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/21_what-does-this-print_quiz.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "quiz",
+   "title": "What does this print?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/22_which-statement-about-this-factory-is-true_quiz.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "quiz",
+   "title": "Which statement about this factory is true?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/23_meyers-singleton_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "Meyers Singleton"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/24_raii-file-guard_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "RAII file guard"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/25_make-a-class-non-copyable_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "Make a class non-copyable"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/26_factory-function_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "Factory function"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/27_observer-subscribe-and-notify_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "Observer — subscribe and notify"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/28_strategy-via-lambda_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "Strategy via lambda"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/29_builder-with-method-chaining_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "Builder with method chaining"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/30_visitor-with-std-variant_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "Visitor with std::variant"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/31_crtp-base_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "CRTP base"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/32_scoped-timer-raii_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "Scoped timer (RAII)"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/33_generic-max_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "Generic max"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/34_move-constructor_drill.md",
+   "type": "exercise",
+   "track": "core",
+   "level": "drill",
+   "title": "Move constructor"
+  },
+  {
+   "topic": "design",
+   "file": "design/01_single-responsibility-one-reason-to-change_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Single Responsibility — one reason to change"
+  },
+  {
+   "topic": "design",
+   "file": "design/02_open-closed-extend-by-adding-types-not-editi_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Open/Closed — extend by adding types, not editing switches"
+  },
+  {
+   "topic": "design",
+   "file": "design/03_liskov-substitution-a-subtype-must-not-surpr_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Liskov Substitution — a subtype must not surprise the caller"
+  },
+  {
+   "topic": "design",
+   "file": "design/04_interface-segregation-don-t-force-clients-to_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Interface Segregation — don't force clients to depend on unused methods"
+  },
+  {
+   "topic": "design",
+   "file": "design/05_dependency-inversion-policy-owns-the-abstrac_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Dependency Inversion — policy owns the abstraction"
+  },
+  {
+   "topic": "design",
+   "file": "design/06_composition-over-inheritance-has-a-beats-is-_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Composition over inheritance — has-a beats is-a"
+  },
+  {
+   "topic": "design",
+   "file": "design/07_encapsulation-is-about-invariants-not-just-p_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Encapsulation is about invariants, not just private fields"
+  },
+  {
+   "topic": "design",
+   "file": "design/08_prefer-non-member-non-friend-functions_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Prefer non-member non-friend functions"
+  },
+  {
+   "topic": "design",
+   "file": "design/09_value-semantics-vs-reference-semantics_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Value semantics vs reference semantics"
+  },
+  {
+   "topic": "design",
+   "file": "design/10_factory-method-abstract-factory-name-creatio_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Factory Method / Abstract Factory — name creation, not types"
+  },
+  {
+   "topic": "design",
+   "file": "design/11_builder-construct-complex-objects-step-by-st_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Builder — construct complex objects step by step"
+  },
+  {
+   "topic": "design",
+   "file": "design/12_prototype-copy-a-polymorphic-object-without-_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Prototype — copy a polymorphic object without knowing its type"
+  },
+  {
+   "topic": "design",
+   "file": "design/13_adapter-make-an-incompatible-interface-fit_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Adapter — make an incompatible interface fit"
+  },
+  {
+   "topic": "design",
+   "file": "design/14_decorator-add-behavior-by-wrapping-and-stack_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Decorator — add behavior by wrapping, and stack it"
+  },
+  {
+   "topic": "design",
+   "file": "design/15_proxy-same-interface-controlled-access_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Proxy — same interface, controlled access"
+  },
+  {
+   "topic": "design",
+   "file": "design/16_composite-treat-leaves-and-trees-uniformly_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Composite — treat leaves and trees uniformly"
+  },
+  {
+   "topic": "design",
+   "file": "design/17_flyweight-share-the-heavy-immutable-part_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Flyweight — share the heavy immutable part"
+  },
+  {
+   "topic": "design",
+   "file": "design/18_command-a-request-as-a-first-class-object_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Command — a request as a first-class object"
+  },
+  {
+   "topic": "design",
+   "file": "design/19_state-behavior-that-changes-with-internal-mo_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "State — behavior that changes with internal mode"
+  },
+  {
+   "topic": "design",
+   "file": "design/20_template-method-fix-the-skeleton-vary-the-st_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Template Method — fix the skeleton, vary the steps (NVI)"
+  },
+  {
+   "topic": "design",
+   "file": "design/21_chain-of-responsibility-pass-it-until-someon_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Chain of Responsibility — pass it until someone handles it"
+  },
+  {
+   "topic": "design",
+   "file": "design/22_type-erasure-runtime-polymorphism-without-in_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Type erasure — runtime polymorphism without inheritance"
+  },
+  {
+   "topic": "design",
+   "file": "design/23_dependency-injection-pass-collaborators-in_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Dependency injection — pass collaborators in"
+  },
+  {
+   "topic": "design",
+   "file": "design/24_hexagonal-architecture-ports-and-adapters-de_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Hexagonal architecture — ports and adapters, depend inward"
+  },
+  {
+   "topic": "design",
+   "file": "design/25_value-objects-vs-entities_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Value objects vs entities"
+  },
+  {
+   "topic": "design",
+   "file": "design/26_error-handling-exceptions-vs-std-expected-vs_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Error handling — exceptions vs std::expected vs codes"
+  },
+  {
+   "topic": "design",
+   "file": "design/27_the-composition-root-wire-once-near-main_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "The composition root — wire once, near main"
+  },
+  {
+   "topic": "design",
+   "file": "design/28_law-of-demeter-don-t-reach-through-your-neig_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Law of Demeter — don't reach through your neighbors"
+  },
+  {
+   "topic": "design",
+   "file": "design/29_abi-stability-and-the-firewall-boundary_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "ABI stability and the firewall boundary"
+  },
+  {
+   "topic": "design",
+   "file": "design/30_data-oriented-design-when-oop-is-the-wrong-t_concept.md",
+   "type": "fact",
+   "track": "design",
+   "level": "concept",
+   "title": "Data-oriented design — when OOP is the wrong tool"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/01_two-sum_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Two Sum"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/02_valid-palindrome_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Valid Palindrome"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/03_best-time-to-buy-and-sell-stock_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Best Time to Buy and Sell Stock"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/04_valid-parentheses_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Valid Parentheses"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/05_reverse-linked-list_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Reverse Linked List"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/06_merge-two-sorted-lists_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Merge Two Sorted Lists"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/07_invert-binary-tree_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Invert Binary Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/08_climbing-stairs_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Climbing Stairs"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/09_group-anagrams_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Group Anagrams"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/10_top-k-frequent-elements_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Top K Frequent Elements"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/11_container-with-most-water_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Container With Most Water"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/12_3sum_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "3Sum"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/13_longest-substring-without-repeating-characte_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Longest Substring Without Repeating Characters"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/14_search-in-rotated-sorted-array_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Search in Rotated Sorted Array"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/15_koko-eating-bananas_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Koko Eating Bananas"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/16_daily-temperatures_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Daily Temperatures"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/17_validate-binary-search-tree_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Validate Binary Search Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/18_binary-tree-level-order-traversal_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Binary Tree Level Order Traversal"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/19_subsets_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Subsets"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/20_kth-largest-element-in-an-array_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Kth Largest Element in an Array"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/21_number-of-islands_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Number of Islands"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/22_course-schedule_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Course Schedule"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/23_coin-change_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Coin Change"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/24_merge-intervals_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Merge Intervals"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/25_jump-game_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Jump Game"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/26_trapping-rain-water_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Trapping Rain Water"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/27_sliding-window-maximum_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Sliding Window Maximum"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/01_an-fpga-is-a-chip-you-rewire-not-one-you-pro_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "An FPGA is a chip you rewire, not one you program"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/02_fpga-vs-asic-vs-cpu-the-reconfigurable-middl_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "FPGA vs ASIC vs CPU — the reconfigurable middle ground"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/03_hdl-describes-hardware-everything-runs-in-pa_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "HDL describes hardware — everything runs in parallel"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/04_combinational-vs-sequential-logic_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Combinational vs sequential logic"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/05_blocking-vs-non-blocking-the-classic-verilog_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Blocking `=` vs non-blocking `<=` — the classic Verilog trap"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/06_the-clock-fmax-and-the-critical-path_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "The clock, Fmax, and the critical path"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/07_setup-time-hold-time-and-metastability_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Setup time, hold time, and metastability"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/08_synchronous-vs-asynchronous-reset_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Synchronous vs asynchronous reset"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/09_clock-domain-crossing-and-the-2-ff-synchroni_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Clock-domain crossing and the 2-FF synchronizer"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/10_pipelining-and-replication-the-fpga-s-parall_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Pipelining and replication — the FPGA's parallelism"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/11_latency-vs-throughput-and-the-initiation-int_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Latency vs throughput and the initiation interval"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/12_finite-state-machines-and-one-hot-encoding_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Finite state machines and one-hot encoding"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/13_fixed-point-is-cheap-floating-point-is-expen_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Fixed-point is cheap, floating-point is expensive"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/14_bram-vs-registers-vs-distributed-ram_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "BRAM vs registers vs distributed RAM"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/15_the-toolchain-synthesis-place-and-route-bits_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "The toolchain — synthesis, place-and-route, bitstream"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/16_hls-writing-c-that-becomes-hardware_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "HLS — writing C++ that becomes hardware"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/17_testbenches-and-simulation-come-before-hardw_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Testbenches and simulation come before hardware"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/18_tick-to-trade-in-nanoseconds-deterministical_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Tick-to-trade in nanoseconds, deterministically"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/19_fpgas-sit-inline-on-the-wire-often-on-the-ni_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "FPGAs sit inline on the wire, often on the NIC"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/20_kernel-bypass-vs-full-hardware_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Kernel bypass vs full hardware"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/21_parsing-market-data-and-a-b-line-arbitration_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Parsing market data and A/B line arbitration in hardware"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/22_pre-trade-risk-checks-in-the-fast-path_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "Pre-trade risk checks in the fast path"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/23_the-fpga-vs-software-tradeoff-is-real_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "The FPGA-vs-software tradeoff is real"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/24_the-hft-fpga-ecosystem_concept.md",
+   "type": "fact",
+   "track": "fpga",
+   "level": "concept",
+   "title": "The HFT FPGA ecosystem"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/25_how-does-an-fpga-fundamentally-differ-from-a_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "How does an FPGA fundamentally differ from a CPU?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/26_what-is-wrong-with-this-clocked-block_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "What is wrong with this clocked block?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/27_a-single-bit-control-signal-crosses-from-clk_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "A single-bit control signal crosses from clk_a into clk_b. What is the standard safe technique?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/28_what-is-metastability_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "What is metastability?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/29_your-design-fails-timing-the-critical-path-i_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "Your design fails timing — the critical path is too long for the target clock. Which change most directly helps?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/30_in-a-pipelined-loop-an-initiation-interval-i_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "In a pipelined loop, an initiation interval (II) of 1 means:"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/31_which-statement-about-these-two-lines-is-cor_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "Which statement about these two lines is correct?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/32_in-a-one-hot-encoded-fsm-with-8-states-how-m_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "In a one-hot encoded FSM with 8 states, how many state flip-flops are used and how many are high at once?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/33_why-do-hft-fpga-designs-favor-fixed-point-ov_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "Why do HFT FPGA designs favor fixed-point over floating-point arithmetic?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/34_you-need-a-4096-entry-lookup-table-read-once_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "You need a 4096-entry lookup table read once per cycle. Which resource fits best?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/35_what-does-request-in-this-hls-loop_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "What does `#pragma HLS pipeline II=1` request in this HLS loop?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/36_roughly-tick-to-trade-latency-for-a-tuned-fp_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "Roughly, tick-to-trade latency for a tuned FPGA path vs a kernel-bypass software path is:"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/37_beyond-raw-average-speed-why-do-hft-firms-va_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "Beyond raw average speed, why do HFT firms value FPGAs for the fast path?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/38_what-distinguishes-full-hardware-tick-to-tra_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "What distinguishes \"full hardware\" tick-to-trade from kernel bypass?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/39_exchanges-send-identical-a-and-b-multicast-f_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "Exchanges send identical A and B multicast feeds. What does line-arbitration logic do?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/40_why-put-pre-trade-risk-checks-size-price-pos_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "Why put pre-trade risk checks (size, price, position limits) inside the FPGA?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/41_how-do-a-cpu-an-fpga-and-an-asic-compare-on-_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "How do a CPU, an FPGA, and an ASIC compare on flexibility and latency?"
+  },
+  {
+   "topic": "fpga",
+   "file": "fpga/42_a-300-mhz-fpga-can-beat-a-4-ghz-cpu-on-a-fix_quiz.md",
+   "type": "quiz",
+   "track": "fpga",
+   "level": "quiz",
+   "title": "A 300 MHz FPGA can beat a 4 GHz CPU on a fixed feed-parsing pipeline mainly because:"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/01_spsc-ring-buffer_drill.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "drill",
+   "title": "SPSC ring buffer"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/02_fixed-capacity-object-pool_drill.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "drill",
+   "title": "Fixed-capacity object pool"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/03_branchless-min_drill.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "drill",
+   "title": "Branchless min"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/04_round-up-to-power-of-two_drill.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "drill",
+   "title": "Round up to power of two"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/05_type-pun-a-float-without-ub_drill.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "drill",
+   "title": "Type-pun a float without UB"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/06_o-1-swap-remove_drill.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "drill",
+   "title": "O(1) swap-remove"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/07_popcount-without-the-builtin_drill.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "drill",
+   "title": "popcount without the builtin"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/08_cache-line-aligned-counter-kill-false-sharin_drill.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "drill",
+   "title": "Cache-line aligned counter (kill false sharing)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/09_the-memory-hierarchy-is-the-whole-game_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "The memory hierarchy is the whole game"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/10_false-sharing-two-threads-one-cache-line_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "False sharing — two threads, one cache line"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/11_branch-mispredictions-flush-the-pipeline_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Branch mispredictions flush the pipeline"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/12_memory-order-pay-only-for-the-ordering-you-n_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "memory_order — pay only for the ordering you need"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/13_blocking-vs-lock-free-vs-wait-free_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Blocking vs lock-free vs wait-free"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/14_compare-exchange-and-the-aba-problem_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "compare_exchange and the ABA problem"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/15_the-spsc-ring-buffer-the-hft-workhorse_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "The SPSC ring buffer, the HFT workhorse"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/16_exceptions-zero-cost-until-you-throw_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Exceptions — zero-cost until you throw"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/17_malloc-is-a-latency-landmine_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "malloc is a latency landmine"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/18_virtual-calls-cost-more-than-the-indirection_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Virtual calls cost more than the indirection"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/19_shared-ptr-s-refcount-is-atomic-and-not-free_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "shared_ptr's refcount is atomic — and not free"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/20_copy-elision-makes-return-by-value-free_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Copy elision makes return-by-value free"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/21_noexcept-isn-t-a-comment-it-changes-codegen_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "noexcept isn't a comment — it changes codegen"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/22_ub-is-a-promise-the-optimizer-holds-you-to_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "UB is a promise the optimizer holds you to"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/23_type-pun-with-bit-cast-memcpy-never-reinterp_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Type-pun with bit_cast/memcpy, never reinterpret_cast"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/24_measure-cycles-with-rdtscp-not-high-resoluti_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Measure cycles with rdtscp, not high_resolution_clock"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/25_report-p99-p99-9-never-the-mean_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Report p99/p99.9, never the mean"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/26_huge-pages-cut-tlb-misses_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Huge pages cut TLB misses"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/27_pin-pre-fault-and-lock-your-memory_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Pin, pre-fault, and lock your memory"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/28_syscalls-are-expensive-busy-poll-instead_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Syscalls are expensive; busy-poll instead"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/29_std-unordered-map-chases-pointers_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "std::unordered_map chases pointers"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/30_std-vector-beats-std-list-almost-always_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "std::vector beats std::list almost always"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/31_do-it-at-compile-time_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Do it at compile time"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/32_volatile-is-for-mmio-not-threads_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "volatile is for MMIO, not threads"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/33_inlining-is-the-mother-of-optimizations_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Inlining is the mother of optimizations"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/34_denormals-can-be-100x-slower_concept.md",
+   "type": "fact",
+   "track": "hft",
+   "level": "concept",
+   "title": "Denormals can be ~100x slower"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/35_two-threads-each-hammer-their-own-atomic-why_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Two threads each hammer their own atomic — why is this slow?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/36_minimum-correct-memory-ordering-for-an-spsc-_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Minimum correct memory ordering for an SPSC flag handoff"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/37_is-a-valid-substitute-for-here_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Is `volatile` a valid substitute for `std::atomic` here?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/38_many-threads-run-on-a-shared_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Many threads run `counter++` on a shared `long long`"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/39_why-is-lookup-slower-than-a-flat-open-addres_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Why is `std::unordered_map` lookup slower than a flat/open-addressing map?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/40_summing-elements-vs-of-the-same-size_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Summing elements: `std::vector<int>` vs `std::list<int>` of the same size"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/41_what-decides-whether-a-reallocation-moves-or_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "What decides whether a `vector` reallocation moves or copies its elements?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/42_how-many-copies-or-moves-are-printed_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "How many copies or moves are printed?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/43_cost-of-passing-by-value-on-the-hot-path_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Cost of passing `std::shared_ptr` by value on the hot path"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/44_what-is-the-optimizer-allowed-to-do-with-thi_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "What is the optimizer allowed to do with this function?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/45_reading-the-bits-of-a-as-an_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Reading the bits of a `float` as an `int`"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/46_same-data-but-one-run-sorts-the-array-first-_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Same data, but one run sorts the array first — which loop is faster?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/47_what-is-the-cost-model-of-c-exceptions-on-th_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "What is the cost model of C++ exceptions on the hot path?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/48_virtual-call-vs-crtp-template-dispatch-where_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Virtual call vs CRTP/template dispatch — where does the cost come from?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/49_how-should-you-measure-sub-microsecond-per-o_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "How should you measure sub-microsecond per-operation latency?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/50_why-is-the-first-write-to-a-freshly-ed-buffe_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Why is the *first* write to a freshly `mmap`ed buffer slow?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/51_what-is-the-aba-hazard-in-this-lock-free-pop_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "What is the ABA hazard in this lock-free pop?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/52_denormals-subnormals-and-low-latency-floatin_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Denormals (subnormals) and low-latency floating point"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/53_which-is-appropriate-for-a-pure-event-counte_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Which `memory_order` is appropriate for a pure event counter?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/54_spinlock-vs-for-a-very-short-critical-sectio_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Spinlock vs `std::mutex` for a very short critical section"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/55_is-always-lock-free_quiz.md",
+   "type": "quiz",
+   "track": "hft",
+   "level": "quiz",
+   "title": "Is `std::atomic<T>` always lock-free?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/01_you-pay-a-fixed-price-to-roll-one-fair-six-s_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "You pay a fixed price to roll one fair six-sided die and are paid its face value in dollars. What is the fair price?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/02_a-fair-coin-is-flipped-until-the-first-time-_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "A fair coin is flipped until the first time you see two heads in a row (HH). What is the expected number of flips?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/03_on-average-which-pattern-appears-first-when-_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "On average, which pattern appears first when flipping a fair coin: HH or HT?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/04_you-roll-a-fair-six-sided-die-repeatedly-wha_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "You roll a fair six-sided die repeatedly. What is the expected number of rolls to see all six faces at least once?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/05_x-and-y-are-independent-uniform-0-1-what-is-_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "X and Y are independent Uniform(0,1). What is E[max(X, Y)]?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/06_two-people-agree-to-meet-between-12-00-and-1_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "Two people agree to meet between 12:00 and 1:00, each arriving at a uniformly random time and waiting 15 minutes. What is the probability they actually meet?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/07_in-monty-hall-you-pick-1-of-3-doors-the-host_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "In Monty Hall, you pick 1 of 3 doors, the host (who knows) opens a different door revealing a goat, then offers a switch. What is the probability of winning if you switch?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/08_a-family-has-two-children-you-learn-at-least_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "A family has two children. You learn at least one is a boy. What is the probability both are boys?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/09_a-disease-affects-1-of-people-a-test-is-99-s_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "A disease affects 1% of people. A test is 99% sensitive (positive if diseased) and has a 5% false-positive rate. Given a positive test, what is the probability of disease?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/10_what-is-the-minimum-number-of-people-needed-_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "What is the minimum number of people needed for a better-than-even chance that two share a birthday (365 equally likely days)?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/11_you-have-30-and-your-opponent-70-you-repeate_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "You have $30 and your opponent $70. You repeatedly make fair $1 bets until one of you is broke. What is the probability you end up with all $100?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/12_you-have-30-your-opponent-70-fair-1-bets-unt_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "You have $30, your opponent $70, fair $1 bets until someone is ruined. What is the expected number of bets until the game ends?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/13_you-roll-two-fair-dice-repeatedly-what-is-th_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "You roll two fair dice repeatedly. What is the probability the sum is 6 before it is 7?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/14_you-roll-a-fair-die-until-you-get-a-6-what-i_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "You roll a fair die until you get a 6. What is the expected number of rolls?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/15_for-the-sum-of-two-independent-fair-dice-whi_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "For the sum of two independent fair dice, which pair (mean, variance) is correct?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/16_if-z-is-a-standard-normal-what-is-e-z_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "If Z is a standard normal, what is E[|Z|]?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/17_an-event-has-probability-25-what-are-the-fai_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "An event has probability 25%. What are the fair odds (payout on a $1 stake) so that the bet has zero expected value?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/18_a-bookmaker-prices-both-sides-of-a-two-way-m_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "A bookmaker prices both sides of a two-way market at decimal odds 1.90. What is the overround (the vig baked in)?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/19_a-fair-coin-is-flipped-until-the-first-head-_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "A fair coin is flipped until the first head. If the first head is on flip n, you are paid $2^n. What is the expected payout?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/20_you-draw-two-cards-from-a-well-shuffled-52-c_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "You draw two cards from a well-shuffled 52-card deck. What is the probability they form a pair (same rank)?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/21_in-the-two-envelope-problem-one-envelope-hol_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "In the two-envelope problem, one envelope holds twice the other. After picking one, the \"always switch\" argument computes ½(2x)+½(x/2)=1.25x. Why is it flawed?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/22_continue-the-sequence-2-3-5-7-11-13_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "Continue the sequence: 2, 3, 5, 7, 11, 13, ?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/23_continue-the-look-and-say-sequence-1-11-21-1_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "Continue the look-and-say sequence: 1, 11, 21, 1211, 111221, ?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/24_why-do-market-makers-widen-their-bid-ask-spr_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "Why do market makers widen their bid-ask spread when they suspect informed traders are present?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/25_you-quote-bid-49-90-ask-50-10-on-a-stock-who_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "You quote bid $49.90 / ask $50.10 on a stock whose fair value is exactly $50.00. All order flow is uninformed and hits your bid or ask with equal probability. What is your expected profit per trade?"
+  },
+  {
+   "topic": "quant",
+   "file": "quant/26_let-x-be-a-fair-die-and-z-an-independent-fai_quiz.md",
+   "type": "quiz",
+   "track": "quant",
+   "level": "quiz",
+   "title": "Let X be a fair die and Z an independent fair die, and set Y = X + Z. What is Cov(X, Y)?"
+  },
+  {
+   "topic": "snippets",
+   "file": "snippets/01_2026-07-06-seed-the-interview-classic-that-l_snippet.md",
+   "type": "snippet",
+   "track": "core",
+   "level": "snippet",
+   "title": "2026-07-06 — seed — The interview classic that leaks"
+  },
+  {
+   "topic": "snippets",
+   "file": "snippets/02_2026-07-06-seed-look-ma-no-branches_snippet.md",
+   "type": "snippet",
+   "track": "core",
+   "level": "snippet",
+   "title": "2026-07-06 — seed — \"Look ma, no branches\""
+  },
+  {
+   "topic": "snippets",
+   "file": "snippets/03_2026-07-06-seed-the-loop-that-never-ends_snippet.md",
+   "type": "snippet",
+   "track": "core",
+   "level": "snippet",
+   "title": "2026-07-06 — seed — The loop that never ends"
+  }
+ ]
+}
