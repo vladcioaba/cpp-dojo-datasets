@@ -1,0 +1,319 @@
+{
+  "id": "design",
+  "name": "OOP, Patterns & Architecture",
+  "icon": "🏛",
+  "nodes": [
+    {
+      "id": "encapsulation-invariants",
+      "name": "Encapsulation & Invariants",
+      "blurb": "Hide state behind an interface so every object always satisfies its class invariant.",
+      "tier": 1,
+      "prereqs": [],
+      "cardTags": ["design"],
+      "problems": [
+        { "name": "Class invariant with private state", "difficulty": "easy", "playable": false },
+        { "name": "Enforce invariant in constructor", "difficulty": "easy", "playable": false },
+        { "name": "Getter/setter with validation", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "value-semantics",
+      "name": "Value vs Reference Semantics",
+      "blurb": "Decide whether a type copies like an int or is shared by reference, and design its lifetime accordingly.",
+      "tier": 1,
+      "prereqs": [],
+      "cardTags": ["value-semantics"],
+      "problems": [
+        { "name": "Make a class non-copyable", "difficulty": "easy", "playable": true },
+        { "name": "Rule of five wrapper", "difficulty": "medium", "playable": false },
+        { "name": "Copy vs move semantics demo", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "composition-over-inheritance",
+      "name": "Composition over Inheritance",
+      "blurb": "Prefer assembling behavior from members (has-a) instead of deep class hierarchies (is-a).",
+      "tier": 2,
+      "prereqs": ["encapsulation-invariants"],
+      "cardTags": ["composition", "inheritance"],
+      "problems": [
+        { "name": "Refactor inheritance to composition", "difficulty": "medium", "playable": false },
+        { "name": "Has-a vs is-a modeling", "difficulty": "easy", "playable": false },
+        { "name": "Delegate behavior to a member", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "raii-design",
+      "name": "RAII as a Design Tool",
+      "blurb": "Tie resource ownership to object lifetime so cleanup is automatic and exception-safe.",
+      "tier": 2,
+      "prereqs": ["value-semantics", "encapsulation-invariants"],
+      "cardTags": ["raii", "smart-pointers"],
+      "problems": [
+        { "name": "RAII file guard", "difficulty": "easy", "playable": true },
+        { "name": "Scoped timer (RAII)", "difficulty": "easy", "playable": true },
+        { "name": "Mutex lock guard", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "value-objects-entities",
+      "name": "Value Objects vs Entities",
+      "blurb": "Model things by value when equality is by content, and by identity when they have a lifecycle.",
+      "tier": 2,
+      "prereqs": ["value-semantics", "encapsulation-invariants"],
+      "cardTags": ["value-semantics", "design"],
+      "problems": [
+        { "name": "Immutable value object with equality", "difficulty": "medium", "playable": false },
+        { "name": "Entity with identity", "difficulty": "medium", "playable": false },
+        { "name": "Money value type", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "solid-srp-ocp",
+      "name": "SOLID: SRP & OCP",
+      "blurb": "One reason to change per class, and open for extension but closed for modification.",
+      "tier": 3,
+      "prereqs": ["composition-over-inheritance", "encapsulation-invariants"],
+      "cardTags": ["solid"],
+      "problems": [
+        { "name": "Split a god class by responsibility", "difficulty": "medium", "playable": false },
+        { "name": "Open for extension via interface", "difficulty": "medium", "playable": false },
+        { "name": "Add a new type without editing old code", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "coupling-cohesion",
+      "name": "Coupling, Cohesion & Demeter",
+      "blurb": "Maximize cohesion within a module, minimize coupling between them, and don't talk to strangers.",
+      "tier": 3,
+      "prereqs": ["composition-over-inheritance"],
+      "cardTags": ["architecture", "design"],
+      "problems": [
+        { "name": "Apply the Law of Demeter", "difficulty": "medium", "playable": false },
+        { "name": "Reduce coupling with an interface", "difficulty": "medium", "playable": false },
+        { "name": "Tell, don't ask refactor", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "solid-lsp-isp-dip",
+      "name": "SOLID: LSP, ISP & DIP",
+      "blurb": "Subtypes must be substitutable, interfaces small and client-specific, and dependencies point at abstractions.",
+      "tier": 4,
+      "prereqs": ["solid-srp-ocp"],
+      "cardTags": ["solid", "dependency-injection"],
+      "problems": [
+        { "name": "Fix an LSP violation", "difficulty": "hard", "playable": false },
+        { "name": "Split a fat interface", "difficulty": "medium", "playable": false },
+        { "name": "Depend on abstractions", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "dependency-injection",
+      "name": "Dependency Injection",
+      "blurb": "Pass collaborators in from outside instead of constructing them internally, so wiring lives at the edges.",
+      "tier": 4,
+      "prereqs": ["solid-lsp-isp-dip"],
+      "cardTags": ["dependency-injection"],
+      "problems": [
+        { "name": "Constructor injection", "difficulty": "easy", "playable": false },
+        { "name": "Inject a policy via template", "difficulty": "medium", "playable": false },
+        { "name": "Wire dependencies at composition root", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "singleton",
+      "name": "Singleton",
+      "blurb": "Guarantee a single shared instance with controlled access, while knowing why it's often a smell.",
+      "tier": 4,
+      "prereqs": ["raii-design", "dependency-injection"],
+      "cardTags": ["singleton", "patterns"],
+      "problems": [
+        { "name": "Meyers Singleton", "difficulty": "easy", "playable": true },
+        { "name": "Thread-safe lazy singleton", "difficulty": "medium", "playable": false },
+        { "name": "Monostate alternative", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "factory-builder",
+      "name": "Factory, Abstract Factory, Builder & Prototype",
+      "blurb": "Encapsulate object construction: factories choose the type, builders assemble step by step, prototypes clone.",
+      "tier": 5,
+      "prereqs": ["solid-lsp-isp-dip", "dependency-injection"],
+      "cardTags": ["factory", "patterns"],
+      "problems": [
+        { "name": "Factory function", "difficulty": "easy", "playable": true },
+        { "name": "Builder with method chaining", "difficulty": "medium", "playable": true },
+        { "name": "Abstract factory family", "difficulty": "hard", "playable": false },
+        { "name": "Prototype clone", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "adapter-facade",
+      "name": "Adapter & Facade",
+      "blurb": "Wrap an incompatible interface to fit a client, or hide a subsystem behind one simple entry point.",
+      "tier": 5,
+      "prereqs": ["solid-lsp-isp-dip"],
+      "cardTags": ["adapter", "structural"],
+      "problems": [
+        { "name": "Adapter to a legacy interface", "difficulty": "medium", "playable": false },
+        { "name": "Facade over a subsystem", "difficulty": "medium", "playable": false },
+        { "name": "Object adapter via composition", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "decorator-proxy",
+      "name": "Decorator, Proxy & Flyweight",
+      "blurb": "Wrap an object to add behavior, control access to it, or share immutable state across many instances.",
+      "tier": 5,
+      "prereqs": ["composition-over-inheritance", "solid-srp-ocp"],
+      "cardTags": ["decorator", "structural"],
+      "problems": [
+        { "name": "Implement a Decorator chain", "difficulty": "medium", "playable": false },
+        { "name": "Logging proxy", "difficulty": "medium", "playable": false },
+        { "name": "Flyweight glyph cache", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "composite",
+      "name": "Composite",
+      "blurb": "Treat individual objects and compositions of objects uniformly through a shared tree interface.",
+      "tier": 5,
+      "prereqs": ["composition-over-inheritance"],
+      "cardTags": ["composition", "structural"],
+      "problems": [
+        { "name": "Composite tree of shapes", "difficulty": "medium", "playable": false },
+        { "name": "Sum sizes over a composite", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "strategy",
+      "name": "Strategy & Template Method",
+      "blurb": "Vary an algorithm by injecting a pluggable strategy, or by overriding steps of a fixed skeleton.",
+      "tier": 5,
+      "prereqs": ["dependency-injection", "solid-srp-ocp"],
+      "cardTags": ["strategy", "behavioral"],
+      "problems": [
+        { "name": "Strategy via lambda", "difficulty": "easy", "playable": true },
+        { "name": "Pluggable sort strategy", "difficulty": "medium", "playable": false },
+        { "name": "Template Method hook", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "observer",
+      "name": "Observer",
+      "blurb": "Let subjects notify a changing set of subscribers without knowing who they are.",
+      "tier": 5,
+      "prereqs": ["solid-lsp-isp-dip"],
+      "cardTags": ["observer", "behavioral"],
+      "problems": [
+        { "name": "Observer — subscribe and notify", "difficulty": "medium", "playable": true },
+        { "name": "Signal/slot with std::function", "difficulty": "medium", "playable": false },
+        { "name": "Auto-unsubscribe on scope exit", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "command-state",
+      "name": "Command, State & Chain of Responsibility",
+      "blurb": "Reify a request as an object to queue, undo, hand along a chain, or drive an explicit state machine.",
+      "tier": 6,
+      "prereqs": ["strategy"],
+      "cardTags": ["behavioral", "patterns"],
+      "problems": [
+        { "name": "Command with undo", "difficulty": "hard", "playable": false },
+        { "name": "State machine for a turnstile", "difficulty": "medium", "playable": false },
+        { "name": "Chain of Responsibility handler", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "visitor-iterator",
+      "name": "Visitor & Iterator",
+      "blurb": "Add operations over a fixed object structure without touching it, and traverse containers uniformly.",
+      "tier": 6,
+      "prereqs": ["composite"],
+      "cardTags": ["variant", "behavioral"],
+      "problems": [
+        { "name": "Visitor with std::variant", "difficulty": "medium", "playable": true },
+        { "name": "Classic double-dispatch visitor", "difficulty": "hard", "playable": false },
+        { "name": "Custom forward iterator", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "crtp",
+      "name": "CRTP & Static Polymorphism",
+      "blurb": "Use the curiously recurring template pattern for compile-time polymorphism and reusable mixins.",
+      "tier": 6,
+      "prereqs": ["solid-lsp-isp-dip"],
+      "cardTags": ["crtp", "virtual"],
+      "problems": [
+        { "name": "CRTP base", "difficulty": "medium", "playable": true },
+        { "name": "Static polymorphism with CRTP", "difficulty": "medium", "playable": false },
+        { "name": "Mixin via CRTP", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "type-erasure-variant",
+      "name": "Type Erasure & Sum Types",
+      "blurb": "Choose runtime polymorphism via type-erased wrappers versus closed sets modeled with std::variant.",
+      "tier": 6,
+      "prereqs": ["value-semantics", "strategy"],
+      "cardTags": ["type-erasure", "variant"],
+      "problems": [
+        { "name": "Type-erased Any", "difficulty": "hard", "playable": false },
+        { "name": "std::function-style callable wrapper", "difficulty": "hard", "playable": false },
+        { "name": "Closed set polymorphism with std::variant", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "pimpl-abi",
+      "name": "PIMPL, Firewalls & ABI",
+      "blurb": "Hide implementation behind a pointer to cut compile-time coupling and keep a stable binary interface.",
+      "tier": 7,
+      "prereqs": ["value-semantics", "raii-design"],
+      "cardTags": ["pimpl"],
+      "problems": [
+        { "name": "PIMPL a class", "difficulty": "medium", "playable": false },
+        { "name": "Stable ABI across a boundary", "difficulty": "hard", "playable": false },
+        { "name": "Compilation firewall header", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "error-handling-architecture",
+      "name": "Error-Handling Architecture",
+      "blurb": "Design failure paths deliberately: exceptions, std::expected, or error codes, and where each boundary sits.",
+      "tier": 7,
+      "prereqs": ["value-objects-entities"],
+      "cardTags": ["expected"],
+      "problems": [
+        { "name": "Return std::expected instead of throwing", "difficulty": "medium", "playable": false },
+        { "name": "Error code vs exception boundary", "difficulty": "medium", "playable": false },
+        { "name": "Result type with monadic then", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "hexagonal-ports-adapters",
+      "name": "Hexagonal / Ports & Adapters",
+      "blurb": "Isolate domain logic behind ports and plug infrastructure in through adapters for testable layering.",
+      "tier": 7,
+      "prereqs": ["dependency-injection", "adapter-facade"],
+      "cardTags": ["architecture", "adapter"],
+      "problems": [
+        { "name": "Define a port interface", "difficulty": "medium", "playable": false },
+        { "name": "Adapter implementing a port", "difficulty": "medium", "playable": false },
+        { "name": "Isolate domain from infrastructure", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "data-oriented-design",
+      "name": "Data-Oriented Design vs OOP",
+      "blurb": "Lay out data for the machine, not the object model: contrast AoS with SoA for cache-friendly performance.",
+      "tier": 7,
+      "prereqs": ["value-semantics", "composition-over-inheritance"],
+      "cardTags": ["architecture", "value-semantics"],
+      "problems": [
+        { "name": "AoS to SoA transform", "difficulty": "medium", "playable": false },
+        { "name": "Cache-friendly particle update", "difficulty": "hard", "playable": false },
+        { "name": "Struct packing for locality", "difficulty": "medium", "playable": false }
+      ]
+    }
+  ]
+}

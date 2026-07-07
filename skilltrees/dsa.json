@@ -1,0 +1,381 @@
+{
+  "id": "dsa",
+  "name": "DS&A Interview Patterns",
+  "icon": "💼",
+  "nodes": [
+    {
+      "id": "hashing-frequency",
+      "name": "Hashing & Frequency Counting",
+      "blurb": "Trade space for time with hash maps/sets to look up, dedupe, and count in O(1); the foundation for most array problems.",
+      "tier": 1,
+      "prereqs": [],
+      "cardTags": ["hash-table", "array"],
+      "problems": [
+        {"name": "Two Sum", "difficulty": "easy", "playable": true},
+        {"name": "Group Anagrams", "difficulty": "medium", "playable": true},
+        {"name": "Contains Duplicate", "difficulty": "easy", "playable": false},
+        {"name": "Valid Anagram", "difficulty": "easy", "playable": false},
+        {"name": "Longest Consecutive Sequence", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "two-pointers",
+      "name": "Two Pointers",
+      "blurb": "Walk two indices toward or away from each other on a sorted or symmetric array to converge on pairs/palindromes in O(n).",
+      "tier": 2,
+      "prereqs": ["hashing-frequency"],
+      "cardTags": ["two-pointers", "array", "sorting"],
+      "problems": [
+        {"name": "Valid Palindrome", "difficulty": "easy", "playable": true},
+        {"name": "3Sum", "difficulty": "medium", "playable": true},
+        {"name": "Container With Most Water", "difficulty": "medium", "playable": true},
+        {"name": "Two Sum II - Input Array Is Sorted", "difficulty": "medium", "playable": false},
+        {"name": "3Sum Closest", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "prefix-sum",
+      "name": "Prefix Sum",
+      "blurb": "Precompute running totals so any range/subarray sum answers in O(1); pair with a hash map to count subarrays hitting a target.",
+      "tier": 2,
+      "prereqs": ["hashing-frequency"],
+      "cardTags": ["prefix-sum", "array", "hash-table"],
+      "problems": [
+        {"name": "Subarray Sum Equals K", "difficulty": "medium", "playable": false},
+        {"name": "Range Sum Query - Immutable", "difficulty": "easy", "playable": false},
+        {"name": "Product of Array Except Self", "difficulty": "medium", "playable": false},
+        {"name": "Contiguous Array", "difficulty": "medium", "playable": false},
+        {"name": "Find Pivot Index", "difficulty": "easy", "playable": false}
+      ]
+    },
+    {
+      "id": "binary-search",
+      "name": "Binary Search",
+      "blurb": "Halve a sorted (or monotonic) search space each step; also 'binary search the answer' when you can test a candidate in O(n).",
+      "tier": 2,
+      "prereqs": ["hashing-frequency"],
+      "cardTags": ["binary-search", "array"],
+      "problems": [
+        {"name": "Search in Rotated Sorted Array", "difficulty": "medium", "playable": true},
+        {"name": "Koko Eating Bananas", "difficulty": "medium", "playable": true},
+        {"name": "Binary Search", "difficulty": "easy", "playable": false},
+        {"name": "Find Minimum in Rotated Sorted Array", "difficulty": "medium", "playable": false},
+        {"name": "Find First and Last Position of Element in Sorted Array", "difficulty": "medium", "playable": false},
+        {"name": "Median of Two Sorted Arrays", "difficulty": "hard", "playable": false}
+      ]
+    },
+    {
+      "id": "stack",
+      "name": "Stack",
+      "blurb": "Use a LIFO stack to match nested structure, defer work, and evaluate expressions in one pass.",
+      "tier": 2,
+      "prereqs": ["hashing-frequency"],
+      "cardTags": ["stack", "string"],
+      "problems": [
+        {"name": "Valid Parentheses", "difficulty": "easy", "playable": true},
+        {"name": "Min Stack", "difficulty": "medium", "playable": false},
+        {"name": "Evaluate Reverse Polish Notation", "difficulty": "medium", "playable": false},
+        {"name": "Basic Calculator", "difficulty": "hard", "playable": false},
+        {"name": "Implement Queue using Stacks", "difficulty": "easy", "playable": false}
+      ]
+    },
+    {
+      "id": "linked-list",
+      "name": "Linked List",
+      "blurb": "Manipulate nodes by rewiring next-pointers; master reversal, merging, and dummy-head bookkeeping.",
+      "tier": 2,
+      "prereqs": ["hashing-frequency"],
+      "cardTags": ["linked-list"],
+      "problems": [
+        {"name": "Merge Two Sorted Lists", "difficulty": "easy", "playable": true},
+        {"name": "Reverse Linked List", "difficulty": "easy", "playable": true},
+        {"name": "Remove Nth Node From End of List", "difficulty": "medium", "playable": false},
+        {"name": "Reorder List", "difficulty": "medium", "playable": false},
+        {"name": "Add Two Numbers", "difficulty": "medium", "playable": false},
+        {"name": "Copy List with Random Pointer", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "bit-manipulation",
+      "name": "Bit Manipulation",
+      "blurb": "Use XOR, masks, and shifts to pack state, cancel pairs, and compute without extra memory.",
+      "tier": 2,
+      "prereqs": ["hashing-frequency"],
+      "cardTags": ["bit-tricks", "array"],
+      "problems": [
+        {"name": "Single Number", "difficulty": "easy", "playable": false},
+        {"name": "Number of 1 Bits", "difficulty": "easy", "playable": false},
+        {"name": "Counting Bits", "difficulty": "easy", "playable": false},
+        {"name": "Reverse Bits", "difficulty": "easy", "playable": false},
+        {"name": "Sum of Two Integers", "difficulty": "medium", "playable": false},
+        {"name": "Missing Number", "difficulty": "easy", "playable": false}
+      ]
+    },
+    {
+      "id": "sliding-window",
+      "name": "Sliding Window",
+      "blurb": "Grow and shrink a contiguous window to answer 'best/longest/shortest subarray or substring' problems in O(n).",
+      "tier": 3,
+      "prereqs": ["two-pointers"],
+      "cardTags": ["sliding-window", "two-pointers", "string", "array"],
+      "problems": [
+        {"name": "Best Time to Buy and Sell Stock", "difficulty": "easy", "playable": true},
+        {"name": "Longest Substring Without Repeating Characters", "difficulty": "medium", "playable": true},
+        {"name": "Sliding Window Maximum", "difficulty": "hard", "playable": true},
+        {"name": "Longest Repeating Character Replacement", "difficulty": "medium", "playable": false},
+        {"name": "Minimum Window Substring", "difficulty": "hard", "playable": false},
+        {"name": "Permutation in String", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "monotonic-stack",
+      "name": "Monotonic Stack",
+      "blurb": "Keep the stack sorted while scanning to find the next/previous greater or smaller element in amortized O(n).",
+      "tier": 3,
+      "prereqs": ["stack"],
+      "cardTags": ["monotonic-stack", "stack", "array"],
+      "problems": [
+        {"name": "Daily Temperatures", "difficulty": "medium", "playable": true},
+        {"name": "Trapping Rain Water", "difficulty": "hard", "playable": true},
+        {"name": "Next Greater Element I", "difficulty": "easy", "playable": false},
+        {"name": "Largest Rectangle in Histogram", "difficulty": "hard", "playable": false},
+        {"name": "Car Fleet", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "fast-slow-pointers",
+      "name": "Fast & Slow Pointers",
+      "blurb": "Run two pointers at different speeds (Floyd's tortoise-and-hare) to detect cycles and find midpoints without extra space.",
+      "tier": 3,
+      "prereqs": ["linked-list"],
+      "cardTags": ["linked-list", "two-pointers"],
+      "problems": [
+        {"name": "Linked List Cycle", "difficulty": "easy", "playable": false},
+        {"name": "Linked List Cycle II", "difficulty": "medium", "playable": false},
+        {"name": "Middle of the Linked List", "difficulty": "easy", "playable": false},
+        {"name": "Happy Number", "difficulty": "easy", "playable": false},
+        {"name": "Find the Duplicate Number", "difficulty": "medium", "playable": false},
+        {"name": "Palindrome Linked List", "difficulty": "easy", "playable": false}
+      ]
+    },
+    {
+      "id": "trees",
+      "name": "Trees: BFS & DFS",
+      "blurb": "Traverse binary trees recursively (DFS) or level-by-level (BFS) to compute depth, structure, and aggregates.",
+      "tier": 3,
+      "prereqs": ["linked-list"],
+      "cardTags": ["tree", "dfs", "bfs", "recursion"],
+      "problems": [
+        {"name": "Invert Binary Tree", "difficulty": "easy", "playable": true},
+        {"name": "Binary Tree Level Order Traversal", "difficulty": "medium", "playable": true},
+        {"name": "Maximum Depth of Binary Tree", "difficulty": "easy", "playable": false},
+        {"name": "Diameter of Binary Tree", "difficulty": "easy", "playable": false},
+        {"name": "Balanced Binary Tree", "difficulty": "easy", "playable": false},
+        {"name": "Lowest Common Ancestor of a Binary Tree", "difficulty": "medium", "playable": false},
+        {"name": "Binary Tree Maximum Path Sum", "difficulty": "hard", "playable": false}
+      ]
+    },
+    {
+      "id": "heap-priority-queue",
+      "name": "Heap / Priority Queue",
+      "blurb": "Keep the top-K or the running min/max cheaply with a binary heap; ideal for streaming and scheduling problems.",
+      "tier": 3,
+      "prereqs": ["hashing-frequency"],
+      "cardTags": ["heap", "sorting"],
+      "problems": [
+        {"name": "Top K Frequent Elements", "difficulty": "medium", "playable": true},
+        {"name": "Kth Largest Element in an Array", "difficulty": "medium", "playable": true},
+        {"name": "Find Median from Data Stream", "difficulty": "hard", "playable": false},
+        {"name": "Merge k Sorted Lists", "difficulty": "hard", "playable": false},
+        {"name": "Task Scheduler", "difficulty": "medium", "playable": false},
+        {"name": "Last Stone Weight", "difficulty": "easy", "playable": false}
+      ]
+    },
+    {
+      "id": "intervals",
+      "name": "Intervals",
+      "blurb": "Sort by start/end, then sweep to merge overlaps, insert, or count conflicts.",
+      "tier": 3,
+      "prereqs": ["two-pointers"],
+      "cardTags": ["intervals", "sorting", "array"],
+      "problems": [
+        {"name": "Merge Intervals", "difficulty": "medium", "playable": true},
+        {"name": "Insert Interval", "difficulty": "medium", "playable": false},
+        {"name": "Non-overlapping Intervals", "difficulty": "medium", "playable": false},
+        {"name": "Meeting Rooms", "difficulty": "easy", "playable": false},
+        {"name": "Meeting Rooms II", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "matrix",
+      "name": "Matrix Manipulation",
+      "blurb": "Treat a 2-D grid as an array with (row, col) math to rotate, spiral, or mark in place.",
+      "tier": 3,
+      "prereqs": ["two-pointers"],
+      "cardTags": ["matrix", "array"],
+      "problems": [
+        {"name": "Rotate Image", "difficulty": "medium", "playable": false},
+        {"name": "Spiral Matrix", "difficulty": "medium", "playable": false},
+        {"name": "Set Matrix Zeroes", "difficulty": "medium", "playable": false},
+        {"name": "Search a 2D Matrix", "difficulty": "medium", "playable": false},
+        {"name": "Game of Life", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "binary-search-tree",
+      "name": "Binary Search Tree",
+      "blurb": "Exploit the left<root<right invariant so search, insert, and ordered traversal run in O(height).",
+      "tier": 4,
+      "prereqs": ["trees", "binary-search"],
+      "cardTags": ["tree", "binary-search", "recursion"],
+      "problems": [
+        {"name": "Validate Binary Search Tree", "difficulty": "medium", "playable": true},
+        {"name": "Lowest Common Ancestor of a Binary Search Tree", "difficulty": "medium", "playable": false},
+        {"name": "Kth Smallest Element in a BST", "difficulty": "medium", "playable": false},
+        {"name": "Convert Sorted Array to Binary Search Tree", "difficulty": "easy", "playable": false},
+        {"name": "Insert into a Binary Search Tree", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "backtracking",
+      "name": "Backtracking",
+      "blurb": "Explore the decision tree with DFS, choosing then un-choosing to enumerate valid configurations while pruning dead ends.",
+      "tier": 4,
+      "prereqs": ["trees"],
+      "cardTags": ["backtracking", "recursion"],
+      "problems": [
+        {"name": "Combination Sum", "difficulty": "medium", "playable": false},
+        {"name": "Word Search", "difficulty": "medium", "playable": false},
+        {"name": "Letter Combinations of a Phone Number", "difficulty": "medium", "playable": false},
+        {"name": "Palindrome Partitioning", "difficulty": "medium", "playable": false},
+        {"name": "N-Queens", "difficulty": "hard", "playable": false},
+        {"name": "Generate Parentheses", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "graphs",
+      "name": "Graphs: BFS/DFS & Islands",
+      "blurb": "Model connectivity as nodes and edges, then flood-fill or traverse grids/adjacency lists to count components and shortest hops.",
+      "tier": 4,
+      "prereqs": ["trees", "matrix"],
+      "cardTags": ["graph", "dfs", "bfs", "matrix"],
+      "problems": [
+        {"name": "Number of Islands", "difficulty": "medium", "playable": true},
+        {"name": "Clone Graph", "difficulty": "medium", "playable": false},
+        {"name": "Max Area of Island", "difficulty": "medium", "playable": false},
+        {"name": "Rotting Oranges", "difficulty": "medium", "playable": false},
+        {"name": "Pacific Atlantic Water Flow", "difficulty": "medium", "playable": false},
+        {"name": "Word Ladder", "difficulty": "hard", "playable": false}
+      ]
+    },
+    {
+      "id": "greedy",
+      "name": "Greedy",
+      "blurb": "Make the locally optimal choice at each step and prove it yields the global optimum; watch for reachability and exchange arguments.",
+      "tier": 4,
+      "prereqs": ["two-pointers"],
+      "cardTags": ["greedy", "array"],
+      "problems": [
+        {"name": "Jump Game", "difficulty": "medium", "playable": true},
+        {"name": "Jump Game II", "difficulty": "medium", "playable": false},
+        {"name": "Gas Station", "difficulty": "medium", "playable": false},
+        {"name": "Hand of Straights", "difficulty": "medium", "playable": false},
+        {"name": "Maximum Subarray", "difficulty": "medium", "playable": false},
+        {"name": "Partition Labels", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "trie",
+      "name": "Trie (Prefix Tree)",
+      "blurb": "Store strings in a character-branched tree for O(L) prefix lookups; the backbone of autocomplete and word-search.",
+      "tier": 4,
+      "prereqs": ["trees"],
+      "cardTags": ["trie", "tree", "string"],
+      "problems": [
+        {"name": "Implement Trie (Prefix Tree)", "difficulty": "medium", "playable": false},
+        {"name": "Design Add and Search Words Data Structure", "difficulty": "medium", "playable": false},
+        {"name": "Word Search II", "difficulty": "hard", "playable": false},
+        {"name": "Longest Common Prefix", "difficulty": "easy", "playable": false},
+        {"name": "Replace Words", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "subsets-permutations",
+      "name": "Subsets & Permutations",
+      "blurb": "Systematically generate every subset, combination, or ordering via backtracking, handling duplicates with sorting/skips.",
+      "tier": 5,
+      "prereqs": ["backtracking"],
+      "cardTags": ["backtracking", "recursion"],
+      "problems": [
+        {"name": "Subsets", "difficulty": "medium", "playable": true},
+        {"name": "Permutations", "difficulty": "medium", "playable": false},
+        {"name": "Subsets II", "difficulty": "medium", "playable": false},
+        {"name": "Combinations", "difficulty": "medium", "playable": false},
+        {"name": "Permutations II", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "topological-sort",
+      "name": "Topological Sort",
+      "blurb": "Order a DAG's nodes so every edge points forward using Kahn's BFS or DFS post-order; detects cycles in dependency problems.",
+      "tier": 5,
+      "prereqs": ["graphs"],
+      "cardTags": ["topological-sort", "graph", "dfs", "bfs"],
+      "problems": [
+        {"name": "Course Schedule", "difficulty": "medium", "playable": true},
+        {"name": "Course Schedule II", "difficulty": "medium", "playable": false},
+        {"name": "Alien Dictionary", "difficulty": "hard", "playable": false},
+        {"name": "Minimum Height Trees", "difficulty": "medium", "playable": false},
+        {"name": "Sequence Reconstruction", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "union-find",
+      "name": "Union-Find (DSU)",
+      "blurb": "Maintain disjoint sets with union-by-rank and path compression for near-O(1) connectivity queries and cycle detection.",
+      "tier": 5,
+      "prereqs": ["graphs"],
+      "cardTags": ["union-find", "graph"],
+      "problems": [
+        {"name": "Number of Connected Components in an Undirected Graph", "difficulty": "medium", "playable": false},
+        {"name": "Graph Valid Tree", "difficulty": "medium", "playable": false},
+        {"name": "Redundant Connection", "difficulty": "medium", "playable": false},
+        {"name": "Accounts Merge", "difficulty": "medium", "playable": false},
+        {"name": "Number of Provinces", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "one-d-dp",
+      "name": "1-D Dynamic Programming",
+      "blurb": "Turn overlapping subproblems into a linear DP table/recurrence; memoize or tabulate over a single dimension.",
+      "tier": 5,
+      "prereqs": ["backtracking"],
+      "cardTags": ["dynamic-programming", "array"],
+      "problems": [
+        {"name": "Climbing Stairs", "difficulty": "easy", "playable": true},
+        {"name": "Coin Change", "difficulty": "medium", "playable": true},
+        {"name": "House Robber", "difficulty": "medium", "playable": false},
+        {"name": "Longest Increasing Subsequence", "difficulty": "medium", "playable": false},
+        {"name": "Word Break", "difficulty": "medium", "playable": false},
+        {"name": "Maximum Product Subarray", "difficulty": "medium", "playable": false},
+        {"name": "Decode Ways", "difficulty": "medium", "playable": false}
+      ]
+    },
+    {
+      "id": "two-d-dp",
+      "name": "2-D Dynamic Programming",
+      "blurb": "Extend DP to a grid/table indexed by two variables to solve matching, pathing, and knapsack-style problems.",
+      "tier": 6,
+      "prereqs": ["one-d-dp"],
+      "cardTags": ["dynamic-programming", "matrix", "string"],
+      "problems": [
+        {"name": "Unique Paths", "difficulty": "medium", "playable": false},
+        {"name": "Longest Common Subsequence", "difficulty": "medium", "playable": false},
+        {"name": "Edit Distance", "difficulty": "hard", "playable": false},
+        {"name": "0/1 Knapsack", "difficulty": "medium", "playable": false},
+        {"name": "Longest Palindromic Substring", "difficulty": "medium", "playable": false},
+        {"name": "Maximal Square", "difficulty": "medium", "playable": false}
+      ]
+    }
+  ]
+}

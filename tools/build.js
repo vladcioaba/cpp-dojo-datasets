@@ -8,8 +8,18 @@ const ROOT = path.resolve(__dirname, "..");
 const TOPICS = fs.readdirSync(ROOT).filter(d =>
   fs.statSync(path.join(ROOT, d)).isDirectory() && !d.startsWith(".") && d !== "tools" && d !== "node_modules");
 
+// merge skill trees into one skills.json the app fetches
+const treeDir = path.join(ROOT, "skilltrees");
+if (fs.existsSync(treeDir)) {
+  const trees = fs.readdirSync(treeDir).filter(f => f.endsWith(".json")).sort()
+    .map(f => JSON.parse(fs.readFileSync(path.join(treeDir, f), "utf8")));
+  fs.writeFileSync(path.join(ROOT, "skills.json"), JSON.stringify({ trees }, null, 1));
+  const nodes = trees.reduce((n, t) => n + t.nodes.length, 0);
+  console.log(`${trees.length} skill trees, ${nodes} nodes -> skills.json`);
+}
+
 const cards = [];
-for (const topic of TOPICS.sort()) {
+for (const topic of TOPICS.filter(t => t !== "skilltrees").sort()) {
   const files = fs.readdirSync(path.join(ROOT, topic)).filter(f => f.endsWith(".md")).sort();
   for (const file of files) {
     const body = fs.readFileSync(path.join(ROOT, topic, file), "utf8").replace(/\s+$/, "") + "\n";

@@ -1,0 +1,283 @@
+{
+  "id": "fpga",
+  "name": "FPGA for HFT",
+  "icon": "🔧",
+  "nodes": [
+    {
+      "id": "what-is-an-fpga",
+      "name": "What Is an FPGA",
+      "blurb": "A field-programmable gate array is a chip of reconfigurable logic (LUTs, flip-flops, and CLBs) you wire into any digital circuit after manufacturing.",
+      "tier": 1,
+      "prereqs": [],
+      "cardTags": ["fpga", "fundamentals"],
+      "problems": [
+        { "name": "Blinking LED", "difficulty": "easy", "playable": false },
+        { "name": "Implement a 2-to-1 mux in one LUT", "difficulty": "easy", "playable": false },
+        { "name": "Map a 4-input AND to a LUT4", "difficulty": "easy", "playable": false }
+      ]
+    },
+    {
+      "id": "hard-blocks-bram-dsp",
+      "name": "Hard Blocks: BRAM & DSP",
+      "blurb": "Beyond the soft fabric sit dedicated block RAM and DSP slices that give you cheap on-chip memory and fast multiply-accumulate.",
+      "tier": 2,
+      "prereqs": ["what-is-an-fpga"],
+      "cardTags": ["fpga", "bram", "dsp"],
+      "problems": [
+        { "name": "Infer a single-port BRAM", "difficulty": "medium", "playable": false },
+        { "name": "Infer a DSP multiply-accumulate", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "fpga-vs-asic-vs-cpu",
+      "name": "FPGA vs ASIC vs CPU",
+      "blurb": "FPGAs trade the raw speed of an ASIC and the flexibility of a CPU for reconfigurable, spatial, parallel compute.",
+      "tier": 2,
+      "prereqs": ["what-is-an-fpga"],
+      "cardTags": ["fpga", "fundamentals"],
+      "problems": [
+        { "name": "Compare latency of a filter on CPU vs FPGA", "difficulty": "medium", "playable": false },
+        { "name": "Decide FPGA or ASIC for a fixed-volume product", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "hardware-thinking",
+      "name": "Hardware Thinking: Parallel by Default",
+      "blurb": "HDL describes structure, not a sequence: everything you write runs at once unless you deliberately serialize it.",
+      "tier": 2,
+      "prereqs": ["what-is-an-fpga"],
+      "cardTags": ["hdl", "fundamentals", "verilog"],
+      "problems": [
+        { "name": "Describe eight independent adders", "difficulty": "easy", "playable": false },
+        { "name": "Spot the sequential-vs-parallel trap", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "combinational-logic",
+      "name": "Combinational Logic",
+      "blurb": "Purely combinational logic maps inputs to outputs with no memory, built from gates, muxes, and lookup tables.",
+      "tier": 3,
+      "prereqs": ["hardware-thinking", "what-is-an-fpga"],
+      "cardTags": ["hdl", "verilog", "fundamentals"],
+      "problems": [
+        { "name": "4-bit ripple-carry adder", "difficulty": "easy", "playable": false },
+        { "name": "8-to-1 multiplexer", "difficulty": "easy", "playable": false },
+        { "name": "Binary-to-7-segment decoder", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "toolchain",
+      "name": "Toolchain: Synthesis, P&R, Bitstream",
+      "blurb": "Your HDL flows through synthesis, place-and-route, and timing analysis before it becomes a bitstream loaded into the chip.",
+      "tier": 4,
+      "prereqs": ["combinational-logic"],
+      "cardTags": ["fpga", "timing", "fundamentals"],
+      "problems": [
+        { "name": "Read a synthesis utilization report", "difficulty": "easy", "playable": false },
+        { "name": "Apply a timing constraint (SDC/XDC)", "difficulty": "medium", "playable": false },
+        { "name": "Interpret a P&R timing summary", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "sequential-logic",
+      "name": "Sequential Logic & Flip-Flops",
+      "blurb": "Registers built from flip-flops remember state between clock edges, turning combinational logic into machines with memory.",
+      "tier": 4,
+      "prereqs": ["combinational-logic"],
+      "cardTags": ["hdl", "verilog", "clock"],
+      "problems": [
+        { "name": "4-bit counter", "difficulty": "easy", "playable": false },
+        { "name": "Shift register", "difficulty": "easy", "playable": false },
+        { "name": "Edge detector", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "fixed-vs-float",
+      "name": "Fixed-Point vs Float",
+      "blurb": "Fixed-point arithmetic is far cheaper and faster in fabric than IEEE floating point, at the cost of managing range and precision.",
+      "tier": 4,
+      "prereqs": ["hard-blocks-bram-dsp", "combinational-logic"],
+      "cardTags": ["dsp", "fundamentals"],
+      "problems": [
+        { "name": "Q4.12 fixed-point multiplier", "difficulty": "medium", "playable": false },
+        { "name": "Round and saturate a fixed-point accumulator", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "blocking-vs-nonblocking",
+      "name": "Blocking vs Non-Blocking Assignment",
+      "blurb": "Use non-blocking for sequential logic and blocking for combinational, or your simulation and silicon will disagree.",
+      "tier": 5,
+      "prereqs": ["sequential-logic"],
+      "cardTags": ["hdl", "verilog", "testbench"],
+      "problems": [
+        { "name": "Fix a race from misused blocking assignment", "difficulty": "medium", "playable": false },
+        { "name": "Swap two registers correctly", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "clocks-and-fmax",
+      "name": "Clocks, Reset & Fmax",
+      "blurb": "The clock paces every register and Fmax is its highest workable frequency; resets can be synchronous or asynchronous, each with trade-offs.",
+      "tier": 5,
+      "prereqs": ["sequential-logic"],
+      "cardTags": ["clock", "timing"],
+      "problems": [
+        { "name": "Build a clock divider", "difficulty": "easy", "playable": false },
+        { "name": "Estimate Fmax from a logic depth", "difficulty": "medium", "playable": false },
+        { "name": "Reset synchronizer (async assert, sync deassert)", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "bram-vs-registers",
+      "name": "BRAM vs Registers",
+      "blurb": "Choose block RAM for dense addressed storage and registers for wide parallel access; the wrong choice wastes fabric or timing.",
+      "tier": 5,
+      "prereqs": ["hard-blocks-bram-dsp", "sequential-logic"],
+      "cardTags": ["bram", "fundamentals"],
+      "problems": [
+        { "name": "Dual-port BRAM buffer", "difficulty": "medium", "playable": false },
+        { "name": "Decide register file vs BRAM for a lookup", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "fsm-design",
+      "name": "FSMs & One-Hot Encoding",
+      "blurb": "Finite state machines sequence control logic; one-hot encoding trades flip-flops for shallow, fast decode logic.",
+      "tier": 6,
+      "prereqs": ["blocking-vs-nonblocking", "sequential-logic"],
+      "cardTags": ["fsm", "hdl", "verilog"],
+      "problems": [
+        { "name": "Debounce a button (FSM)", "difficulty": "medium", "playable": false },
+        { "name": "Sequence detector FSM", "difficulty": "medium", "playable": false },
+        { "name": "Traffic-light controller", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "setup-hold-timing",
+      "name": "Setup/Hold, Critical Path & Timing Closure",
+      "blurb": "Data must be stable a setup time before and a hold time after each edge; the slowest register-to-register critical path sets your Fmax and must meet timing.",
+      "tier": 6,
+      "prereqs": ["clocks-and-fmax"],
+      "cardTags": ["timing", "clock"],
+      "problems": [
+        { "name": "Compute slack for a register-to-register path", "difficulty": "medium", "playable": false },
+        { "name": "Diagnose a hold violation", "difficulty": "hard", "playable": false },
+        { "name": "Shorten a critical path by re-timing", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "testbench-simulation",
+      "name": "Testbenches & Simulation",
+      "blurb": "Simulation with a testbench drives stimulus and checks responses so you catch bugs before place-and-route.",
+      "tier": 6,
+      "prereqs": ["blocking-vs-nonblocking", "toolchain"],
+      "cardTags": ["testbench", "hdl", "verilog"],
+      "problems": [
+        { "name": "Testbench for a 4-bit counter", "difficulty": "easy", "playable": false },
+        { "name": "Self-checking testbench with assertions", "difficulty": "medium", "playable": false },
+        { "name": "Waveform-driven debug of an FSM", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "metastability-cdc",
+      "name": "Metastability & Clock-Domain Crossing",
+      "blurb": "A signal sampled between clock domains can go metastable; a 2-FF synchronizer or async FIFO tames it.",
+      "tier": 7,
+      "prereqs": ["setup-hold-timing", "clocks-and-fmax"],
+      "cardTags": ["metastability", "cdc", "clock"],
+      "problems": [
+        { "name": "2-FF synchronizer", "difficulty": "medium", "playable": false },
+        { "name": "FIFO with CDC", "difficulty": "hard", "playable": false },
+        { "name": "Pulse synchronizer across domains", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "pipelining",
+      "name": "Pipelining & Parallelism",
+      "blurb": "Registering stages raises Fmax and throughput at the cost of latency and initiation interval; unrolling and replication process many items per cycle.",
+      "tier": 7,
+      "prereqs": ["setup-hold-timing"],
+      "cardTags": ["pipelining", "timing", "latency"],
+      "problems": [
+        { "name": "Pipelined multiplier", "difficulty": "medium", "playable": false },
+        { "name": "Compute II of a pipelined loop", "difficulty": "medium", "playable": false },
+        { "name": "Unroll a dot-product by 4", "difficulty": "medium", "playable": false },
+        { "name": "Replicate a comparator tree for wide search", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "hls-cpp-to-rtl",
+      "name": "HLS: C++ to RTL",
+      "blurb": "High-level synthesis compiles annotated C++ into RTL, letting you pipeline and unroll with pragmas instead of hand-written HDL.",
+      "tier": 8,
+      "prereqs": ["pipelining", "toolchain"],
+      "cardTags": ["hls", "pipelining"],
+      "problems": [
+        { "name": "Pipeline a loop with an HLS pragma", "difficulty": "medium", "playable": false },
+        { "name": "Partition an array for parallel access", "difficulty": "hard", "playable": false },
+        { "name": "Hit II=1 on a streaming kernel", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "tick-to-trade",
+      "name": "Tick-to-Trade in Nanoseconds",
+      "blurb": "HFT judges an FPGA on tick-to-trade latency and determinism: fixed, jitter-free nanoseconds from market data in to order out.",
+      "tier": 8,
+      "prereqs": ["pipelining", "metastability-cdc"],
+      "cardTags": ["tick-to-trade", "latency", "determinism"],
+      "problems": [
+        { "name": "Budget a tick-to-trade latency path", "difficulty": "hard", "playable": false },
+        { "name": "Minimize jitter in a datapath", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "inline-feed-handler",
+      "name": "Inline-on-NIC Feed Handlers",
+      "blurb": "A feed handler decodes market data directly in the NIC fabric, parsing packets on the wire with zero host round-trip.",
+      "tier": 9,
+      "prereqs": ["tick-to-trade", "fsm-design"],
+      "cardTags": ["tick-to-trade", "latency", "fsm"],
+      "problems": [
+        { "name": "Parse a fixed-layout market-data packet", "difficulty": "hard", "playable": false },
+        { "name": "Streaming line-rate order-book update", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "hardware-pretrade-risk",
+      "name": "Hardware Pre-Trade Risk",
+      "blurb": "Risk checks run inline in fabric so every outgoing order is validated in a few deterministic nanoseconds before it leaves.",
+      "tier": 9,
+      "prereqs": ["tick-to-trade", "fixed-vs-float"],
+      "cardTags": ["tick-to-trade", "determinism", "latency"],
+      "problems": [
+        { "name": "Inline fat-finger price/size check", "difficulty": "hard", "playable": false },
+        { "name": "Running position-limit accumulator", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "ab-feed-arbitration",
+      "name": "A/B Feed Arbitration",
+      "blurb": "Exchanges publish redundant A and B feeds; hardware arbitrates them by sequence number to fill gaps at line rate.",
+      "tier": 10,
+      "prereqs": ["inline-feed-handler", "bram-vs-registers"],
+      "cardTags": ["tick-to-trade", "cdc", "bram"],
+      "problems": [
+        { "name": "Sequence-number gap detector", "difficulty": "hard", "playable": false },
+        { "name": "Arbitrate A/B feeds into one ordered stream", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "kernel-bypass-vs-full-hw",
+      "name": "Kernel Bypass vs Full Hardware",
+      "blurb": "Kernel bypass keeps strategy on the host CPU; full-hardware puts the whole tick-to-trade loop in fabric for the lowest latency.",
+      "tier": 11,
+      "prereqs": ["inline-feed-handler", "hardware-pretrade-risk", "ab-feed-arbitration"],
+      "cardTags": ["tick-to-trade", "latency", "determinism"],
+      "problems": [
+        { "name": "Compare latency: kernel bypass vs inline FPGA", "difficulty": "hard", "playable": false },
+        { "name": "Partition a strategy across host and fabric", "difficulty": "hard", "playable": false }
+      ]
+    }
+  ]
+}

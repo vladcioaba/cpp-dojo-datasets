@@ -1,0 +1,394 @@
+{
+  "id": "cpp",
+  "name": "Modern C++ Mastery",
+  "icon": "⚙️",
+  "nodes": [
+    {
+      "id": "value-semantics",
+      "name": "Value Semantics & Object Model",
+      "blurb": "Objects are values with identity, lifetime, and copies you can reason about.",
+      "tier": 1,
+      "prereqs": [],
+      "cardTags": ["core", "value-semantics"],
+      "problems": [
+        { "name": "Implement a value-semantic Vec2", "difficulty": "easy", "playable": false },
+        { "name": "Deep-copy a dynamic array class", "difficulty": "medium", "playable": false },
+        { "name": "Return a big object by value", "difficulty": "easy", "playable": false },
+        { "name": "Detect an accidental copy", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "references-const",
+      "name": "References & Const-Correctness",
+      "blurb": "Bind without copying and let const document (and enforce) intent.",
+      "tier": 2,
+      "prereqs": ["value-semantics"],
+      "cardTags": ["core"],
+      "problems": [
+        { "name": "Const-correct getter/setter pair", "difficulty": "easy", "playable": false },
+        { "name": "Builder with method chaining", "difficulty": "medium", "playable": true },
+        { "name": "const overload of operator[]", "difficulty": "medium", "playable": false },
+        { "name": "Pass by const-ref vs value benchmark", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "type-system",
+      "name": "The Type System: auto & decltype",
+      "blurb": "Let the compiler name your types and preserve their exact category.",
+      "tier": 2,
+      "prereqs": ["value-semantics"],
+      "cardTags": ["core"],
+      "problems": [
+        { "name": "Trailing return type", "difficulty": "easy", "playable": false },
+        { "name": "auto vs decltype return type", "difficulty": "medium", "playable": false },
+        { "name": "decltype(auto) perfect return", "difficulty": "hard", "playable": false },
+        { "name": "Structured bindings for a struct", "difficulty": "easy", "playable": false }
+      ]
+    },
+    {
+      "id": "raii",
+      "name": "RAII: Resource Acquisition Is Initialization",
+      "blurb": "Tie every resource to an object's lifetime so cleanup is automatic.",
+      "tier": 3,
+      "prereqs": ["references-const"],
+      "cardTags": ["raii", "core", "singleton"],
+      "problems": [
+        { "name": "RAII file guard", "difficulty": "easy", "playable": true },
+        { "name": "Scoped timer (RAII)", "difficulty": "easy", "playable": true },
+        { "name": "Meyers Singleton", "difficulty": "medium", "playable": true },
+        { "name": "Fixed-capacity object pool", "difficulty": "hard", "playable": true },
+        { "name": "RAII mutex lock guard", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "lambdas",
+      "name": "Lambdas & Closures",
+      "blurb": "Inline function objects that capture state and drive callbacks.",
+      "tier": 3,
+      "prereqs": ["references-const"],
+      "cardTags": ["lambdas"],
+      "problems": [
+        { "name": "Strategy via lambda", "difficulty": "easy", "playable": true },
+        { "name": "Observer — subscribe and notify", "difficulty": "medium", "playable": true },
+        { "name": "Capture by value vs reference", "difficulty": "easy", "playable": false },
+        { "name": "Generic (templated) lambda", "difficulty": "medium", "playable": false },
+        { "name": "Recursive lambda with the Y-combinator", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "stl-containers",
+      "name": "STL Containers & Their Tradeoffs",
+      "blurb": "Pick the right container by knowing its memory layout and complexity.",
+      "tier": 3,
+      "prereqs": ["value-semantics"],
+      "cardTags": ["containers", "vector"],
+      "problems": [
+        { "name": "O(1) swap-remove", "difficulty": "easy", "playable": true },
+        { "name": "Reserve to avoid reallocations", "difficulty": "easy", "playable": false },
+        { "name": "vector vs list traversal benchmark", "difficulty": "medium", "playable": false },
+        { "name": "Pick the right container (map vs unordered_map)", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "overload-resolution",
+      "name": "Overload Resolution & ADL",
+      "blurb": "How the compiler chooses one function among many, and where it looks.",
+      "tier": 3,
+      "prereqs": ["type-system"],
+      "cardTags": ["core"],
+      "problems": [
+        { "name": "Break an ambiguous overload", "difficulty": "medium", "playable": false },
+        { "name": "ADL-found swap", "difficulty": "medium", "playable": false },
+        { "name": "Hidden friend operator<<", "difficulty": "medium", "playable": false },
+        { "name": "Tag dispatch on iterator category", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "rule-of-five",
+      "name": "The Rule of 0 / 3 / 5",
+      "blurb": "Own a resource and you owe five special members — or better, zero.",
+      "tier": 4,
+      "prereqs": ["raii", "value-semantics"],
+      "cardTags": ["value-semantics", "core"],
+      "problems": [
+        { "name": "Make a class non-copyable", "difficulty": "easy", "playable": true },
+        { "name": "Rule of zero refactor", "difficulty": "medium", "playable": false },
+        { "name": "Copy-and-swap assignment", "difficulty": "medium", "playable": false },
+        { "name": "Rule of five for an owning buffer", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "exception-safety",
+      "name": "Exception Safety & Guarantees",
+      "blurb": "Write code that stays correct even when an operation throws mid-flight.",
+      "tier": 4,
+      "prereqs": ["raii"],
+      "cardTags": ["exceptions", "raii"],
+      "problems": [
+        { "name": "RAII to avoid leaks on throw", "difficulty": "medium", "playable": false },
+        { "name": "Copy-and-swap for exception safety", "difficulty": "medium", "playable": false },
+        { "name": "Strong exception guarantee for push_back", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "iterators",
+      "name": "Iterators & Ranges of Data",
+      "blurb": "The uniform cursor abstraction that connects containers to algorithms.",
+      "tier": 4,
+      "prereqs": ["stl-containers"],
+      "cardTags": ["containers"],
+      "problems": [
+        { "name": "Range-based for over a custom type", "difficulty": "medium", "playable": false },
+        { "name": "Reverse iterator adapter", "difficulty": "medium", "playable": false },
+        { "name": "Write a forward iterator", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "templates",
+      "name": "Templates & Argument Deduction",
+      "blurb": "Write once, generate for many types, and let deduction fill in the blanks.",
+      "tier": 4,
+      "prereqs": ["type-system", "overload-resolution"],
+      "cardTags": ["templates"],
+      "problems": [
+        { "name": "Generic max", "difficulty": "easy", "playable": true },
+        { "name": "Deduce template arguments", "difficulty": "medium", "playable": false },
+        { "name": "Class template with a default argument", "difficulty": "medium", "playable": false },
+        { "name": "Explicit specialization", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "move-semantics",
+      "name": "Move Semantics & Rvalue References",
+      "blurb": "Steal resources from expiring objects instead of copying them.",
+      "tier": 5,
+      "prereqs": ["rule-of-five"],
+      "cardTags": ["move", "value-semantics"],
+      "problems": [
+        { "name": "Move constructor", "difficulty": "medium", "playable": true },
+        { "name": "Move assignment with self-check", "difficulty": "medium", "playable": false },
+        { "name": "std::move a member out of a class", "difficulty": "easy", "playable": false },
+        { "name": "Sink argument by value", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "algorithms-ranges",
+      "name": "Algorithms & Ranges",
+      "blurb": "Replace raw loops with composable, correct standard algorithms.",
+      "tier": 5,
+      "prereqs": ["iterators", "lambdas"],
+      "cardTags": ["ranges"],
+      "problems": [
+        { "name": "Rewrite a raw loop with std algorithms", "difficulty": "easy", "playable": false },
+        { "name": "erase-remove idiom", "difficulty": "medium", "playable": false },
+        { "name": "Filter | transform pipeline (ranges)", "difficulty": "medium", "playable": false },
+        { "name": "Custom projection with ranges", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "constexpr",
+      "name": "constexpr & Compile-Time Computation",
+      "blurb": "Push work from run time to compile time for free results and constants.",
+      "tier": 5,
+      "prereqs": ["templates"],
+      "cardTags": ["constexpr"],
+      "problems": [
+        { "name": "constexpr factorial", "difficulty": "easy", "playable": false },
+        { "name": "if constexpr branch", "difficulty": "medium", "playable": false },
+        { "name": "constexpr string hash", "difficulty": "medium", "playable": false },
+        { "name": "consteval compile-time check", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "undefined-behavior",
+      "name": "Undefined Behavior & Strict Aliasing",
+      "blurb": "Know the sharp edges the compiler assumes you will never touch.",
+      "tier": 5,
+      "prereqs": ["value-semantics", "references-const"],
+      "cardTags": ["undefined-behavior", "aliasing"],
+      "problems": [
+        { "name": "Type-pun a float without UB", "difficulty": "medium", "playable": true },
+        { "name": "Fix a strict-aliasing violation", "difficulty": "hard", "playable": false },
+        { "name": "Signed overflow trap", "difficulty": "medium", "playable": false },
+        { "name": "Dangling reference hunt", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "smart-pointers",
+      "name": "Ownership & Smart Pointers",
+      "blurb": "Model unique, shared, and non-owning ownership with the right pointer.",
+      "tier": 6,
+      "prereqs": ["raii", "move-semantics"],
+      "cardTags": ["smart-pointers", "raii"],
+      "problems": [
+        { "name": "Factory function", "difficulty": "easy", "playable": true },
+        { "name": "unique_ptr with a custom deleter", "difficulty": "medium", "playable": false },
+        { "name": "Break a shared_ptr cycle with weak_ptr", "difficulty": "hard", "playable": false },
+        { "name": "Implement a tiny unique_ptr", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "copy-elision-rvo",
+      "name": "Copy Elision & RVO",
+      "blurb": "When the compiler builds the result in place and skips the copy entirely.",
+      "tier": 6,
+      "prereqs": ["move-semantics"],
+      "cardTags": ["move"],
+      "problems": [
+        { "name": "Guaranteed copy elision (C++17)", "difficulty": "easy", "playable": false },
+        { "name": "Trigger NRVO and observe no copy", "difficulty": "medium", "playable": false },
+        { "name": "Defeat RVO on purpose", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "noexcept",
+      "name": "noexcept & the Move-or-Copy Choice",
+      "blurb": "Promise not to throw, and unlock faster library fast paths.",
+      "tier": 6,
+      "prereqs": ["exception-safety", "move-semantics"],
+      "cardTags": ["exceptions"],
+      "problems": [
+        { "name": "Mark a move constructor noexcept", "difficulty": "medium", "playable": false },
+        { "name": "noexcept move enables vector growth", "difficulty": "hard", "playable": false },
+        { "name": "Conditional noexcept(noexcept(...))", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "variadic-templates",
+      "name": "Variadic Templates & Fold Expressions",
+      "blurb": "Take any number of arguments of any types and forward them perfectly.",
+      "tier": 6,
+      "prereqs": ["templates"],
+      "cardTags": ["templates"],
+      "problems": [
+        { "name": "Fold expression print", "difficulty": "easy", "playable": false },
+        { "name": "Variadic sum", "difficulty": "medium", "playable": false },
+        { "name": "Perfect-forwarding make_unique", "difficulty": "hard", "playable": false },
+        { "name": "Tuple-like storage", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "sfinae-concepts",
+      "name": "SFINAE → Concepts",
+      "blurb": "Constrain templates cleanly with C++20 concepts instead of enable_if tricks.",
+      "tier": 6,
+      "prereqs": ["templates"],
+      "cardTags": ["concepts", "templates"],
+      "problems": [
+        { "name": "requires-clause constraint", "difficulty": "medium", "playable": false },
+        { "name": "Write a Container concept", "difficulty": "medium", "playable": false },
+        { "name": "enable_if a function overload", "difficulty": "hard", "playable": false },
+        { "name": "Detection idiom (has member)", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "crtp",
+      "name": "CRTP & Static Polymorphism",
+      "blurb": "Reuse behavior through the derived type with zero virtual overhead.",
+      "tier": 6,
+      "prereqs": ["templates"],
+      "cardTags": ["crtp", "inheritance"],
+      "problems": [
+        { "name": "CRTP base", "difficulty": "medium", "playable": true },
+        { "name": "CRTP static counter", "difficulty": "medium", "playable": false },
+        { "name": "CRTP mixin (equality)", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "variant-optional-expected",
+      "name": "variant / optional / expected",
+      "blurb": "Model 'one of', 'maybe', and 'value or error' as first-class value types.",
+      "tier": 6,
+      "prereqs": ["templates"],
+      "cardTags": ["variant"],
+      "problems": [
+        { "name": "Visitor with std::variant", "difficulty": "medium", "playable": true },
+        { "name": "optional as a maybe-return", "difficulty": "easy", "playable": false },
+        { "name": "expected error handling", "difficulty": "medium", "playable": false },
+        { "name": "Overload set for std::visit", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "hot-path-bit-tricks",
+      "name": "Hot-Path Code & Bit Tricks",
+      "blurb": "Branchless, inlinable, cache-friendly code where every cycle counts.",
+      "tier": 6,
+      "prereqs": ["undefined-behavior"],
+      "cardTags": ["hot-path", "inlining"],
+      "problems": [
+        { "name": "Branchless min", "difficulty": "easy", "playable": true },
+        { "name": "Round up to power of two", "difficulty": "easy", "playable": true },
+        { "name": "popcount without the builtin", "difficulty": "medium", "playable": true },
+        { "name": "Force-inline a hot helper", "difficulty": "medium", "playable": false }
+      ]
+    },
+    {
+      "id": "memory-model-atomics",
+      "name": "Memory Model & std::atomic",
+      "blurb": "Reason about visibility and ordering across threads with atomics.",
+      "tier": 6,
+      "prereqs": ["undefined-behavior"],
+      "cardTags": ["atomics", "memory-order"],
+      "problems": [
+        { "name": "Cache-line aligned counter (kill false sharing)", "difficulty": "hard", "playable": true },
+        { "name": "Atomic counter with relaxed order", "difficulty": "medium", "playable": false },
+        { "name": "Acquire/release flag handoff", "difficulty": "hard", "playable": false },
+        { "name": "Double-checked locking done right", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "type-erasure",
+      "name": "Type Erasure",
+      "blurb": "Hide concrete types behind a uniform interface, like std::function does.",
+      "tier": 7,
+      "prereqs": ["templates", "smart-pointers"],
+      "cardTags": ["templates", "virtual"],
+      "problems": [
+        { "name": "Tiny std::function", "difficulty": "hard", "playable": false },
+        { "name": "any_drawable with type erasure", "difficulty": "hard", "playable": false },
+        { "name": "Small-buffer-optimized callable", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "concurrency-threads",
+      "name": "Concurrency: Threads, Mutex, CV",
+      "blurb": "Coordinate threads safely with mutexes and condition variables.",
+      "tier": 7,
+      "prereqs": ["memory-model-atomics"],
+      "cardTags": ["concurrency"],
+      "problems": [
+        { "name": "std::async fan-out/fan-in", "difficulty": "medium", "playable": false },
+        { "name": "Deadlock and fix with std::scoped_lock", "difficulty": "medium", "playable": false },
+        { "name": "Producer/consumer with condition_variable", "difficulty": "hard", "playable": false },
+        { "name": "Thread pool", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "coroutines",
+      "name": "Coroutines (C++20)",
+      "blurb": "Suspend and resume functions to write lazy generators and async tasks.",
+      "tier": 7,
+      "prereqs": ["move-semantics", "templates"],
+      "cardTags": ["core", "coroutines"],
+      "problems": [
+        { "name": "Minimal generator coroutine", "difficulty": "hard", "playable": false },
+        { "name": "Lazy task<T>", "difficulty": "hard", "playable": false },
+        { "name": "co_await a timer", "difficulty": "hard", "playable": false }
+      ]
+    },
+    {
+      "id": "lock-free",
+      "name": "Lock-Free Data Structures",
+      "blurb": "Build wait-free and lock-free queues with atomics and careful ordering.",
+      "tier": 8,
+      "prereqs": ["memory-model-atomics", "concurrency-threads"],
+      "cardTags": ["lock-free", "atomics", "concurrency"],
+      "problems": [
+        { "name": "SPSC ring buffer", "difficulty": "hard", "playable": true },
+        { "name": "Compare-exchange loop", "difficulty": "medium", "playable": false },
+        { "name": "Treiber stack (lock-free)", "difficulty": "hard", "playable": false },
+        { "name": "ABA problem demo", "difficulty": "hard", "playable": false }
+      ]
+    }
+  ]
+}

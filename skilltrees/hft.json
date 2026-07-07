@@ -1,0 +1,265 @@
+{
+ "id": "hft",
+ "name": "Low-Latency / HFT",
+ "icon": "⚡",
+ "nodes": [
+  {
+   "id": "cache-lines",
+   "name": "CPU Cache & Cache Lines",
+   "blurb": "The cache line, not the byte, is the real unit of memory access.",
+   "tier": 1,
+   "prereqs": [],
+   "cardTags": ["cache", "memory", "hft"],
+   "problems": [
+    {"name": "Print the L1 cache line size", "difficulty": "easy", "playable": false},
+    {"name": "Pack a struct into one 64-byte cache line", "difficulty": "easy", "playable": false},
+    {"name": "Sequential vs strided array-sum benchmark", "difficulty": "medium", "playable": false}
+   ]
+  },
+  {
+   "id": "branchless",
+   "name": "Branch Prediction & Branchless Code",
+   "blurb": "A mispredicted branch costs more than the work it guards, so remove it.",
+   "tier": 1,
+   "prereqs": [],
+   "cardTags": ["branch-prediction", "hot-path"],
+   "problems": [
+    {"name": "Branchless min", "difficulty": "easy", "playable": true},
+    {"name": "Branchless abs", "difficulty": "easy", "playable": false},
+    {"name": "Branchless clamp", "difficulty": "medium", "playable": false},
+    {"name": "Sort a branch-heavy loop to make it predictable", "difficulty": "medium", "playable": false}
+   ]
+  },
+  {
+   "id": "bit-tricks",
+   "name": "Bit Tricks & Integer Hacks",
+   "blurb": "Bit manipulation replaces loops, branches, and division on the hot path.",
+   "tier": 1,
+   "prereqs": [],
+   "cardTags": ["bit-tricks", "hot-path"],
+   "problems": [
+    {"name": "Round up to power of two", "difficulty": "easy", "playable": true},
+    {"name": "popcount without the builtin", "difficulty": "medium", "playable": true},
+    {"name": "Check if a number is a power of two", "difficulty": "easy", "playable": false},
+    {"name": "Isolate the lowest set bit", "difficulty": "easy", "playable": false}
+   ]
+  },
+  {
+   "id": "memory-hierarchy",
+   "name": "Memory Hierarchy & Prefetching",
+   "blurb": "Registers to DRAM span three orders of magnitude; prefetch to hide the miss.",
+   "tier": 2,
+   "prereqs": ["cache-lines"],
+   "cardTags": ["memory", "cache", "latency"],
+   "problems": [
+    {"name": "Software-prefetch a linked-list traversal", "difficulty": "medium", "playable": false},
+    {"name": "Blocked (tiled) matrix multiply", "difficulty": "hard", "playable": false},
+    {"name": "Measure the latency of each cache level", "difficulty": "hard", "playable": false}
+   ]
+  },
+  {
+   "id": "false-sharing",
+   "name": "False Sharing & alignas",
+   "blurb": "Two hot variables on one cache line ping-pong between cores for no reason.",
+   "tier": 2,
+   "prereqs": ["cache-lines"],
+   "cardTags": ["false-sharing", "cache", "concurrency"],
+   "problems": [
+    {"name": "Cache-line aligned counter (kill false sharing)", "difficulty": "medium", "playable": true},
+    {"name": "Pad a struct with alignas(64)", "difficulty": "easy", "playable": false},
+    {"name": "Two-thread counter false-sharing benchmark", "difficulty": "medium", "playable": false}
+   ]
+  },
+  {
+   "id": "cache-data-structures",
+   "name": "Cache-Friendly Data Structures (SoA, flat maps)",
+   "blurb": "Contiguous, flat layouts beat pointer-chasing trees on real hardware.",
+   "tier": 2,
+   "prereqs": ["cache-lines"],
+   "cardTags": ["cache", "memory", "hot-path"],
+   "problems": [
+    {"name": "O(1) swap-remove", "difficulty": "easy", "playable": true},
+    {"name": "AoS to SoA transform", "difficulty": "medium", "playable": false},
+    {"name": "Open-addressing flat hash map lookup", "difficulty": "hard", "playable": false}
+   ]
+  },
+  {
+   "id": "type-punning",
+   "name": "Type Punning & Strict Aliasing",
+   "blurb": "Reinterpreting bits is essential yet trivially undefined if done wrong.",
+   "tier": 2,
+   "prereqs": ["bit-tricks"],
+   "cardTags": ["aliasing", "undefined-behavior", "bit-tricks"],
+   "problems": [
+    {"name": "Type-pun a float without UB", "difficulty": "medium", "playable": true},
+    {"name": "Fast inverse square root bit hack", "difficulty": "medium", "playable": false},
+    {"name": "memcpy-based reinterpret helper", "difficulty": "easy", "playable": false}
+   ]
+  },
+  {
+   "id": "hot-path-cpp",
+   "name": "Hot-Path C++ (no virtual / exceptions / shared_ptr)",
+   "blurb": "Virtual dispatch, throwing, and refcount bumps are latency you cannot afford.",
+   "tier": 2,
+   "prereqs": ["branchless"],
+   "cardTags": ["hot-path", "virtual", "smart-pointers"],
+   "problems": [
+    {"name": "Devirtualize a callback with CRTP", "difficulty": "medium", "playable": false},
+    {"name": "Replace shared_ptr with a raw handle", "difficulty": "medium", "playable": false},
+    {"name": "Return an error code instead of throwing", "difficulty": "easy", "playable": false}
+   ]
+  },
+  {
+   "id": "denormals",
+   "name": "Denormals & FTZ",
+   "blurb": "Subnormal floats trap into microcode; flush-to-zero keeps the pipeline fast.",
+   "tier": 2,
+   "prereqs": ["branchless"],
+   "cardTags": ["denormals", "hot-path"],
+   "problems": [
+    {"name": "Enable flush-to-zero (FTZ/DAZ)", "difficulty": "medium", "playable": false},
+    {"name": "Benchmark a loop that produces denormals", "difficulty": "medium", "playable": false}
+   ]
+  },
+  {
+   "id": "memory-model",
+   "name": "The C++ Memory Model & memory_order",
+   "blurb": "Acquire/release fences the compiler and CPU from reordering your loads and stores.",
+   "tier": 3,
+   "prereqs": ["false-sharing"],
+   "cardTags": ["memory-order", "concurrency", "atomics"],
+   "problems": [
+    {"name": "Publish a flag with release/acquire", "difficulty": "medium", "playable": false},
+    {"name": "Spot the data race in a relaxed load", "difficulty": "hard", "playable": false},
+    {"name": "Sequentially-consistent vs relaxed counter", "difficulty": "medium", "playable": false}
+   ]
+  },
+  {
+   "id": "zero-copy",
+   "name": "Zero-Copy: RVO & noexcept",
+   "blurb": "Let the compiler elide copies and moves so returning by value stays free.",
+   "tier": 3,
+   "prereqs": ["hot-path-cpp"],
+   "cardTags": ["move", "hot-path"],
+   "problems": [
+    {"name": "Force NRVO on a large return", "difficulty": "medium", "playable": false},
+    {"name": "Write a noexcept move constructor", "difficulty": "easy", "playable": false},
+    {"name": "Return a value instead of an out-param", "difficulty": "easy", "playable": false}
+   ]
+  },
+  {
+   "id": "object-pool",
+   "name": "Object Pools & No Hot-Path Allocation",
+   "blurb": "malloc is unbounded latency; pre-allocate and recycle from a fixed pool.",
+   "tier": 3,
+   "prereqs": ["hot-path-cpp"],
+   "cardTags": ["allocation", "object-pool", "hot-path"],
+   "problems": [
+    {"name": "Fixed-capacity object pool", "difficulty": "medium", "playable": true},
+    {"name": "Intrusive free-list allocator", "difficulty": "medium", "playable": false},
+    {"name": "Arena / bump allocator", "difficulty": "medium", "playable": false}
+   ]
+  },
+  {
+   "id": "huge-pages",
+   "name": "Huge Pages & the TLB",
+   "blurb": "2MB pages shrink the page table so hot working sets stay TLB-resident.",
+   "tier": 3,
+   "prereqs": ["memory-hierarchy"],
+   "cardTags": ["huge-pages", "tlb", "memory"],
+   "problems": [
+    {"name": "Back an allocation with 2MB huge pages", "difficulty": "hard", "playable": false},
+    {"name": "Count TLB misses with perf", "difficulty": "medium", "playable": false}
+   ]
+  },
+  {
+   "id": "numa",
+   "name": "NUMA & Page Faults",
+   "blurb": "Remote memory and first-touch faults add latency you must design away.",
+   "tier": 3,
+   "prereqs": ["memory-hierarchy"],
+   "cardTags": ["numa", "memory", "latency"],
+   "problems": [
+    {"name": "Pin a thread to a NUMA node", "difficulty": "medium", "playable": false},
+    {"name": "First-touch page placement", "difficulty": "medium", "playable": false},
+    {"name": "Pre-fault a buffer to avoid hot-path page faults", "difficulty": "medium", "playable": false}
+   ]
+  },
+  {
+   "id": "latency-measurement",
+   "name": "Measuring Latency: rdtsc & Tail Percentiles",
+   "blurb": "The mean lies; measure with the TSC and report p99 / p99.9 tails.",
+   "tier": 3,
+   "prereqs": ["memory-hierarchy"],
+   "cardTags": ["latency", "timing", "hft"],
+   "problems": [
+    {"name": "TSC-based timer", "difficulty": "medium", "playable": false},
+    {"name": "p99 / p99.9 latency histogram", "difficulty": "hard", "playable": false},
+    {"name": "Warm the instruction cache before timing", "difficulty": "medium", "playable": false}
+   ]
+  },
+  {
+   "id": "atomics",
+   "name": "std::atomic",
+   "blurb": "Lock-free primitives built on hardware atomics and the right memory order.",
+   "tier": 4,
+   "prereqs": ["memory-model"],
+   "cardTags": ["atomics", "concurrency", "memory-order"],
+   "problems": [
+    {"name": "Atomic increment with fetch_add", "difficulty": "easy", "playable": false},
+    {"name": "Spinlock from atomic_flag", "difficulty": "medium", "playable": false},
+    {"name": "compare_exchange_weak retry loop", "difficulty": "medium", "playable": false}
+   ]
+  },
+  {
+   "id": "kernel-bypass",
+   "name": "Kernel Bypass",
+   "blurb": "Skip the syscall and the network stack; busy-poll the NIC from user space.",
+   "tier": 4,
+   "prereqs": ["numa"],
+   "cardTags": ["hft", "latency", "hot-path"],
+   "problems": [
+    {"name": "Busy-poll a ring instead of blocking read", "difficulty": "hard", "playable": false},
+    {"name": "Sketch a DPDK-style RX poll loop", "difficulty": "hard", "playable": false}
+   ]
+  },
+  {
+   "id": "cas-aba",
+   "name": "CAS & the ABA Problem",
+   "blurb": "Compare-and-swap is the atom of lock-free code, and ABA is its classic trap.",
+   "tier": 5,
+   "prereqs": ["atomics"],
+   "cardTags": ["atomics", "lock-free", "concurrency"],
+   "problems": [
+    {"name": "Lock-free stack push (CAS loop)", "difficulty": "hard", "playable": false},
+    {"name": "Tagged pointer to beat ABA", "difficulty": "hard", "playable": false}
+   ]
+  },
+  {
+   "id": "lock-free",
+   "name": "Lock-Free vs Wait-Free",
+   "blurb": "Lock-free guarantees system progress; wait-free guarantees it per thread.",
+   "tier": 5,
+   "prereqs": ["atomics"],
+   "cardTags": ["lock-free", "concurrency", "atomics"],
+   "problems": [
+    {"name": "Seqlock", "difficulty": "hard", "playable": false},
+    {"name": "Hazard pointers", "difficulty": "hard", "playable": false},
+    {"name": "Treiber stack", "difficulty": "hard", "playable": false}
+   ]
+  },
+  {
+   "id": "spsc-ring",
+   "name": "SPSC Ring Buffer",
+   "blurb": "The workhorse queue: single producer, single consumer, no locks, no allocation.",
+   "tier": 6,
+   "prereqs": ["lock-free", "cache-data-structures"],
+   "cardTags": ["ring-buffer", "spsc", "lock-free"],
+   "problems": [
+    {"name": "SPSC ring buffer", "difficulty": "medium", "playable": true},
+    {"name": "Bounded queue with power-of-two masking", "difficulty": "medium", "playable": false},
+    {"name": "MPMC queue", "difficulty": "hard", "playable": false}
+   ]
+  }
+ ]
+}
