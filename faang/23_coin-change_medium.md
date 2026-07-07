@@ -9,6 +9,10 @@ Constraints: `1 <= coins.length <= 12`, `1 <= coins[i] <= 2^31 - 1`, `0 <= amoun
 
 Example: `coins = [1,2,5], amount = 11` → `3` (`5+5+1`). Example: `coins = [2], amount = 3` → `-1`. Example: `amount = 0` → `0`.
 
+hint: The fewest coins for amount a is 1 plus the fewest for (a minus one coin), minimized over all coins.
+hint: Bottom-up dynamic programming over amounts 0..amount, in the style of unbounded knapsack.
+hint: `dp[a] = min over coins c <= a of dp[a - c] + 1`, with `dp[0] = 0` and an "impossible" sentinel elsewhere.
+
 ```cpp
 // starter
 #include <vector>
@@ -43,3 +47,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Dynamic programming where dp[a] is the minimum number of coins that form amount a. Build it up from 0, trying each coin as the last one used. Amounts that stay at the sentinel are unreachable and map to -1. O(amount * coins) time, O(amount) space.

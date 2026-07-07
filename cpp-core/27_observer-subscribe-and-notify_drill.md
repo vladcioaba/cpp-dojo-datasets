@@ -3,6 +3,9 @@ tags: patterns, observer
 
 `Button` stores callbacks in `std::vector<std::function<void()>> handlers`. Write two member functions: `on_click` taking `std::function<void()> h` and appending it with `push_back(std::move(h))`, and `click()` calling every handler `h` in `handlers` with a range-for over `auto& h`.
 
+hint: Store the subscribers as callables, then iterate over them and invoke each when the event fires.
+hint: `push_back(std::move(h))` to register a handler; a range-for calling `h()` to notify them all.
+
 ```cpp
 // starter
 class Button {
@@ -41,3 +44,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** The observer pattern keeps a list of `std::function<void()>` callbacks: `on_click` registers one (moving it in to avoid a copy) and `click` fires the event by invoking each in turn. Using `std::function` decouples the subject from concrete observer types. The drill teaches callback registration and notification.

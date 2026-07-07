@@ -3,6 +3,9 @@ tags: raii, patterns
 
 Write class `Timer`: constructor stores `std::chrono::steady_clock::now()` in member `start`; destructor computes `auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();` and prints it with `std::cout << ms << "ms\n";`.
 
+hint: Measure a scope's duration by capturing the start in the constructor and the elapsed time in the destructor.
+hint: Store `steady_clock::now()` on construction; subtract it from `now()` and report in the destructor.
+
 ```cpp
 class Timer {
     std::chrono::steady_clock::time_point start;
@@ -32,3 +35,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** A scoped timer applies RAII to measurement: it records the start time on construction and, when it leaves scope, its destructor computes and prints the elapsed duration — so timing always ends exactly at scope exit, even on early return. `steady_clock` is the correct monotonic clock for intervals. The drill teaches RAII for automatic scope-bound actions.

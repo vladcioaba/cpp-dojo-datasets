@@ -9,6 +9,10 @@ Constraints: `1 <= piles.length <= 10^4`, `piles.length <= h <= 10^9`, `1 <= pil
 
 Example: `piles = [3,6,7,11], h = 8` → `4`. Example: `piles = [30,11,23,4,20], h = 5` → `30`. Example: `h = 6` → `23`.
 
+hint: A faster eating speed is never worse: if speed k finishes in time, every speed above k does too. That monotonicity is the key.
+hint: Binary search on the answer itself — the speed k — between 1 and the largest pile.
+hint: For a candidate k, the hours needed are the sum of `ceil(pile / k)`; shrink or grow k based on whether it fits within h.
+
 ```cpp
 // starter
 #include <vector>
@@ -45,3 +49,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Binary search over the space of eating speeds. The predicate "can finish within h hours at speed k" is monotonic in k, so binary search finds the smallest feasible k; each check sums `ceil(pile / k)`. O(n log(maxPile)) time, O(1) space.

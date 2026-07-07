@@ -9,6 +9,10 @@ Constraints: `1 <= nums.length <= 10^5`, `k` is in `[1, number of distinct eleme
 
 Example: `nums = [1,1,1,2,2,3], k = 2` → `[1,2]`. Example: `nums = [1], k = 1` → `[1]`.
 
+hint: First count how often each value appears; then you only need the k largest counts.
+hint: Frequencies are bounded by n, so instead of sorting counts you can bucket values by their frequency.
+hint: Index buckets by count (0..n), then scan from the highest bucket downward, collecting values until you have k.
+
 ```cpp
 // starter
 #include <vector>
@@ -53,3 +57,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Count occurrences with a hash map, then place each value into a bucket indexed by its frequency. Scanning buckets from the highest frequency down collects the top k without ever fully sorting. O(n) time, O(n) space.

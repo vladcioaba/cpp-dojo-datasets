@@ -9,6 +9,9 @@ Constraints: `1 <= m, n <= 300`, each cell is `'0'` or `'1'`.
 
 Example: a grid with one big connected land mass → `1`. A grid with three separated clusters → `3`.
 
+hint: Each time you find a piece of unvisited land it is a new island — then erase everything reachable from it so you never count it twice.
+hint: Flood fill (DFS or BFS) from each land cell, sinking visited land to water as you go.
+
 ```cpp
 // starter
 #include <vector>
@@ -57,3 +60,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Scan the grid; on hitting a '1', increment the island count and flood-fill all connected land to '0' so it is not recounted. Each cell is touched a constant number of times. O(m*n) time, O(m*n) worst-case stack/queue space.

@@ -9,6 +9,9 @@ Constraints: `0 <= n <= 2000` nodes, `-1000 <= Node.val <= 1000`.
 
 Example: `[3,9,20,null,null,15,7]` → `[[3],[9,20],[15,7]]`. Example: `[1]` → `[[1]]`. Example: empty → `[]`.
 
+hint: Process the tree one complete level at a time, from the top down.
+hint: BFS with a queue, but snapshot the queue's size at the start of each level so you know where the level ends.
+
 ```cpp
 // starter
 #include <vector>
@@ -86,3 +89,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Breadth-first traversal with a queue, capturing the queue size at each level boundary to group the nodes per level. Every node is enqueued and dequeued once. O(n) time, O(n) space.

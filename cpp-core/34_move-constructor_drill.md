@@ -3,6 +3,10 @@ tags: move, core
 
 `Buffer` owns `int* data` and `size_t n`. Write its move constructor: take `Buffer&& other` (noexcept), steal `data` and `n` via member-init list `data(other.data), n(other.n)`, then null out the source: `other.data = nullptr; other.n = 0;`.
 
+hint: Moving means stealing the source's resources rather than copying them, then leaving the source safe to destroy.
+hint: Copy the pointer and size in the initializer list, then null out the source's pointer.
+hint: Mark it `noexcept` so containers like `std::vector` will move rather than copy during reallocation.
+
 ```cpp
 // starter
 class Buffer {
@@ -40,3 +44,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** The move constructor transfers ownership by copying the pointer and size, then resetting the source (`data = nullptr`) so its destructor will not double-free. Marking it `noexcept` lets containers move instead of copy when they reallocate. The drill teaches move semantics and the leave-the-source-valid rule. O(1).

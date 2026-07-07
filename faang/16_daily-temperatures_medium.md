@@ -9,6 +9,9 @@ Constraints: `1 <= temperatures.length <= 10^5`, `30 <= temperatures[i] <= 100`.
 
 Example: `[73,74,75,71,69,72,76,73]` → `[1,1,4,2,1,1,0,0]`. Example: `[30,40,50,60]` → `[1,1,1,0]`. Example: `[30,60,90]` → `[1,1,0]`.
 
+hint: For each day you want the nearest warmer day to its right — a classic "next greater element" question.
+hint: A monotonic stack of indices with decreasing temperatures resolves each day the moment a warmer one arrives.
+
 ```cpp
 // starter
 #include <vector>
@@ -48,3 +51,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Keep a stack of indices whose temperatures are strictly decreasing. When a warmer day arrives, pop every colder index and record the day distance for each. Each index is pushed and popped at most once. O(n) time, O(n) space.

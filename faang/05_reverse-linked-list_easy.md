@@ -9,6 +9,9 @@ Constraints: the list has `0 <= n <= 5000` nodes, `-5000 <= Node.val <= 5000`.
 
 Example: `1 -> 2 -> 3 -> 4 -> 5` → `5 -> 4 -> 3 -> 2 -> 1`. Example: empty list → empty list.
 
+hint: Walk the list once, flipping each node's `next` pointer to point back at the node before it.
+hint: Keep three pointers — previous, current, and a saved next — so you never lose the tail of the list.
+
 ```cpp
 // starter
 struct ListNode {
@@ -59,3 +62,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Iterate through the list reversing each `next` pointer, saving the following node before you overwrite it. When you fall off the end, `prev` is the new head. O(n) time, O(1) space.

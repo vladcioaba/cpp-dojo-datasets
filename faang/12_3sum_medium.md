@@ -9,6 +9,10 @@ Constraints: `3 <= nums.length <= 3000`, `-10^5 <= nums[i] <= 10^5`.
 
 Example: `nums = [-1,0,1,2,-1,-4]` → `[[-1,-1,2],[-1,0,1]]`. Example: `nums = [0,0,0]` → `[[0,0,0]]`. Example: `nums = [1,2,3]` → `[]`.
 
+hint: Fix one number, and the rest of the problem becomes: find two others that sum to its negation.
+hint: Sort the array first, then for each fixed index run two pointers converging from both sides.
+hint: Skip over equal adjacent values (for the fixed element and for both pointers) to avoid duplicate triplets.
+
 ```cpp
 // starter
 #include <vector>
@@ -63,3 +67,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Sort the array, then for each index run a two-pointer scan over the remainder searching for the target sum `-nums[i]`, moving the pointers based on whether the current sum is too small or too large. Sorting also makes it easy to skip duplicates. O(n^2) time, O(1) extra space beyond the output.

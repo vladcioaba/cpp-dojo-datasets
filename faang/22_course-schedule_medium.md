@@ -9,6 +9,10 @@ Constraints: `1 <= numCourses <= 2000`, `0 <= prerequisites.length <= 5000`, pai
 
 Example: `numCourses = 2, prerequisites = [[1,0]]` → `true`. Example: `[[1,0],[0,1]]` → `false` (cycle).
 
+hint: "Can I finish?" is really asking whether the prerequisite graph contains a cycle.
+hint: Topological sort — Kahn's algorithm repeatedly removes nodes that have no remaining prerequisites.
+hint: Track in-degrees, enqueue every zero-in-degree node, and if you cannot process all N courses a cycle exists.
+
 ```cpp
 // starter
 #include <vector>
@@ -51,3 +55,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Model courses as a directed graph and run Kahn's topological sort: repeatedly take a node of in-degree 0 and decrement its neighbors' in-degrees. If every node gets processed there is no cycle, so all courses are finishable. O(V+E) time, O(V+E) space.

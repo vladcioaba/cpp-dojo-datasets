@@ -9,6 +9,9 @@ Constraints: `1 <= n <= 10^4` nodes, `-2^31 <= Node.val <= 2^31 - 1`.
 
 Example: `[2,1,3]` → `true`. Example: `[5,1,4,null,null,3,6]` → `false` (3 and 6 are in the right subtree of 5 but 3 < 5). Example: `[5,4,6,null,null,3,7]` → `false`.
 
+hint: Checking only against a node's immediate children is not enough — every node must fall within a range fixed by all of its ancestors.
+hint: Recurse while carrying a valid open interval (lo, hi) that tightens as you descend left or right.
+
 ```cpp
 // starter
 struct TreeNode {
@@ -69,3 +72,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** DFS carries down an allowed open interval (lo, hi). Descending left tightens the upper bound to the current node's value; descending right tightens the lower bound. Any value outside its interval fails validation. O(n) time, O(h) space for recursion.

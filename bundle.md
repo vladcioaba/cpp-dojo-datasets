@@ -311,6 +311,9 @@ tags: patterns, singleton
 
 Write the body of `instance()` so that `Config` is a lazy, thread-safe singleton. Use a function-local static named `cfg`.
 
+hint: A function-local `static` is constructed exactly once, on the first call — that is the entire trick.
+hint: Return a reference to a local `static Config`; since C++11 its initialization is guaranteed thread-safe.
+
 ```cpp
 // starter
 class Config {
@@ -344,10 +347,15 @@ int main() {
 }
 ```
 
+**Editorial:** The Meyers singleton relies on a function-local static: it is constructed lazily on the first call, and since C++11 that initialization is guaranteed thread-safe (the compiler inserts a one-time guard). Returning it by reference yields a single shared instance with no manual locking. The drill teaches lazy, thread-safe single-instance initialization.
+
 ## exercise: RAII file guard
 tags: raii, patterns
 
 Write a class `File` that opens a `FILE*` with `fopen(path, "r")` in its constructor (member named `f`, parameter named `path`, type `const char*`) and closes it with `fclose(f)` in its destructor if it is non-null.
+
+hint: Tie the resource's lifetime to the object's lifetime — acquire in the constructor, release in the destructor.
+hint: Open with `fopen` in the constructor's initializer list; guard the `fclose` with a null check in the destructor.
 
 ```cpp
 class File {
@@ -368,10 +376,15 @@ int main() {
 }
 ```
 
+**Editorial:** RAII binds the `FILE*` handle to object lifetime: the constructor acquires it and the destructor releases it, so the file is closed automatically however the scope exits, including via an exception. The null check avoids calling `fclose` on a failed open. The drill teaches the core RAII resource-ownership idiom.
+
 ## exercise: Make a class non-copyable
 tags: raii, core
 
 `Connection` must never be copied. Delete its copy constructor and copy assignment operator (in that order).
+
+hint: You want the compiler to reject any attempt to copy — state that explicitly rather than hiding the functions.
+hint: Mark the copy constructor and the copy assignment operator `= delete`.
 
 ```cpp
 // starter
@@ -399,10 +412,15 @@ static_assert(!std::is_copy_assignable_v<Connection>);
 int main() { std::puts("PASS"); }
 ```
 
+**Editorial:** Marking the copy constructor and copy assignment operator `= delete` turns any copy attempt into a compile-time error, which is clearer and safer than the old private-and-undefined trick. It is the standard idiom for move-only or unique-ownership types. The drill teaches explicitly deleting special member functions.
+
 ## exercise: Factory function
 tags: patterns, factory
 
 Write a function `make_circle` taking `double r` and returning a `std::unique_ptr<Shape>` holding a `Circle` constructed with `r`. Use `std::make_unique`. One line body.
+
+hint: Hand back ownership of a base-class pointer while actually constructing a concrete derived type.
+hint: `std::make_unique<Circle>(r)` constructs the concrete type and implicitly converts to `unique_ptr<Shape>` on return.
 
 ```cpp
 // starter
@@ -432,10 +450,15 @@ int main() {
 }
 ```
 
+**Editorial:** A factory returns a `unique_ptr<Shape>` while constructing a concrete `Circle`, hiding the concrete type behind the base interface and transferring ownership safely. `std::make_unique` allocates and constructs in one exception-safe step. The drill teaches factory functions built on smart-pointer ownership.
+
 ## exercise: Observer — subscribe and notify
 tags: patterns, observer
 
 `Button` stores callbacks in `std::vector<std::function<void()>> handlers`. Write two member functions: `on_click` taking `std::function<void()> h` and appending it with `push_back(std::move(h))`, and `click()` calling every handler `h` in `handlers` with a range-for over `auto& h`.
+
+hint: Store the subscribers as callables, then iterate over them and invoke each when the event fires.
+hint: `push_back(std::move(h))` to register a handler; a range-for calling `h()` to notify them all.
 
 ```cpp
 // starter
@@ -476,10 +499,15 @@ int main() {
 }
 ```
 
+**Editorial:** The observer pattern keeps a list of `std::function<void()>` callbacks: `on_click` registers one (moving it in to avoid a copy) and `click` fires the event by invoking each in turn. Using `std::function` decouples the subject from concrete observer types. The drill teaches callback registration and notification.
+
 ## exercise: Strategy via lambda
 tags: patterns, strategy
 
 Sort `v` (a `std::vector<int>`) in **descending** order using `std::sort` and a lambda taking `int a, int b`. One statement.
+
+hint: The comparison is a pluggable strategy — pass it in rather than hard-coding the order.
+hint: Hand `std::sort` a lambda `(int a, int b){ return a > b; }` to sort descending.
 
 ```cpp
 std::sort(v.begin(), v.end(), [](int a, int b) { return a > b; });
@@ -498,10 +526,15 @@ int main() {
 }
 ```
 
+**Editorial:** The strategy pattern here is just a comparator lambda handed to `std::sort`; returning `a > b` flips the ordering to descending. In modern C++ a small callable replaces an entire strategy class hierarchy. The drill teaches passing behavior as a lambda; `std::sort` runs in O(n log n).
+
 ## exercise: Builder with method chaining
 tags: patterns, builder
 
 Write the member function `title` for `QueryBuilder`: it takes `std::string t`, assigns it with `title_ = std::move(t);`, and returns `*this` by reference so calls chain.
+
+hint: To let calls chain, each setter must hand back the very object it was called on.
+hint: Return `*this` by reference from the member function.
 
 ```cpp
 // starter
@@ -538,10 +571,16 @@ int main() {
 }
 ```
 
+**Editorial:** A builder's setters return `*this` by reference so calls chain fluently (`q.title(...).body(...)`); moving the string argument in avoids an extra copy. The pattern assembles a complex object step by step. The drill teaches method chaining via returning a self-reference.
+
 ## exercise: Visitor with std::variant
 tags: patterns, visitor, variant
 
 `v` is a `std::variant<int, std::string>`. Using `std::visit` and the `overloaded` idiom, return `std::size_t(x * 2)` for an `int x` and `s.size()` for a `const std::string& s` (both lambdas must return the same type — `std::visit` requires it). Assign the result to `auto n`.
+
+hint: Dispatch on whichever alternative the variant currently holds, with a distinct handler per type.
+hint: `std::visit` plus the `overloaded` idiom (a struct inheriting several lambdas) gives one branch per alternative.
+hint: Every branch must return the same type, so wrap the int result in `std::size_t` to match `s.size()`.
 
 ```cpp
 // starter
@@ -572,10 +611,15 @@ int main() {
 }
 ```
 
+**Editorial:** `std::visit` dispatches to the lambda that matches the variant's active alternative; the `overloaded` helper bundles the per-type lambdas into one callable via inheritance and a `using` declaration. All branches must yield a common return type, hence the `std::size_t` cast. The drill teaches type-safe visitation over a variant — the modern, hierarchy-free visitor.
+
 ## exercise: CRTP base
 tags: patterns, crtp, templates
 
 Write a struct template `Printable` taking `class D`, with a member function `print() const` that streams the derived object to `std::cout` via `std::cout << static_cast<const D&>(*this);`.
+
+hint: The base can call into the derived class without a vtable if it knows the derived type statically.
+hint: Template the base on the derived type and `static_cast<const D&>(*this)` to reach the derived object.
 
 ```cpp
 template <class D>
@@ -606,10 +650,15 @@ int main() {
 }
 ```
 
+**Editorial:** The Curiously Recurring Template Pattern passes the derived type as a template parameter, so the base can `static_cast` `*this` to `D&` and call derived behavior with everything resolved at compile time — polymorphism at zero virtual-dispatch cost. The drill teaches static (compile-time) polymorphism via CRTP.
+
 ## exercise: Scoped timer (RAII)
 tags: raii, patterns
 
 Write class `Timer`: constructor stores `std::chrono::steady_clock::now()` in member `start`; destructor computes `auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();` and prints it with `std::cout << ms << "ms\n";`.
+
+hint: Measure a scope's duration by capturing the start in the constructor and the elapsed time in the destructor.
+hint: Store `steady_clock::now()` on construction; subtract it from `now()` and report in the destructor.
 
 ```cpp
 class Timer {
@@ -641,10 +690,15 @@ int main() {
 }
 ```
 
+**Editorial:** A scoped timer applies RAII to measurement: it records the start time on construction and, when it leaves scope, its destructor computes and prints the elapsed duration — so timing always ends exactly at scope exit, even on early return. `steady_clock` is the correct monotonic clock for intervals. The drill teaches RAII for automatic scope-bound actions.
+
 ## exercise: Generic max
 tags: templates, core
 
 Write a function template `maxof` taking `class T` and two `const T&` parameters `a, b`, returning `const T&` — the larger of the two using `a < b ? b : a`.
+
+hint: Write it once for any comparable type by making the type a template parameter.
+hint: Take and return `const T&` and select with `a < b ? b : a`.
 
 ```cpp
 template <class T>
@@ -665,10 +719,16 @@ int main() {
 }
 ```
 
+**Editorial:** A function template parameterized on `T` works for any type providing `operator<`, returning by `const T&` to avoid copies. Relying solely on `<` mirrors how the standard library expresses ordering. The drill teaches basic function templates and reference-returning. O(1).
+
 ## exercise: Move constructor
 tags: move, core
 
 `Buffer` owns `int* data` and `size_t n`. Write its move constructor: take `Buffer&& other` (noexcept), steal `data` and `n` via member-init list `data(other.data), n(other.n)`, then null out the source: `other.data = nullptr; other.n = 0;`.
+
+hint: Moving means stealing the source's resources rather than copying them, then leaving the source safe to destroy.
+hint: Copy the pointer and size in the initializer list, then null out the source's pointer.
+hint: Mark it `noexcept` so containers like `std::vector` will move rather than copy during reallocation.
 
 ```cpp
 // starter
@@ -707,6 +767,8 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** The move constructor transfers ownership by copying the pointer and size, then resetting the source (`data = nullptr`) so its destructor will not double-free. Marking it `noexcept` lets containers move instead of copy when they reallocate. The drill teaches move semantics and the leave-the-source-valid rule. O(1).
 
 ## fact: Single Responsibility — one reason to change
 tags: solid, srp, cohesion
@@ -1349,6 +1411,9 @@ Constraints: `2 <= nums.length <= 10^4`, `-10^9 <= nums[i], target <= 10^9`.
 
 Example: `nums = [2,7,11,15], target = 9` → `[0,1]` (because `nums[0] + nums[1] == 9`). Example: `nums = [3,2,4], target = 6` → `[1,2]`.
 
+hint: Checking every pair is O(n^2); trade space for time by remembering what you've already seen as you scan.
+hint: A hash map from value to index lets you ask "have I already seen `target - nums[i]`?" in O(1).
+
 ```cpp
 // starter
 #include <vector>
@@ -1388,6 +1453,8 @@ int main() {
 }
 ```
 
+**Editorial:** One pass with a hash map. For each element, look up its complement `target - nums[i]`; if it's present you have the answer, otherwise record the current value and index. Average O(1) lookups and inserts make the whole scan O(n) time, O(n) space.
+
 ## challenge: Valid Palindrome
 tags: two-pointers, string
 track: faang
@@ -1398,6 +1465,9 @@ Given a string `s`, return `true` if it is a palindrome considering only alphanu
 Constraints: `1 <= s.length <= 2*10^5`, `s` consists of printable ASCII.
 
 Example: `"A man, a plan, a canal: Panama"` → `true`. Example: `"race a car"` → `false`. Example: `" "` → `true`.
+
+hint: Compare the string from both ends inward, considering only alphanumeric characters.
+hint: Two pointers, one at each end, skipping non-alphanumeric characters and comparing case-insensitively.
 
 ```cpp
 // starter
@@ -1437,6 +1507,8 @@ int main() {
 }
 ```
 
+**Editorial:** Two pointers converge from the ends. Advance each past non-alphanumeric characters, then compare the lowercased characters; any mismatch means it is not a palindrome. Because no filtered copy is built, it runs in O(n) time and O(1) extra space.
+
 ## challenge: Best Time to Buy and Sell Stock
 tags: sliding-window, array, dynamic-programming
 track: faang
@@ -1447,6 +1519,9 @@ You are given an array `prices` where `prices[i]` is the price of a stock on day
 Constraints: `1 <= prices.length <= 10^5`, `0 <= prices[i] <= 10^4`.
 
 Example: `prices = [7,1,5,3,6,4]` → `5` (buy at 1, sell at 6). Example: `prices = [7,6,4,3,1]` → `0` (never profitable).
+
+hint: You must buy before you sell, so at each day ask: if I sell today, what is the cheapest I could have bought earlier?
+hint: Sweep left to right tracking the minimum price seen so far and the best profit against it.
 
 ```cpp
 // starter
@@ -1483,6 +1558,8 @@ int main() {
 }
 ```
 
+**Editorial:** A single pass keeps the running minimum price and the best profit `price - minSoFar`. Since the buy day is always at or before the sell day, one scan is enough. O(n) time, O(1) space.
+
 ## challenge: Valid Parentheses
 tags: stack, string
 track: faang
@@ -1493,6 +1570,9 @@ Given a string `s` containing only the characters `()[]{}`, determine if the bra
 Constraints: `1 <= s.length <= 10^4`.
 
 Example: `"()[]{}"` → `true`. Example: `"(]"` → `false`. Example: `"([)]"` → `false`. Example: `"{[]}"` → `true`.
+
+hint: The most recently opened bracket must be the first one to close — that is last-in-first-out behavior.
+hint: Push opening brackets onto a stack; on a closing bracket, pop and check that the types match.
 
 ```cpp
 // starter
@@ -1537,6 +1617,8 @@ int main() {
 }
 ```
 
+**Editorial:** A stack holds the currently unmatched openers. Each closing bracket must match the top of the stack, and any leftover openers at the end make the string invalid. O(n) time, O(n) space.
+
 ## challenge: Reverse Linked List
 tags: linked-list, recursion
 track: faang
@@ -1547,6 +1629,9 @@ Reverse a singly linked list and return the new head. Do it iteratively in O(n) 
 Constraints: the list has `0 <= n <= 5000` nodes, `-5000 <= Node.val <= 5000`.
 
 Example: `1 -> 2 -> 3 -> 4 -> 5` → `5 -> 4 -> 3 -> 2 -> 1`. Example: empty list → empty list.
+
+hint: Walk the list once, flipping each node's `next` pointer to point back at the node before it.
+hint: Keep three pointers — previous, current, and a saved next — so you never lose the tail of the list.
 
 ```cpp
 // starter
@@ -1599,6 +1684,8 @@ int main() {
 }
 ```
 
+**Editorial:** Iterate through the list reversing each `next` pointer, saving the following node before you overwrite it. When you fall off the end, `prev` is the new head. O(n) time, O(1) space.
+
 ## challenge: Merge Two Sorted Lists
 tags: linked-list, two-pointers
 track: faang
@@ -1609,6 +1696,9 @@ Merge two sorted singly linked lists into one sorted list by splicing their node
 Constraints: each list has `0 <= n <= 50` nodes, sorted non-decreasing, `-100 <= Node.val <= 100`.
 
 Example: `l1 = 1->2->4`, `l2 = 1->3->4` → `1->1->2->3->4->4`. Example: both empty → empty.
+
+hint: Repeatedly take the smaller of the two current heads and append it to the result.
+hint: A dummy head node removes the special case for the first append; keep a `tail` pointer to splice onto.
 
 ```cpp
 // starter
@@ -1662,6 +1752,8 @@ int main() {
 }
 ```
 
+**Editorial:** A two-pointer merge that splices existing nodes rather than allocating. A dummy node simplifies building the list; walk both inputs attaching the smaller front, then append whatever remains. O(n+m) time, O(1) extra space.
+
 ## challenge: Invert Binary Tree
 tags: tree, dfs, recursion
 track: faang
@@ -1672,6 +1764,9 @@ Given the root of a binary tree, invert it — swap the left and right child of 
 Constraints: `0 <= n <= 100` nodes, `-100 <= Node.val <= 100`.
 
 Example: `[4,2,7,1,3,6,9]` → `[4,7,2,9,6,3,1]` (level-order, `null` for missing children). Example: empty → empty.
+
+hint: Inverting a tree just means swapping the two children of every node.
+hint: Recurse into both subtrees, then swap the (already-inverted) left and right pointers.
 
 ```cpp
 // starter
@@ -1745,6 +1840,8 @@ int main() {
 }
 ```
 
+**Editorial:** Post-order recursion: invert each subtree, then swap the child pointers. Every node is visited exactly once. O(n) time, O(h) space for the recursion stack, where h is the tree height.
+
 ## challenge: Climbing Stairs
 tags: dynamic-programming, math
 track: faang
@@ -1755,6 +1852,9 @@ You are climbing a staircase with `n` steps. Each time you can climb `1` or `2` 
 Constraints: `1 <= n <= 45`.
 
 Example: `n = 2` → `2` (`1+1`, `2`). Example: `n = 3` → `3` (`1+1+1`, `1+2`, `2+1`). Example: `n = 5` → `8`.
+
+hint: The number of ways to reach step n depends only on the ways to reach steps n-1 and n-2.
+hint: That recurrence is exactly Fibonacci — you only need to keep the last two values.
 
 ```cpp
 // starter
@@ -1788,6 +1888,8 @@ int main() {
 }
 ```
 
+**Editorial:** The last move onto step n is either a 1-step from n-1 or a 2-step from n-2, so ways(n) = ways(n-1) + ways(n-2). Roll two variables forward instead of storing the whole table. O(n) time, O(1) space.
+
 ## challenge: Group Anagrams
 tags: hash-table, string, sorting, arrays-hashing
 track: faang
@@ -1798,6 +1900,9 @@ Given an array of strings `strs`, group the anagrams together. Two strings are a
 Constraints: `1 <= strs.length <= 10^4`, `0 <= strs[i].length <= 100`, lowercase English letters.
 
 Example: `["eat","tea","tan","ate","nat","bat"]` → `[["eat","tea","ate"],["tan","nat"],["bat"]]`. Example: `[""]` → `[[""]]`.
+
+hint: Anagrams share an invariant — a canonical form that is identical for every word in a group.
+hint: Sorting a word's letters (or a 26-letter count signature) yields a key you can group on with a hash map.
 
 ```cpp
 // starter
@@ -1858,6 +1963,8 @@ int main() {
 }
 ```
 
+**Editorial:** Map each string to a canonical key — its letters sorted — and bucket the originals by that key in a hash map, so anagrams collide into the same group. For n strings of length k it is O(n*k log k) time (a counting-based key drops it to O(n*k)); O(n*k) space.
+
 ## challenge: Top K Frequent Elements
 tags: heap, hash-table, bucket-sort, arrays-hashing
 track: faang
@@ -1868,6 +1975,10 @@ Given an integer array `nums` and an integer `k`, return the `k` most frequent e
 Constraints: `1 <= nums.length <= 10^5`, `k` is in `[1, number of distinct elements]`.
 
 Example: `nums = [1,1,1,2,2,3], k = 2` → `[1,2]`. Example: `nums = [1], k = 1` → `[1]`.
+
+hint: First count how often each value appears; then you only need the k largest counts.
+hint: Frequencies are bounded by n, so instead of sorting counts you can bucket values by their frequency.
+hint: Index buckets by count (0..n), then scan from the highest bucket downward, collecting values until you have k.
 
 ```cpp
 // starter
@@ -1914,6 +2025,8 @@ int main() {
 }
 ```
 
+**Editorial:** Count occurrences with a hash map, then place each value into a bucket indexed by its frequency. Scanning buckets from the highest frequency down collects the top k without ever fully sorting. O(n) time, O(n) space.
+
 ## challenge: Container With Most Water
 tags: two-pointers, greedy, array
 track: faang
@@ -1924,6 +2037,9 @@ Given `n` non-negative integers `height` where each represents a vertical line a
 Constraints: `2 <= height.length <= 10^5`, `0 <= height[i] <= 10^4`.
 
 Example: `height = [1,8,6,2,5,4,8,3,7]` → `49`. Example: `height = [1,1]` → `1`.
+
+hint: Area is the width times the shorter of the two walls, so begin as wide as possible.
+hint: Use two pointers at the ends; moving the taller wall inward can never help, so always move the shorter one.
 
 ```cpp
 // starter
@@ -1960,6 +2076,8 @@ int main() {
 }
 ```
 
+**Editorial:** With pointers at both ends the area is `min(height[i], height[j]) * (j - i)`. Moving the shorter wall inward is the only move that can raise the limiting height, so greedily advance it. O(n) time, O(1) space.
+
 ## challenge: 3Sum
 tags: two-pointers, array, sorting
 track: faang
@@ -1970,6 +2088,10 @@ Given an integer array `nums`, return all unique triplets `[nums[i], nums[j], nu
 Constraints: `3 <= nums.length <= 3000`, `-10^5 <= nums[i] <= 10^5`.
 
 Example: `nums = [-1,0,1,2,-1,-4]` → `[[-1,-1,2],[-1,0,1]]`. Example: `nums = [0,0,0]` → `[[0,0,0]]`. Example: `nums = [1,2,3]` → `[]`.
+
+hint: Fix one number, and the rest of the problem becomes: find two others that sum to its negation.
+hint: Sort the array first, then for each fixed index run two pointers converging from both sides.
+hint: Skip over equal adjacent values (for the fixed element and for both pointers) to avoid duplicate triplets.
 
 ```cpp
 // starter
@@ -2026,6 +2148,8 @@ int main() {
 }
 ```
 
+**Editorial:** Sort the array, then for each index run a two-pointer scan over the remainder searching for the target sum `-nums[i]`, moving the pointers based on whether the current sum is too small or too large. Sorting also makes it easy to skip duplicates. O(n^2) time, O(1) extra space beyond the output.
+
 ## challenge: Longest Substring Without Repeating Characters
 tags: sliding-window, string, hash-table
 track: faang
@@ -2036,6 +2160,9 @@ Given a string `s`, return the length of the longest substring (contiguous) with
 Constraints: `0 <= s.length <= 5*10^4`, `s` consists of English letters, digits, symbols and spaces.
 
 Example: `"abcabcbb"` → `3` (`"abc"`). Example: `"bbbbb"` → `1`. Example: `"pwwkew"` → `3` (`"wke"`). Example: `""` → `0`.
+
+hint: Grow a window to the right; when a character repeats, the window's left edge must jump past its previous occurrence.
+hint: A sliding window plus a table storing each character's last-seen index.
 
 ```cpp
 // starter
@@ -2076,6 +2203,8 @@ int main() {
 }
 ```
 
+**Editorial:** Slide a window while recording the last index at which each character appeared. When the current character was last seen at or after the window start, jump the start just past it; the answer is the widest window observed. O(n) time, O(min(n, alphabet)) space.
+
 ## challenge: Search in Rotated Sorted Array
 tags: binary-search, array
 track: faang
@@ -2086,6 +2215,10 @@ An ascending sorted array of distinct integers is rotated at an unknown pivot. G
 Constraints: `1 <= nums.length <= 5000`, all values distinct, `-10^4 <= nums[i], target <= 10^4`.
 
 Example: `nums = [4,5,6,7,0,1,2], target = 0` → `4`. Example: `target = 3` → `-1`. Example: `nums = [1], target = 0` → `-1`.
+
+hint: Even after rotation, at any midpoint at least one of the two halves is still fully sorted.
+hint: Binary search: figure out which half is sorted, then check whether the target lies inside that ordered range.
+hint: Compare `nums[lo] <= nums[mid]` to decide which side is sorted, then discard the half that cannot contain the target.
 
 ```cpp
 // starter
@@ -2128,6 +2261,8 @@ int main() {
 }
 ```
 
+**Editorial:** A modified binary search. At each step one of [lo, mid] or [mid, hi] is sorted; test whether the target falls within that sorted half's range and narrow accordingly. O(log n) time, O(1) space.
+
 ## challenge: Koko Eating Bananas
 tags: binary-search, greedy
 track: faang
@@ -2138,6 +2273,10 @@ Koko has `piles` of bananas and `h` hours before the guards return. She eats at 
 Constraints: `1 <= piles.length <= 10^4`, `piles.length <= h <= 10^9`, `1 <= piles[i] <= 10^9`.
 
 Example: `piles = [3,6,7,11], h = 8` → `4`. Example: `piles = [30,11,23,4,20], h = 5` → `30`. Example: `h = 6` → `23`.
+
+hint: A faster eating speed is never worse: if speed k finishes in time, every speed above k does too. That monotonicity is the key.
+hint: Binary search on the answer itself — the speed k — between 1 and the largest pile.
+hint: For a candidate k, the hours needed are the sum of `ceil(pile / k)`; shrink or grow k based on whether it fits within h.
 
 ```cpp
 // starter
@@ -2176,6 +2315,8 @@ int main() {
 }
 ```
 
+**Editorial:** Binary search over the space of eating speeds. The predicate "can finish within h hours at speed k" is monotonic in k, so binary search finds the smallest feasible k; each check sums `ceil(pile / k)`. O(n log(maxPile)) time, O(1) space.
+
 ## challenge: Daily Temperatures
 tags: monotonic-stack, stack, array
 track: faang
@@ -2186,6 +2327,9 @@ Given a list of daily `temperatures`, return an array `answer` where `answer[i]`
 Constraints: `1 <= temperatures.length <= 10^5`, `30 <= temperatures[i] <= 100`.
 
 Example: `[73,74,75,71,69,72,76,73]` → `[1,1,4,2,1,1,0,0]`. Example: `[30,40,50,60]` → `[1,1,1,0]`. Example: `[30,60,90]` → `[1,1,0]`.
+
+hint: For each day you want the nearest warmer day to its right — a classic "next greater element" question.
+hint: A monotonic stack of indices with decreasing temperatures resolves each day the moment a warmer one arrives.
 
 ```cpp
 // starter
@@ -2227,6 +2371,8 @@ int main() {
 }
 ```
 
+**Editorial:** Keep a stack of indices whose temperatures are strictly decreasing. When a warmer day arrives, pop every colder index and record the day distance for each. Each index is pushed and popped at most once. O(n) time, O(n) space.
+
 ## challenge: Validate Binary Search Tree
 tags: tree, dfs, binary-search-tree
 track: faang
@@ -2237,6 +2383,9 @@ Given the root of a binary tree, determine if it is a valid binary search tree: 
 Constraints: `1 <= n <= 10^4` nodes, `-2^31 <= Node.val <= 2^31 - 1`.
 
 Example: `[2,1,3]` → `true`. Example: `[5,1,4,null,null,3,6]` → `false` (3 and 6 are in the right subtree of 5 but 3 < 5). Example: `[5,4,6,null,null,3,7]` → `false`.
+
+hint: Checking only against a node's immediate children is not enough — every node must fall within a range fixed by all of its ancestors.
+hint: Recurse while carrying a valid open interval (lo, hi) that tightens as you descend left or right.
 
 ```cpp
 // starter
@@ -2299,6 +2448,8 @@ int main() {
 }
 ```
 
+**Editorial:** DFS carries down an allowed open interval (lo, hi). Descending left tightens the upper bound to the current node's value; descending right tightens the lower bound. Any value outside its interval fails validation. O(n) time, O(h) space for recursion.
+
 ## challenge: Binary Tree Level Order Traversal
 tags: tree, bfs, queue
 track: faang
@@ -2309,6 +2460,9 @@ Given the root of a binary tree, return its level-order traversal: a list of lev
 Constraints: `0 <= n <= 2000` nodes, `-1000 <= Node.val <= 1000`.
 
 Example: `[3,9,20,null,null,15,7]` → `[[3],[9,20],[15,7]]`. Example: `[1]` → `[[1]]`. Example: empty → `[]`.
+
+hint: Process the tree one complete level at a time, from the top down.
+hint: BFS with a queue, but snapshot the queue's size at the start of each level so you know where the level ends.
 
 ```cpp
 // starter
@@ -2388,6 +2542,8 @@ int main() {
 }
 ```
 
+**Editorial:** Breadth-first traversal with a queue, capturing the queue size at each level boundary to group the nodes per level. Every node is enqueued and dequeued once. O(n) time, O(n) space.
+
 ## challenge: Subsets
 tags: backtracking, bit-manipulation, array
 track: faang
@@ -2398,6 +2554,9 @@ Given an array `nums` of unique integers, return all possible subsets (the power
 Constraints: `1 <= nums.length <= 10`, `-10 <= nums[i] <= 10`, all elements unique.
 
 Example: `nums = [1,2,3]` → `[[],[1],[2],[3],[1,2],[1,3],[2,3],[1,2,3]]` (8 subsets). Example: `nums = [0]` → `[[],[0]]`.
+
+hint: For each element you make a binary choice — include it or not — and the leaves of that decision tree are the subsets.
+hint: Backtracking over the include/exclude choices (or map each of the 2^n bitmasks to a subset).
 
 ```cpp
 // starter
@@ -2458,6 +2617,8 @@ int main() {
 }
 ```
 
+**Editorial:** Backtracking explores the include-or-exclude decision for each element and records the current selection at each leaf. There are 2^n subsets, each up to length n. O(n * 2^n) time, O(n) recursion depth.
+
 ## challenge: Kth Largest Element in an Array
 tags: heap, quickselect, sorting
 track: faang
@@ -2468,6 +2629,9 @@ Given an integer array `nums` and an integer `k`, return the `k`-th largest elem
 Constraints: `1 <= k <= nums.length <= 10^5`, `-10^4 <= nums[i] <= 10^4`.
 
 Example: `nums = [3,2,1,5,6,4], k = 2` → `5`. Example: `nums = [3,2,3,1,2,4,5,5,6], k = 4` → `4`.
+
+hint: You do not need the whole array sorted — only the boundary between the top k elements and the rest.
+hint: Maintain a size-k min-heap; once you have seen everything, its smallest element is the k-th largest. (Quickselect is the O(n)-average alternative.)
 
 ```cpp
 // starter
@@ -2504,6 +2668,8 @@ int main() {
 }
 ```
 
+**Editorial:** Push elements into a min-heap capped at size k, evicting its smallest whenever it overflows; the heap's top is then the k-th largest. O(n log k) time, O(k) space. Quickselect achieves O(n) average time in place.
+
 ## challenge: Number of Islands
 tags: graph, dfs, matrix, flood-fill
 track: faang
@@ -2514,6 +2680,9 @@ Given an `m x n` grid of `'1'` (land) and `'0'` (water), return the number of is
 Constraints: `1 <= m, n <= 300`, each cell is `'0'` or `'1'`.
 
 Example: a grid with one big connected land mass → `1`. A grid with three separated clusters → `3`.
+
+hint: Each time you find a piece of unvisited land it is a new island — then erase everything reachable from it so you never count it twice.
+hint: Flood fill (DFS or BFS) from each land cell, sinking visited land to water as you go.
 
 ```cpp
 // starter
@@ -2564,6 +2733,8 @@ int main() {
 }
 ```
 
+**Editorial:** Scan the grid; on hitting a '1', increment the island count and flood-fill all connected land to '0' so it is not recounted. Each cell is touched a constant number of times. O(m*n) time, O(m*n) worst-case stack/queue space.
+
 ## challenge: Course Schedule
 tags: graph, topological-sort, cycle-detection, bfs
 track: faang
@@ -2574,6 +2745,10 @@ There are `numCourses` courses labeled `0..numCourses-1`. `prerequisites[i] = [a
 Constraints: `1 <= numCourses <= 2000`, `0 <= prerequisites.length <= 5000`, pairs may be distinct.
 
 Example: `numCourses = 2, prerequisites = [[1,0]]` → `true`. Example: `[[1,0],[0,1]]` → `false` (cycle).
+
+hint: "Can I finish?" is really asking whether the prerequisite graph contains a cycle.
+hint: Topological sort — Kahn's algorithm repeatedly removes nodes that have no remaining prerequisites.
+hint: Track in-degrees, enqueue every zero-in-degree node, and if you cannot process all N courses a cycle exists.
 
 ```cpp
 // starter
@@ -2618,6 +2793,8 @@ int main() {
 }
 ```
 
+**Editorial:** Model courses as a directed graph and run Kahn's topological sort: repeatedly take a node of in-degree 0 and decrement its neighbors' in-degrees. If every node gets processed there is no cycle, so all courses are finishable. O(V+E) time, O(V+E) space.
+
 ## challenge: Coin Change
 tags: dynamic-programming, bfs
 track: faang
@@ -2628,6 +2805,10 @@ Given coin denominations `coins` and a target `amount`, return the fewest number
 Constraints: `1 <= coins.length <= 12`, `1 <= coins[i] <= 2^31 - 1`, `0 <= amount <= 10^4`.
 
 Example: `coins = [1,2,5], amount = 11` → `3` (`5+5+1`). Example: `coins = [2], amount = 3` → `-1`. Example: `amount = 0` → `0`.
+
+hint: The fewest coins for amount a is 1 plus the fewest for (a minus one coin), minimized over all coins.
+hint: Bottom-up dynamic programming over amounts 0..amount, in the style of unbounded knapsack.
+hint: `dp[a] = min over coins c <= a of dp[a - c] + 1`, with `dp[0] = 0` and an "impossible" sentinel elsewhere.
 
 ```cpp
 // starter
@@ -2664,6 +2845,8 @@ int main() {
 }
 ```
 
+**Editorial:** Dynamic programming where dp[a] is the minimum number of coins that form amount a. Build it up from 0, trying each coin as the last one used. Amounts that stay at the sentinel are unreachable and map to -1. O(amount * coins) time, O(amount) space.
+
 ## challenge: Merge Intervals
 tags: intervals, sorting, array
 track: faang
@@ -2674,6 +2857,9 @@ Given an array of `intervals` where `intervals[i] = [start_i, end_i]`, merge all
 Constraints: `1 <= intervals.length <= 10^4`, `intervals[i][0] <= intervals[i][1]`.
 
 Example: `[[1,3],[2,6],[8,10],[15,18]]` → `[[1,6],[8,10],[15,18]]`. Example: `[[1,4],[4,5]]` → `[[1,5]]`.
+
+hint: Once intervals are sorted by start, any overlap can only occur between consecutive intervals.
+hint: Sort by start, then sweep, extending the last kept interval whenever the next one overlaps it.
 
 ```cpp
 // starter
@@ -2717,6 +2903,8 @@ int main() {
 }
 ```
 
+**Editorial:** Sort the intervals by start, then walk through them: if the current interval starts at or before the last merged interval's end, extend that end, otherwise append a new interval. Sorting dominates the cost. O(n log n) time, O(n) space (O(1) beyond the output).
+
 ## challenge: Jump Game
 tags: greedy, array, dynamic-programming
 track: faang
@@ -2727,6 +2915,9 @@ Given an array `nums` where `nums[i]` is the maximum jump length from index `i`,
 Constraints: `1 <= nums.length <= 10^4`, `0 <= nums[i] <= 10^5`.
 
 Example: `nums = [2,3,1,1,4]` → `true`. Example: `nums = [3,2,1,0,4]` → `false` (you get stuck at index 3). Example: `nums = [0]` → `true`.
+
+hint: Track the farthest index reachable so far; if the scan ever stands past it, you are stuck.
+hint: A single greedy pass maintaining the maximum reach is enough.
 
 ```cpp
 // starter
@@ -2762,6 +2953,8 @@ int main() {
 }
 ```
 
+**Editorial:** Greedily maintain the farthest reachable index. If the current index ever exceeds that reach you can never arrive; otherwise extend the reach by `i + nums[i]`. Reaching the end means success. O(n) time, O(1) space.
+
 ## challenge: Trapping Rain Water
 tags: two-pointers, dynamic-programming, stack
 track: faang
@@ -2772,6 +2965,10 @@ Given `n` non-negative integers `height` representing an elevation map where eac
 Constraints: `1 <= height.length <= 2*10^4`, `0 <= height[i] <= 10^5`.
 
 Example: `height = [0,1,0,2,1,0,1,3,2,1,2,1]` → `6`. Example: `height = [4,2,0,3,2,5]` → `9`.
+
+hint: Water sitting above a bar is bounded by the shorter of the tallest wall to its left and the tallest to its right.
+hint: Two pointers from both ends, tracking leftMax and rightMax, advancing the side with the smaller wall.
+hint: The side with the smaller running max is safe to settle, because the taller opposite side guarantees the bound holds.
 
 ```cpp
 // starter
@@ -2815,6 +3012,8 @@ int main() {
 }
 ```
 
+**Editorial:** Two pointers move inward; the side with the lower running maximum determines the water trapped there, because the opposite side is known to be at least as tall. Add `runningMax - height` at each step. O(n) time, O(1) space.
+
 ## challenge: Sliding Window Maximum
 tags: sliding-window, monotonic-deque, heap
 track: faang
@@ -2825,6 +3024,10 @@ Given an array `nums` and a window size `k`, the window slides from left to righ
 Constraints: `1 <= nums.length <= 10^5`, `1 <= k <= nums.length`, `-10^4 <= nums[i] <= 10^4`.
 
 Example: `nums = [1,3,-1,-3,5,3,6,7], k = 3` → `[3,3,5,5,6,7]`. Example: `nums = [1], k = 1` → `[1]`.
+
+hint: The window's maximum only changes when the current max slides out or a larger value enters.
+hint: A monotonic deque of indices, values decreasing from front to back, keeps the current maximum at the front.
+hint: Before pushing i, pop smaller values off the back (they can never be the max again) and drop front indices that have left the window.
 
 ```cpp
 // starter
@@ -2867,6 +3070,1331 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** A double-ended queue holds indices whose values decrease front-to-back, so its front is always the current window's maximum. Each index enters and leaves the deque exactly once as the window slides. O(n) time, O(k) space.
+
+## challenge: Contains Duplicate
+tags: array, hash-table, arrays-hashing
+track: faang
+difficulty: easy
+
+Given an integer array `nums`, return `true` if any value appears at least twice in the array, and return `false` if every element is distinct.
+
+Constraints: `0 <= nums.length <= 10^5`, `-10^9 <= nums[i] <= 10^9`.
+
+Example: `nums = [1,2,3,1]` → `true` (the value `1` appears twice). Example: `nums = [1,2,3,4]` → `false`. Example: `nums = []` → `false`.
+
+hint: You only need to know whether a value has been seen before, not how many times or where.
+hint: A hash set gives O(1) average insertion and membership checks.
+hint: Walk the array once; if inserting an element reports it was already present, return `true`.
+
+```cpp
+// starter
+#include <vector>
+bool containsDuplicate(std::vector<int>& nums);
+```
+
+```cpp
+bool containsDuplicate(std::vector<int>& nums) {
+    std::unordered_set<int> seen;
+    seen.reserve(nums.size() * 2);
+    for (int x : nums) {
+        if (!seen.insert(x).second) return true;
+    }
+    return false;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <unordered_set>
+using std::vector;
+//__USER__
+int main() {
+    { vector<int> n{};              if ( containsDuplicate(n)) { std::puts("case1"); return 1; } }
+    { vector<int> n{7};             if ( containsDuplicate(n)) { std::puts("case2"); return 1; } }
+    { vector<int> n{1,2,3,4};       if ( containsDuplicate(n)) { std::puts("case3"); return 1; } }
+    { vector<int> n{1,2,3,1};       if (!containsDuplicate(n)) { std::puts("case4"); return 1; } }
+    { vector<int> n{-1,0,1,-1};     if (!containsDuplicate(n)) { std::puts("case5"); return 1; } }
+    { vector<int> n{5,5};           if (!containsDuplicate(n)) { std::puts("case6"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Insert each value into a hash set as you scan; `unordered_set::insert` returns whether the element was newly added, so a failed insertion means a duplicate. This runs in O(n) average time and O(n) space, beating the O(n^2) all-pairs comparison and the O(n log n) sort-and-scan alternative.
+
+## challenge: Valid Anagram
+tags: string, hash-table, sorting
+track: faang
+difficulty: easy
+
+Given two strings `s` and `t`, return `true` if `t` is an anagram of `s`, and `false` otherwise. An anagram uses exactly the same letters with the same multiplicities, just reordered.
+
+Constraints: `0 <= s.length, t.length <= 5 * 10^4`, both consist of lowercase English letters.
+
+Example: `s = "anagram", t = "nagaram"` → `true`. Example: `s = "rat", t = "car"` → `false`. Example: `s = "", t = ""` → `true`.
+
+hint: Anagrams must have identical letter frequencies, so length must match first.
+hint: For lowercase letters a fixed-size array of 26 counts is enough — no map needed.
+hint: Add one for each character of `s`, subtract one for each character of `t`; every count must end at zero.
+
+```cpp
+// starter
+#include <string>
+bool isAnagram(std::string s, std::string t);
+```
+
+```cpp
+bool isAnagram(std::string s, std::string t) {
+    if (s.size() != t.size()) return false;
+    std::array<int, 26> count{};
+    for (char c : s) ++count[c - 'a'];
+    for (char c : t) --count[c - 'a'];
+    for (int v : count) if (v != 0) return false;
+    return true;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <string>
+#include <array>
+using std::string;
+//__USER__
+int main() {
+    if (!isAnagram("anagram", "nagaram")) { std::puts("case1"); return 1; }
+    if ( isAnagram("rat", "car"))         { std::puts("case2"); return 1; }
+    if ( isAnagram("a", "ab"))            { std::puts("case3"); return 1; }
+    if ( isAnagram("aacc", "ccac"))       { std::puts("case4"); return 1; }
+    if (!isAnagram("", ""))               { std::puts("case5"); return 1; }
+    if (!isAnagram("listen", "silent"))   { std::puts("case6"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** If the lengths differ the answer is immediately `false`. Otherwise tally letter frequencies in a size-26 array — increment for `s`, decrement for `t` — and the strings are anagrams exactly when every counter returns to zero. This is O(n) time and O(1) extra space, faster than the O(n log n) approach of sorting both strings.
+
+## challenge: Maximum Subarray
+tags: array, dynamic-programming, greedy
+track: faang
+difficulty: medium
+
+Given an integer array `nums`, find the contiguous non-empty subarray with the largest sum and return that sum.
+
+Constraints: `1 <= nums.length <= 10^5`, `-10^4 <= nums[i] <= 10^4`.
+
+Example: `nums = [-2,1,-3,4,-1,2,1,-5,4]` → `6` (the subarray `[4,-1,2,1]`). Example: `nums = [1]` → `1`. Example: `nums = [-3,-1,-2]` → `-1` (best is a single element when all are negative).
+
+hint: A prefix that has become negative can only hurt whatever follows it.
+hint: This is Kadane's algorithm — track the best subarray sum ending at the current index.
+hint: At each element choose to extend the running sum or restart from that element: `cur = max(nums[i], cur + nums[i])`, and keep the maximum `cur` seen.
+
+```cpp
+// starter
+#include <vector>
+int maxSubArray(std::vector<int>& nums);
+```
+
+```cpp
+int maxSubArray(std::vector<int>& nums) {
+    int best = nums[0];
+    int cur = nums[0];
+    for (int i = 1; i < (int)nums.size(); ++i) {
+        cur = std::max(nums[i], cur + nums[i]);
+        best = std::max(best, cur);
+    }
+    return best;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <algorithm>
+using std::vector;
+//__USER__
+int main() {
+    { vector<int> n{-2,1,-3,4,-1,2,1,-5,4}; if (maxSubArray(n) != 6)  { std::puts("case1"); return 1; } }
+    { vector<int> n{1};                     if (maxSubArray(n) != 1)  { std::puts("case2"); return 1; } }
+    { vector<int> n{-3,-1,-2};              if (maxSubArray(n) != -1) { std::puts("case3"); return 1; } }
+    { vector<int> n{5,4,-1,7,8};            if (maxSubArray(n) != 23) { std::puts("case4"); return 1; } }
+    { vector<int> n{-5};                    if (maxSubArray(n) != -5) { std::puts("case5"); return 1; } }
+    { vector<int> n{-2,-1};                 if (maxSubArray(n) != -1) { std::puts("case6"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Kadane's algorithm keeps `cur`, the maximum sum of a subarray ending at the current index: extend the previous run or start fresh at `nums[i]`, whichever is larger. The global answer is the largest `cur` observed. Seeding both `best` and `cur` with `nums[0]` handles the all-negative case correctly, giving O(n) time and O(1) space.
+
+## challenge: Product of Array Except Self
+tags: array, prefix-sum
+track: faang
+difficulty: medium
+
+Given an integer array `nums`, return an array `answer` such that `answer[i]` equals the product of all elements of `nums` except `nums[i]`. Solve it in O(n) time without using the division operator.
+
+Constraints: `2 <= nums.length <= 10^5`, `-30 <= nums[i] <= 30`, and the product of any prefix or suffix fits in a 32-bit integer.
+
+Example: `nums = [1,2,3,4]` → `[24,12,8,6]`. Example: `nums = [-1,1,0,-3,3]` → `[0,0,9,0,0]` (a single zero makes every other entry zero).
+
+hint: `answer[i]` is the product of everything to the left of `i` times the product of everything to the right of `i`.
+hint: Build prefix products in one left-to-right pass, then multiply by suffix products in a right-to-left pass.
+hint: Store the prefix products directly in `answer`, then sweep from the right keeping a running suffix product in a single variable — no division, O(1) extra space.
+
+```cpp
+// starter
+#include <vector>
+std::vector<int> productExceptSelf(std::vector<int>& nums);
+```
+
+```cpp
+std::vector<int> productExceptSelf(std::vector<int>& nums) {
+    int n = (int)nums.size();
+    std::vector<int> answer(n, 1);
+    for (int i = 1; i < n; ++i) answer[i] = answer[i - 1] * nums[i - 1];
+    int suffix = 1;
+    for (int i = n - 1; i >= 0; --i) {
+        answer[i] *= suffix;
+        suffix *= nums[i];
+    }
+    return answer;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+using std::vector;
+//__USER__
+int main() {
+    { vector<int> n{1,2,3,4};      auto r = productExceptSelf(n); vector<int> w{24,12,8,6};
+      if (r != w) { std::puts("case1"); return 1; } }
+    { vector<int> n{-1,1,0,-3,3};  auto r = productExceptSelf(n); vector<int> w{0,0,9,0,0};
+      if (r != w) { std::puts("case2"); return 1; } }
+    { vector<int> n{0,0,4};        auto r = productExceptSelf(n); vector<int> w{0,0,0};
+      if (r != w) { std::puts("case3"); return 1; } }
+    { vector<int> n{2,3};          auto r = productExceptSelf(n); vector<int> w{3,2};
+      if (r != w) { std::puts("case4"); return 1; } }
+    { vector<int> n{-2,-3,-4};     auto r = productExceptSelf(n); vector<int> w{12,8,6};
+      if (r != w) { std::puts("case5"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Each output is the product of a prefix (everything before `i`) and a suffix (everything after `i`). First pass fills `answer[i]` with the prefix product; the second pass multiplies in the suffix product carried in a single running variable. This avoids division entirely, handles zeros naturally, and runs in O(n) time with O(1) extra space beyond the output.
+
+## challenge: Two Sum II - Input Array Is Sorted
+tags: two-pointers, binary-search, array
+track: faang
+difficulty: medium
+
+Given a 1-indexed array of integers `numbers` sorted in non-decreasing order, find two numbers that add up to `target` and return their 1-based indices `[i, j]` with `i < j`. There is exactly one solution, and you may not use the same element twice.
+
+Constraints: `2 <= numbers.length <= 3 * 10^4`, `-1000 <= numbers[i] <= 1000`, `numbers` is sorted ascending, `-1000 <= target <= 1000`.
+
+Example: `numbers = [2,7,11,15], target = 9` → `[1,2]`. Example: `numbers = [2,3,4], target = 6` → `[1,3]`. Example: `numbers = [-5,-2,0,3,8], target = -2` → `[1,4]`.
+
+hint: The array is sorted — exploit that ordering instead of a hash map.
+hint: Put one pointer at the start and one at the end; the current pair sum tells you which way to move.
+hint: If the sum is too large move the right pointer left; if too small move the left pointer right; equal means you found the answer (convert to 1-based).
+
+```cpp
+// starter
+#include <vector>
+std::vector<int> twoSumSorted(std::vector<int>& numbers, int target);
+```
+
+```cpp
+std::vector<int> twoSumSorted(std::vector<int>& numbers, int target) {
+    int lo = 0, hi = (int)numbers.size() - 1;
+    while (lo < hi) {
+        int sum = numbers[lo] + numbers[hi];
+        if (sum == target) return {lo + 1, hi + 1};
+        if (sum < target) ++lo;
+        else --hi;
+    }
+    return {};
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+using std::vector;
+//__USER__
+int main() {
+    { vector<int> n{2,7,11,15};    auto r = twoSumSorted(n, 9);  vector<int> w{1,2};
+      if (r != w) { std::puts("case1"); return 1; } }
+    { vector<int> n{2,3,4};        auto r = twoSumSorted(n, 6);  vector<int> w{1,3};
+      if (r != w) { std::puts("case2"); return 1; } }
+    { vector<int> n{-1,0};         auto r = twoSumSorted(n, -1); vector<int> w{1,2};
+      if (r != w) { std::puts("case3"); return 1; } }
+    { vector<int> n{-5,-2,0,3,8};  auto r = twoSumSorted(n, -2); vector<int> w{1,4};
+      if (r != w) { std::puts("case4"); return 1; } }
+    { vector<int> n{1,2,3,4,4,9};  auto r = twoSumSorted(n, 8);  vector<int> w{4,5};
+      if (r != w) { std::puts("case5"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Because the input is sorted, place pointers at both ends and inspect their sum: too small means the smallest element is too weak, so advance the left pointer; too large means the largest element is too strong, so retreat the right pointer; equality yields the answer. Each step discards one candidate, giving O(n) time and O(1) space without any extra map. Convert the found 0-based indices to 1-based on return.
+
+## challenge: Linked List Cycle
+tags: linked-list, two-pointers, hash-table
+track: faang
+difficulty: easy
+
+Given the `head` of a singly linked list, determine whether the list contains a cycle. A cycle exists if some node can be reached again by continuously following the `next` pointer. Return `true` if there is a cycle and `false` otherwise, using O(1) extra space.
+
+Constraints: the list has `0 <= n <= 10^4` nodes, `-10^5 <= Node.val <= 10^5`.
+
+Example: `3 -> 2 -> 0 -> -4` with the tail pointing back to the node at index `1` → `true`. Example: `1 -> 2 -> 3` with no back-link → `false`.
+
+hint: If a runner moving two steps ever meets a runner moving one step, they must be circling the same loop.
+hint: Use Floyd's tortoise-and-hare: a slow pointer that advances one node and a fast pointer that advances two.
+hint: Stop when the fast pointer (or its `next`) falls off the end — that means no cycle; if slow ever equals fast, there is one.
+
+```cpp
+// starter
+struct ListNode {
+    int val;
+    ListNode* next;
+    ListNode(int x) : val(x), next(nullptr) {}
+};
+bool hasCycle(ListNode* head);
+```
+
+```cpp
+bool hasCycle(ListNode* head) {
+    ListNode* slow = head;
+    ListNode* fast = head;
+    while (fast && fast->next) {
+        slow = slow->next;
+        fast = fast->next->next;
+        if (slow == fast) return true;
+    }
+    return false;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+using std::vector;
+struct ListNode {
+    int val;
+    ListNode* next;
+    ListNode(int x) : val(x), next(nullptr) {}
+};
+static ListNode* buildCycle(const vector<int>& v, int pos) {
+    vector<ListNode*> nodes;
+    ListNode dummy(0); ListNode* t = &dummy;
+    for (int x : v) { t->next = new ListNode(x); t = t->next; nodes.push_back(t); }
+    if (pos >= 0 && !nodes.empty() && pos < (int)nodes.size())
+        nodes.back()->next = nodes[pos];
+    return dummy.next;
+}
+//__USER__
+int main() {
+    if (!hasCycle(buildCycle({3,2,0,-4}, 1))) { std::puts("case1"); return 1; }  // cycle present
+    if ( hasCycle(buildCycle({1,2,3,4,5}, -1))) { std::puts("case2"); return 1; } // no cycle
+    if ( hasCycle(buildCycle({}, -1)))          { std::puts("case3"); return 1; } // empty list
+    if ( hasCycle(buildCycle({1}, -1)))         { std::puts("case4"); return 1; } // single node, no cycle
+    if (!hasCycle(buildCycle({1}, 0)))          { std::puts("case5"); return 1; } // single node self-cycle
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Advance a slow pointer one node and a fast pointer two nodes per step. In a cyclic list the fast pointer laps the slow one and they collide; in an acyclic list the fast pointer reaches the end first. This uses O(n) time and O(1) extra space, avoiding the hash-set alternative that stores every visited node.
+
+## challenge: Evaluate Reverse Polish Notation
+
+tags: stack, math, array
+track: faang
+difficulty: medium
+
+You are given an array of strings `tokens` representing an arithmetic expression in Reverse Polish Notation. Evaluate the expression and return the resulting integer. Valid operators are `+`, `-`, `*`, and `/`; each operand is an integer, division truncates toward zero, and the input is always a well-formed expression.
+
+Constraints: `1 <= tokens.length <= 10^4`; each token is `+`, `-`, `*`, `/`, or an integer in `[-200, 200]`; the answer and all intermediate results fit in a 32-bit signed integer.
+
+Example: `tokens = ["2","1","+","3","*"]` → `9` (`(2+1)*3`). Example: `tokens = ["4","13","5","/","+"]` → `6` (`4 + 13/5`).
+
+hint: Postfix notation removes the need for parentheses — operands come before the operator that consumes them.
+hint: Scan left to right with a stack: push numbers, and on an operator pop the two most recent operands.
+hint: Order matters for `-` and `/`: the operand popped second is the left-hand side, so compute `a op b` where `b` was popped first.
+
+```cpp
+// starter
+#include <vector>
+#include <string>
+int evalRPN(std::vector<std::string>& tokens);
+```
+
+```cpp
+int evalRPN(std::vector<std::string>& tokens) {
+    std::vector<int> st;
+    for (const std::string& t : tokens) {
+        if (t == "+" || t == "-" || t == "*" || t == "/") {
+            int b = st.back(); st.pop_back();
+            int a = st.back(); st.pop_back();
+            int r = 0;
+            if (t == "+") r = a + b;
+            else if (t == "-") r = a - b;
+            else if (t == "*") r = a * b;
+            else r = a / b;  // C++ integer division truncates toward zero
+            st.push_back(r);
+        } else {
+            st.push_back(std::stoi(t));
+        }
+    }
+    return st.back();
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <string>
+using std::vector;
+using std::string;
+//__USER__
+int main() {
+    { vector<string> t{"2","1","+","3","*"};       if (evalRPN(t) != 9)   { std::puts("case1"); return 1; } }
+    { vector<string> t{"4","13","5","/","+"};       if (evalRPN(t) != 6)   { std::puts("case2"); return 1; } }
+    { vector<string> t{"10","6","9","3","+","-11","*","/","*","17","+","5","+"};
+                                                    if (evalRPN(t) != 22)  { std::puts("case3"); return 1; } }
+    { vector<string> t{"3","-4","*"};               if (evalRPN(t) != -12) { std::puts("case4"); return 1; } }
+    { vector<string> t{"-42"};                       if (evalRPN(t) != -42) { std::puts("case5"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Process tokens left to right using an operand stack. Numbers are pushed; each operator pops its two operands, applies the operation (the earlier-pushed value is the left operand), and pushes the result. C++ integer division already truncates toward zero, matching the required semantics. The single remaining stack value is the answer, computed in O(n) time and O(n) space.
+
+## challenge: Longest Palindromic Substring
+
+tags: string, dynamic-programming, two-pointers
+track: faang
+difficulty: medium
+
+Given a string `s`, return the longest contiguous substring of `s` that reads the same forward and backward. If several substrings share the maximum length, returning any one of them is acceptable.
+
+Constraints: `1 <= s.length <= 1000`, `s` consists of digits and English letters. (The empty string maps to the empty answer.)
+
+Example: `s = "babad"` → `"bab"` (or `"aba"`), length `3`. Example: `s = "cbbd"` → `"bb"`, length `2`.
+
+hint: Every palindrome is defined by a center; there are `2n-1` possible centers (each character and each gap between characters).
+hint: Expand around each center, growing left and right while the characters match, and track the widest expansion seen.
+hint: Handle both odd-length centers (a single character) and even-length centers (a pair) to catch palindromes like `"bb"`.
+
+```cpp
+// starter
+#include <string>
+std::string longestPalindrome(std::string s);
+```
+
+```cpp
+std::string longestPalindrome(std::string s) {
+    if (s.empty()) return "";
+    int start = 0, best = 1;
+    auto expand = [&](int l, int r) {
+        while (l >= 0 && r < (int)s.size() && s[l] == s[r]) { --l; ++r; }
+        int len = r - l - 1;  // palindrome is s[l+1 .. r-1]
+        if (len > best) { best = len; start = l + 1; }
+    };
+    for (int i = 0; i < (int)s.size(); ++i) {
+        expand(i, i);      // odd-length center
+        expand(i, i + 1);  // even-length center
+    }
+    return s.substr(start, best);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <string>
+using std::string;
+static bool isPalin(const string& t) {
+    int i = 0, j = (int)t.size() - 1;
+    while (i < j) { if (t[i] != t[j]) return false; ++i; --j; }
+    return true;
+}
+// The answer need not be unique, so validate shape rather than an exact string:
+// (a) substring of s, (b) a palindrome, (c) length equals the known maximum.
+static bool ok(const string& s, const string& ans, int expectedLen) {
+    if ((int)ans.size() != expectedLen) return false;
+    if (!isPalin(ans)) return false;
+    if (s.find(ans) == string::npos) return false;
+    return true;
+}
+//__USER__
+int main() {
+    if (!ok("babad", longestPalindrome("babad"), 3))                       { std::puts("case1"); return 1; }
+    if (!ok("cbbd", longestPalindrome("cbbd"), 2))                         { std::puts("case2"); return 1; }
+    if (!ok("a", longestPalindrome("a"), 1))                               { std::puts("case3"); return 1; }
+    if (!ok("", longestPalindrome(""), 0))                                 { std::puts("case4"); return 1; }
+    if (!ok("forgeeksskeegfor", longestPalindrome("forgeeksskeegfor"), 10)){ std::puts("case5"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Treat each of the `2n-1` centers as the middle of a candidate palindrome and expand outward while the mirrored characters match, remembering the longest span. Considering both single-character and between-character centers covers odd- and even-length palindromes. This runs in O(n^2) time and O(1) extra space, simpler than the O(n^2) DP table and sufficient for `n <= 1000`.
+
+## challenge: House Robber
+
+tags: array, dynamic-programming
+track: faang
+difficulty: medium
+
+You are a robber planning to loot houses along a street, where `nums[i]` is the money in house `i`. You cannot rob two adjacent houses on the same night without triggering an alarm. Return the maximum total amount you can rob.
+
+Constraints: `0 <= nums.length <= 100`, `0 <= nums[i] <= 400`.
+
+Example: `nums = [1,2,3,1]` → `4` (rob houses `0` and `2`). Example: `nums = [2,7,9,3,1]` → `12` (rob houses `0`, `2`, and `4`).
+
+hint: At each house you either skip it (keep the best so far) or rob it (add its value to the best from two houses back).
+hint: This is a linear DP; the state is only the best totals ending at the previous two positions.
+hint: Track `cur` and `prev`; the new best is `max(cur, prev + nums[i])`, then shift the window forward.
+
+```cpp
+// starter
+#include <vector>
+int rob(std::vector<int>& nums);
+```
+
+```cpp
+int rob(std::vector<int>& nums) {
+    int prev = 0, cur = 0;  // best totals two-back and one-back
+    for (int x : nums) {
+        int next = std::max(cur, prev + x);
+        prev = cur;
+        cur = next;
+    }
+    return cur;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <algorithm>
+using std::vector;
+//__USER__
+int main() {
+    { vector<int> n{1,2,3,1};   if (rob(n) != 4)  { std::puts("case1"); return 1; } }
+    { vector<int> n{2,7,9,3,1}; if (rob(n) != 12) { std::puts("case2"); return 1; } }
+    { vector<int> n{5};         if (rob(n) != 5)  { std::puts("case3"); return 1; } }
+    { vector<int> n{};          if (rob(n) != 0)  { std::puts("case4"); return 1; } }
+    { vector<int> n{2,1,1,2};   if (rob(n) != 4)  { std::puts("case5"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Let the best loot ending at each house be the larger of skipping it (the previous best) or robbing it (its value plus the best from two houses earlier). Only the last two running maxima matter, so two scalars replace the full DP array. One left-to-right pass gives O(n) time and O(1) space.
+
+## challenge: Longest Common Subsequence
+
+tags: string, dynamic-programming
+track: faang
+difficulty: medium
+
+Given two strings `text1` and `text2`, return the length of their longest common subsequence, or `0` if there is none. A subsequence is formed by deleting some (possibly zero) characters without reordering the rest; a common subsequence appears in both strings.
+
+Constraints: `1 <= text1.length, text2.length <= 1000`, both consist of lowercase English letters. (Empty inputs yield `0`.)
+
+Example: `text1 = "abcde", text2 = "ace"` → `3` (`"ace"`). Example: `text1 = "abc", text2 = "def"` → `0`.
+
+hint: Compare the two strings position by position; matching characters extend a shared subsequence.
+hint: Use a 2D DP where `dp[i][j]` is the LCS length of the first `i` characters of `text1` and the first `j` of `text2`.
+hint: On a match take `dp[i-1][j-1] + 1`; otherwise take `max(dp[i-1][j], dp[i][j-1])`.
+
+```cpp
+// starter
+#include <string>
+int longestCommonSubsequence(std::string text1, std::string text2);
+```
+
+```cpp
+int longestCommonSubsequence(std::string text1, std::string text2) {
+    int m = (int)text1.size(), n = (int)text2.size();
+    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1, 0));
+    for (int i = 1; i <= m; ++i)
+        for (int j = 1; j <= n; ++j)
+            dp[i][j] = (text1[i - 1] == text2[j - 1])
+                         ? dp[i - 1][j - 1] + 1
+                         : std::max(dp[i - 1][j], dp[i][j - 1]);
+    return dp[m][n];
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <string>
+#include <algorithm>
+using std::string;
+//__USER__
+int main() {
+    if (longestCommonSubsequence("abcde", "ace") != 3) { std::puts("case1"); return 1; }
+    if (longestCommonSubsequence("abc", "abc")   != 3) { std::puts("case2"); return 1; }
+    if (longestCommonSubsequence("abc", "def")   != 0) { std::puts("case3"); return 1; }
+    if (longestCommonSubsequence("", "abc")      != 0) { std::puts("case4"); return 1; }
+    if (longestCommonSubsequence("abc", "")      != 0) { std::puts("case5"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Fill a table where `dp[i][j]` is the LCS length of the prefixes `text1[0..i)` and `text2[0..j)`. Equal characters extend the diagonal subsequence by one; otherwise the best comes from dropping one character of either prefix. The bottom-right cell holds the answer, computed in O(m*n) time and O(m*n) space (reducible to O(min(m,n)) with rolling rows).
+
+## challenge: Combination Sum
+tags: backtracking, array
+track: faang
+difficulty: medium
+
+Given an array of `distinct` integers `candidates` and a target integer `target`, return all unique combinations of `candidates` where the chosen numbers sum to `target`. The same number may be chosen from `candidates` an unlimited number of times. Two combinations are the same if they contain the same multiset of numbers, regardless of order. Return the combinations in any order.
+
+Constraints: `1 <= candidates.length <= 30`, `2 <= candidates[i] <= 40`, all elements distinct, `1 <= target <= 40`.
+
+Example: `candidates = [2,3,6,7], target = 7` -> `[[2,2,3],[7]]`. Example: `candidates = [2,3,5], target = 8` -> `[[2,2,2,2],[2,3,3],[3,5]]`. Example: `candidates = [2], target = 1` -> `[]`.
+
+hint: This is an unbounded selection problem — the same candidate can appear multiple times in one combination.
+hint: Backtrack while carrying the remaining amount; to avoid duplicate multisets, only ever move forward (or stay) in the candidates index, never revisit earlier candidates.
+hint: At index `i`, recurse into the same index `i` (reuse allowed) after choosing it; prune when the remaining amount drops below zero.
+
+```cpp
+// starter
+#include <vector>
+std::vector<std::vector<int>> combinationSum(std::vector<int>& candidates, int target);
+```
+
+```cpp
+std::vector<std::vector<int>> combinationSum(std::vector<int>& candidates, int target) {
+    std::vector<std::vector<int>> res;
+    std::vector<int> cur;
+    std::function<void(int, int)> dfs = [&](int start, int remain) {
+        if (remain == 0) { res.push_back(cur); return; }
+        for (int i = start; i < (int)candidates.size(); ++i) {
+            if (candidates[i] > remain) continue;
+            cur.push_back(candidates[i]);
+            dfs(i, remain - candidates[i]);   // i, not i+1: reuse allowed
+            cur.pop_back();
+        }
+    };
+    dfs(0, target);
+    return res;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <functional>
+#include <algorithm>
+using std::vector;
+static vector<vector<int>> canon(vector<vector<int>> g) {
+    for (auto& row : g) std::sort(row.begin(), row.end());
+    std::sort(g.begin(), g.end());
+    return g;
+}
+//__USER__
+int main() {
+    {
+        vector<int> c{2,3,6,7};
+        vector<vector<int>> want = {{2,2,3},{7}};
+        if (canon(combinationSum(c, 7)) != canon(want)) { std::puts("case1"); return 1; }
+    }
+    {
+        vector<int> c{2,3,5};
+        vector<vector<int>> want = {{2,2,2,2},{2,3,3},{3,5}};
+        if (canon(combinationSum(c, 8)) != canon(want)) { std::puts("case2"); return 1; }
+    }
+    {
+        vector<int> c{2};
+        auto r = combinationSum(c, 1);
+        if (!r.empty()) { std::puts("case3"); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Backtrack over the candidates, keeping the remaining target; passing the current index (not index+1) into the recursion lets a candidate be reused, and never going backwards prevents permutations of the same multiset. Pruning when a candidate exceeds the remainder bounds the search. Time is roughly O(n^(target/min)) in the worst case, with O(target/min) recursion depth.
+
+## challenge: Permutations
+tags: backtracking, array
+track: faang
+difficulty: medium
+
+Given an array `nums` of distinct integers, return all the possible permutations. You can return the answer in any order.
+
+Constraints: `1 <= nums.length <= 6`, `-10 <= nums[i] <= 10`, all integers unique.
+
+Example: `nums = [1,2,3]` -> the 6 permutations `[[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]]`. Example: `nums = [0,1]` -> `[[0,1],[1,0]]`. Example: `nums = [1]` -> `[[1]]`.
+
+hint: Every permutation fixes one element at each position, drawn from the not-yet-used elements.
+hint: Backtrack: track which indices are already used, append an unused one, recurse, then undo the choice.
+hint: When the current arrangement reaches length `n`, record a copy of it as a completed permutation.
+
+```cpp
+// starter
+#include <vector>
+std::vector<std::vector<int>> permute(std::vector<int>& nums);
+```
+
+```cpp
+std::vector<std::vector<int>> permute(std::vector<int>& nums) {
+    std::vector<std::vector<int>> res;
+    int n = (int)nums.size();
+    std::vector<int> cur;
+    std::vector<char> used(n, 0);
+    std::function<void()> dfs = [&]() {
+        if ((int)cur.size() == n) { res.push_back(cur); return; }
+        for (int i = 0; i < n; ++i) {
+            if (used[i]) continue;
+            used[i] = 1;
+            cur.push_back(nums[i]);
+            dfs();
+            cur.pop_back();
+            used[i] = 0;
+        }
+    };
+    dfs();
+    return res;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <functional>
+#include <algorithm>
+using std::vector;
+static vector<vector<int>> reference(vector<int> nums) {
+    std::sort(nums.begin(), nums.end());
+    vector<vector<int>> out;
+    do { out.push_back(nums); } while (std::next_permutation(nums.begin(), nums.end()));
+    return out;
+}
+static long long factorial(int n) { long long f = 1; for (int i = 2; i <= n; ++i) f *= i; return f; }
+//__USER__
+int main() {
+    {
+        vector<int> n{1,2,3};
+        auto got = permute(n);
+        if ((long long)got.size() != factorial(3)) { std::puts("size1"); return 1; }
+        std::sort(got.begin(), got.end());
+        if (got != reference(n)) { std::puts("case1"); return 1; }
+    }
+    {
+        vector<int> n{0,1};
+        auto got = permute(n);
+        if ((long long)got.size() != factorial(2)) { std::puts("size2"); return 1; }
+        std::sort(got.begin(), got.end());
+        if (got != reference(n)) { std::puts("case2"); return 1; }
+    }
+    {
+        vector<int> n{1};
+        auto got = permute(n);
+        if ((long long)got.size() != factorial(1)) { std::puts("size3"); return 1; }
+        std::sort(got.begin(), got.end());
+        if (got != reference(n)) { std::puts("case3"); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Backtracking builds each permutation position by position, marking indices used as they are placed and unmarking them on the way back up the recursion tree. There are n! permutations, each of length n. O(n * n!) time to generate and copy them, O(n) recursion depth plus the used array.
+
+## challenge: Maximum Depth of Binary Tree
+tags: tree, dfs, bfs
+track: faang
+difficulty: easy
+
+Given the root of a binary tree, return its maximum depth: the number of nodes along the longest path from the root node down to the farthest leaf node.
+
+Constraints: `0 <= n <= 10^4` nodes, `-100 <= Node.val <= 100`.
+
+Example: `[3,9,20,null,null,15,7]` -> `3`. Example: empty -> `0`. Example: `[1]` -> `1`.
+
+hint: The depth of a tree is one more than the depth of its deeper subtree.
+hint: Recurse into both children and return `1 + max(leftDepth, rightDepth)`; an empty subtree contributes depth `0`.
+
+```cpp
+// starter
+struct TreeNode {
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+};
+int maxDepth(TreeNode* root);
+```
+
+```cpp
+int maxDepth(TreeNode* root) {
+    if (!root) return 0;
+    return 1 + std::max(maxDepth(root->left), maxDepth(root->right));
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <queue>
+#include <optional>
+#include <algorithm>
+using std::vector;
+using std::optional;
+struct TreeNode {
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+};
+static TreeNode* build(const vector<optional<int>>& a) {
+    if (a.empty() || !a[0].has_value()) return nullptr;
+    TreeNode* root = new TreeNode(*a[0]);
+    std::queue<TreeNode*> q; q.push(root);
+    size_t i = 1;
+    while (!q.empty() && i < a.size()) {
+        TreeNode* cur = q.front(); q.pop();
+        if (i < a.size()) { if (a[i].has_value()) { cur->left  = new TreeNode(*a[i]); q.push(cur->left);  } ++i; }
+        if (i < a.size()) { if (a[i].has_value()) { cur->right = new TreeNode(*a[i]); q.push(cur->right); } ++i; }
+    }
+    return root;
+}
+//__USER__
+int main() {
+    if (maxDepth(build({3,9,20,std::nullopt,std::nullopt,15,7})) != 3) { std::puts("case1"); return 1; }
+    if (maxDepth(build({})) != 0) { std::puts("case2"); return 1; }
+    if (maxDepth(build({1})) != 1) { std::puts("case3"); return 1; }
+    if (maxDepth(build({1,2,std::nullopt,3})) != 3) { std::puts("case4"); return 1; }  // left-skewed 1->2->3
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Post-order recursion: the depth of any node is one plus the maximum depth of its two children, with the null base case returning zero. Every node is visited once. O(n) time, O(h) space for the recursion stack where h is the tree height.
+
+## challenge: Same Tree
+tags: tree, dfs
+track: faang
+difficulty: easy
+
+Given the roots of two binary trees `p` and `q`, return `true` if they are structurally identical and every corresponding pair of nodes has the same value, otherwise return `false`.
+
+Constraints: `0 <= n <= 100` nodes in each tree, `-10^4 <= Node.val <= 10^4`.
+
+Example: `p = [1,2,3], q = [1,2,3]` -> `true`. Example: `p = [1,2], q = [1,null,2]` -> `false` (same values, different shape). Example: `p = [1,2,1], q = [1,1,2]` -> `false`. Example: both empty -> `true`.
+
+hint: Two trees match only if their roots match and, recursively, their left subtrees and their right subtrees each match.
+hint: Compare the two nodes in lockstep: both null is a match, exactly one null is a mismatch, otherwise compare values then recurse on both children.
+
+```cpp
+// starter
+struct TreeNode {
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+};
+bool isSameTree(TreeNode* p, TreeNode* q);
+```
+
+```cpp
+bool isSameTree(TreeNode* p, TreeNode* q) {
+    if (!p && !q) return true;
+    if (!p || !q) return false;
+    if (p->val != q->val) return false;
+    return isSameTree(p->left, q->left) && isSameTree(p->right, q->right);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <queue>
+#include <optional>
+using std::vector;
+using std::optional;
+struct TreeNode {
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+};
+static TreeNode* build(const vector<optional<int>>& a) {
+    if (a.empty() || !a[0].has_value()) return nullptr;
+    TreeNode* root = new TreeNode(*a[0]);
+    std::queue<TreeNode*> q; q.push(root);
+    size_t i = 1;
+    while (!q.empty() && i < a.size()) {
+        TreeNode* cur = q.front(); q.pop();
+        if (i < a.size()) { if (a[i].has_value()) { cur->left  = new TreeNode(*a[i]); q.push(cur->left);  } ++i; }
+        if (i < a.size()) { if (a[i].has_value()) { cur->right = new TreeNode(*a[i]); q.push(cur->right); } ++i; }
+    }
+    return root;
+}
+//__USER__
+int main() {
+    if (!isSameTree(build({1,2,3}), build({1,2,3}))) { std::puts("case1"); return 1; }
+    if (isSameTree(build({1,2}), build({1,std::nullopt,2}))) { std::puts("case2"); return 1; }
+    if (isSameTree(build({1,2,1}), build({1,1,2}))) { std::puts("case3"); return 1; }
+    if (!isSameTree(build({}), build({}))) { std::puts("case4"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Walk both trees together with a single recursion: two nulls agree, one null disagrees, otherwise the values must be equal and both subtree pairs must match. Each node pair is compared once. O(min(np, nq)) time, O(min(hp, hq)) recursion depth.
+
+## challenge: Diameter of Binary Tree
+tags: tree, dfs
+track: faang
+difficulty: easy
+
+Given the root of a binary tree, return the length of its diameter: the number of edges on the longest path between any two nodes in the tree. This path may or may not pass through the root.
+
+Constraints: `1 <= n <= 10^4` nodes, `-100 <= Node.val <= 100`.
+
+Example: `[1,2,3,4,5]` -> `3` (the path `4 -> 2 -> 1 -> 3` or `5 -> 2 -> 1 -> 3` has 3 edges). Example: `[1,2]` -> `1`. Example: `[1]` -> `0`.
+
+hint: The longest path through a given node uses the node's two deepest reaching branches, and its edge count equals leftHeight + rightHeight.
+hint: Do a single post-order pass that returns each subtree's height while separately tracking the best leftHeight + rightHeight seen at any node.
+hint: Define an empty subtree's height as `0`; a node's returned height is `1 + max(childHeights)`, and you update the answer before returning.
+
+```cpp
+// starter
+struct TreeNode {
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+};
+int diameterOfBinaryTree(TreeNode* root);
+```
+
+```cpp
+int diameterOfBinaryTree(TreeNode* root) {
+    int best = 0;
+    std::function<int(TreeNode*)> height = [&](TreeNode* node) -> int {
+        if (!node) return 0;
+        int l = height(node->left);
+        int r = height(node->right);
+        best = std::max(best, l + r);
+        return 1 + std::max(l, r);
+    };
+    height(root);
+    return best;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <queue>
+#include <optional>
+#include <functional>
+#include <algorithm>
+using std::vector;
+using std::optional;
+struct TreeNode {
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+};
+static TreeNode* build(const vector<optional<int>>& a) {
+    if (a.empty() || !a[0].has_value()) return nullptr;
+    TreeNode* root = new TreeNode(*a[0]);
+    std::queue<TreeNode*> q; q.push(root);
+    size_t i = 1;
+    while (!q.empty() && i < a.size()) {
+        TreeNode* cur = q.front(); q.pop();
+        if (i < a.size()) { if (a[i].has_value()) { cur->left  = new TreeNode(*a[i]); q.push(cur->left);  } ++i; }
+        if (i < a.size()) { if (a[i].has_value()) { cur->right = new TreeNode(*a[i]); q.push(cur->right); } ++i; }
+    }
+    return root;
+}
+//__USER__
+int main() {
+    if (diameterOfBinaryTree(build({1,2,3,4,5})) != 3) { std::puts("case1"); return 1; }
+    if (diameterOfBinaryTree(build({1,2})) != 1) { std::puts("case2"); return 1; }
+    if (diameterOfBinaryTree(build({1})) != 0) { std::puts("case3"); return 1; }
+    if (diameterOfBinaryTree(build({})) != 0) { std::puts("case4"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A single post-order traversal returns each subtree's height while updating a running best of leftHeight + rightHeight, which is exactly the edge count of the longest path bending at that node. Every node is visited once. O(n) time, O(h) recursion depth.
+
+## challenge: Word Search
+tags: backtracking, matrix, dfs
+track: faang
+difficulty: medium
+
+Given an `m x n` grid of characters `board` and a string `word`, return `true` if `word` can be constructed from letters of sequentially adjacent cells, where adjacent cells are horizontally or vertically neighbouring (up/down/left/right). The same cell may not be used more than once.
+
+Constraints: `1 <= m, n <= 6`, `1 <= word.length <= 15`, `board` and `word` consist of lowercase and uppercase English letters.
+
+Example: `board = [["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]]`, `word = "ABCCED"` -> `true`. Example: same board, `word = "ABCB"` -> `false`.
+
+hint: This is a search over paths — from each starting cell, try to extend a match one adjacent letter at a time.
+hint: Use DFS with backtracking: mark a cell visited before recursing into its four neighbours, then unmark it when you return so other paths can reuse it.
+hint: Temporarily overwrite the current cell with a sentinel like `#` to block reuse, and restore the original character after the recursive calls.
+
+```cpp
+// starter
+#include <vector>
+#include <string>
+bool exist(std::vector<std::vector<char>>& board, std::string word);
+```
+
+```cpp
+bool exist(std::vector<std::vector<char>>& board, std::string word) {
+    int m = (int)board.size();
+    if (m == 0) return word.empty();
+    int n = (int)board[0].size();
+    std::function<bool(int, int, int)> dfs = [&](int r, int c, int k) -> bool {
+        if (k == (int)word.size()) return true;
+        if (r < 0 || c < 0 || r >= m || c >= n || board[r][c] != word[k]) return false;
+        char saved = board[r][c];
+        board[r][c] = '#';
+        bool found = dfs(r + 1, c, k + 1) || dfs(r - 1, c, k + 1) ||
+                     dfs(r, c + 1, k + 1) || dfs(r, c - 1, k + 1);
+        board[r][c] = saved;
+        return found;
+    };
+    for (int r = 0; r < m; ++r)
+        for (int c = 0; c < n; ++c)
+            if (dfs(r, c, 0)) return true;
+    return false;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <string>
+#include <functional>
+using std::vector;
+using std::string;
+static vector<vector<char>> board(const vector<string>& rows) {
+    vector<vector<char>> g;
+    for (auto& r : rows) g.push_back(vector<char>(r.begin(), r.end()));
+    return g;
+}
+//__USER__
+int main() {
+    { auto b = board({"ABCE","SFCS","ADEE"}); if (exist(b, "ABCCED") != true)  { std::puts("case1"); return 1; } }
+    { auto b = board({"ABCE","SFCS","ADEE"}); if (exist(b, "SEE")    != true)  { std::puts("case2"); return 1; } }
+    { auto b = board({"ABCE","SFCS","ADEE"}); if (exist(b, "ABCB")   != false) { std::puts("case3"); return 1; } }
+    { auto b = board({"A"});                  if (exist(b, "A")      != true)  { std::puts("case4"); return 1; } }
+    { auto b = board({"A"});                  if (exist(b, "B")      != false) { std::puts("case5"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Try every cell as the path start and run DFS that matches `word` one character at a time. Mark the current cell as visited (overwrite with `#`) before recursing into the four neighbours and restore it on the way back so alternative paths remain valid. Each of the `m*n` starts explores up to 4 branches per letter, giving O(m*n*4^L) time for word length `L` and O(L) recursion depth.
+
+## challenge: Rotting Oranges
+tags: bfs, matrix, graph
+track: faang
+difficulty: medium
+
+You are given an `m x n` grid where each cell is `0` (empty), `1` (a fresh orange), or `2` (a rotten orange). Every minute, any fresh orange that is 4-directionally adjacent to a rotten orange becomes rotten. Return the minimum number of minutes that must elapse until no cell has a fresh orange, or `-1` if that is impossible.
+
+Constraints: `1 <= m, n <= 10`, each `grid[i][j]` is `0`, `1`, or `2`.
+
+Example: `grid = [[2,1,1],[1,1,0],[0,1,1]]` -> `4`. Example: `grid = [[2,1,1],[0,1,1],[1,0,1]]` -> `-1` (the bottom-left orange is unreachable).
+
+hint: Rot spreads outward in waves from every rotten orange at once — this is a shortest-time-to-reach problem, so think breadth-first.
+hint: Seed a queue with all initially rotten oranges (multi-source BFS) and count fresh oranges up front.
+hint: Process the queue one full level per minute; if any fresh oranges remain after BFS finishes, return `-1`.
+
+```cpp
+// starter
+#include <vector>
+int orangesRotting(std::vector<std::vector<int>>& grid);
+```
+
+```cpp
+int orangesRotting(std::vector<std::vector<int>>& grid) {
+    int m = (int)grid.size();
+    if (m == 0) return 0;
+    int n = (int)grid[0].size();
+    std::queue<std::pair<int, int>> q;
+    int fresh = 0;
+    for (int r = 0; r < m; ++r)
+        for (int c = 0; c < n; ++c) {
+            if (grid[r][c] == 2) q.push({r, c});
+            else if (grid[r][c] == 1) ++fresh;
+        }
+    if (fresh == 0) return 0;
+    int minutes = 0;
+    int dr[] = {1, -1, 0, 0}, dc[] = {0, 0, 1, -1};
+    while (!q.empty() && fresh > 0) {
+        int sz = (int)q.size();
+        for (int i = 0; i < sz; ++i) {
+            auto [r, c] = q.front(); q.pop();
+            for (int d = 0; d < 4; ++d) {
+                int nr = r + dr[d], nc = c + dc[d];
+                if (nr < 0 || nc < 0 || nr >= m || nc >= n || grid[nr][nc] != 1) continue;
+                grid[nr][nc] = 2;
+                --fresh;
+                q.push({nr, nc});
+            }
+        }
+        ++minutes;
+    }
+    return fresh == 0 ? minutes : -1;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <queue>
+#include <utility>
+using std::vector;
+//__USER__
+int main() {
+    { vector<vector<int>> g{{2,1,1},{1,1,0},{0,1,1}}; if (orangesRotting(g) != 4)  { std::puts("case1"); return 1; } }
+    { vector<vector<int>> g{{2,1,1},{0,1,1},{1,0,1}}; if (orangesRotting(g) != -1) { std::puts("case2"); return 1; } }
+    { vector<vector<int>> g{{0,2}};                   if (orangesRotting(g) != 0)  { std::puts("case3"); return 1; } }
+    { vector<vector<int>> g{{0,0},{0,0}};             if (orangesRotting(g) != 0)  { std::puts("case4"); return 1; } }
+    { vector<vector<int>> g{{1}};                     if (orangesRotting(g) != -1) { std::puts("case5"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Run a multi-source BFS starting from every rotten orange simultaneously, tracking the count of fresh oranges. Each BFS level corresponds to one minute; a fresh neighbour becomes rotten and is enqueued. When the queue drains, the elapsed levels give the answer, unless fresh oranges remain (unreachable), in which case return `-1`. O(m*n) time and space since each cell is enqueued at most once.
+
+## challenge: Merge k Sorted Lists
+tags: heap, linked-list, divide-and-conquer
+track: faang
+difficulty: hard
+
+You are given an array of `k` linked lists, each sorted in ascending order. Merge all the lists into one sorted linked list and return its head.
+
+Constraints: `0 <= k <= 10^4`, `0 <= lists[i].length <= 500`, `-10^4 <= Node.val <= 10^4`, each list is sorted non-decreasing.
+
+Example: `lists = [[1,4,5],[1,3,4],[2,6]]` -> `[1,1,2,3,4,4,5,6]`. Example: `lists = []` -> `[]`.
+
+hint: At any moment the next node of the answer is the smallest current head across all `k` lists.
+hint: A min-heap (`std::priority_queue`) of the current heads lets you pop the minimum in O(log k) and push its successor.
+hint: Alternatively pair lists up and merge them two at a time (divide and conquer) for O(N log k) as well; either way handle empty lists and an empty input.
+
+```cpp
+// starter
+#include <vector>
+struct ListNode {
+    int val;
+    ListNode* next;
+    ListNode(int x) : val(x), next(nullptr) {}
+};
+ListNode* mergeKLists(std::vector<ListNode*>& lists);
+```
+
+```cpp
+ListNode* mergeKLists(std::vector<ListNode*>& lists) {
+    auto cmp = [](ListNode* a, ListNode* b) { return a->val > b->val; };
+    std::priority_queue<ListNode*, std::vector<ListNode*>, decltype(cmp)> pq(cmp);
+    for (ListNode* l : lists)
+        if (l) pq.push(l);
+    ListNode dummy(0);
+    ListNode* tail = &dummy;
+    while (!pq.empty()) {
+        ListNode* node = pq.top(); pq.pop();
+        tail->next = node;
+        tail = node;
+        if (node->next) pq.push(node->next);
+    }
+    tail->next = nullptr;
+    return dummy.next;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <queue>
+using std::vector;
+struct ListNode {
+    int val;
+    ListNode* next;
+    ListNode(int x) : val(x), next(nullptr) {}
+};
+static ListNode* build(const vector<int>& v) {
+    ListNode dummy(0); ListNode* t = &dummy;
+    for (int x : v) { t->next = new ListNode(x); t = t->next; }
+    return dummy.next;
+}
+static vector<int> toVec(ListNode* h) {
+    vector<int> out; while (h) { out.push_back(h->val); h = h->next; } return out;
+}
+//__USER__
+int main() {
+    { vector<ListNode*> l{build({1,4,5}), build({1,3,4}), build({2,6})};
+      if (toVec(mergeKLists(l)) != vector<int>({1,1,2,3,4,4,5,6})) { std::puts("case1"); return 1; } }
+    { vector<ListNode*> l{};
+      if (toVec(mergeKLists(l)) != vector<int>({}))                { std::puts("case2"); return 1; } }
+    { vector<ListNode*> l{build({})};
+      if (toVec(mergeKLists(l)) != vector<int>({}))                { std::puts("case3"); return 1; } }
+    { vector<ListNode*> l{build({2,4,6,8})};
+      if (toVec(mergeKLists(l)) != vector<int>({2,4,6,8}))         { std::puts("case4"); return 1; } }
+    { vector<ListNode*> l{build({}), build({-1,0,1}), build({})};
+      if (toVec(mergeKLists(l)) != vector<int>({-1,0,1}))          { std::puts("case5"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Keep a min-heap of the current head of every non-empty list. Repeatedly pop the smallest node, splice it onto the result tail, and push its successor. Each of the `N` total nodes enters and leaves the heap once, so the cost is O(N log k) time and O(k) extra space for the heap. Empty and null lists are simply never pushed.
+
+## challenge: Largest Rectangle in Histogram
+tags: monotonic-stack, stack, array
+track: faang
+difficulty: hard
+
+Given an array `heights` representing the bar heights of a histogram where each bar has width `1`, return the area of the largest rectangle that fits entirely within the histogram.
+
+Constraints: `0 <= heights.length <= 10^5`, `0 <= heights[i] <= 10^4`.
+
+Example: `heights = [2,1,5,6,2,3]` -> `10` (the bars of height 5 and 6 span width 2). Example: `heights = [2,4]` -> `4`.
+
+hint: For each bar the widest rectangle capped at its height extends left and right until it meets a strictly shorter bar.
+hint: A monotonic increasing stack of indices lets you find, in O(n), the previous and next shorter bar for every bar.
+hint: When you pop an index, the popped bar's height is the limiting height and the width spans from the new stack top (exclusive) to the current index (exclusive); append a sentinel height of `0` to flush the stack.
+
+```cpp
+// starter
+#include <vector>
+int largestRectangleArea(std::vector<int>& heights);
+```
+
+```cpp
+int largestRectangleArea(std::vector<int>& heights) {
+    std::stack<int> st; // indices with strictly increasing heights
+    int best = 0;
+    int n = (int)heights.size();
+    for (int i = 0; i <= n; ++i) {
+        int h = (i == n) ? 0 : heights[i];
+        while (!st.empty() && heights[st.top()] >= h) {
+            int height = heights[st.top()]; st.pop();
+            int width = st.empty() ? i : i - st.top() - 1;
+            best = std::max(best, height * width);
+        }
+        st.push(i);
+    }
+    return best;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <stack>
+#include <algorithm>
+using std::vector;
+//__USER__
+int main() {
+    { vector<int> h{2,1,5,6,2,3}; if (largestRectangleArea(h) != 10) { std::puts("case1"); return 1; } }
+    { vector<int> h{2,4};         if (largestRectangleArea(h) != 4)  { std::puts("case2"); return 1; } }
+    { vector<int> h{1};           if (largestRectangleArea(h) != 1)  { std::puts("case3"); return 1; } }
+    { vector<int> h{0};           if (largestRectangleArea(h) != 0)  { std::puts("case4"); return 1; } }
+    { vector<int> h{};            if (largestRectangleArea(h) != 0)  { std::puts("case5"); return 1; } }
+    { vector<int> h{2,1,2};       if (largestRectangleArea(h) != 3)  { std::puts("case6"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Sweep left to right maintaining a stack of indices whose heights are increasing. When the current bar is not taller than the stack top, pop it: the popped height is the rectangle's height and its width runs from the element now below the top (exclusive) up to the current index (exclusive). A trailing sentinel of height `0` forces every remaining bar to be resolved. Each index is pushed and popped once, giving O(n) time and O(n) space.
+
+## challenge: Median of Two Sorted Arrays
+tags: binary-search, divide-and-conquer, array
+track: faang
+difficulty: hard
+
+Given two sorted arrays `nums1` and `nums2` of sizes `m` and `n`, return the median of the two sorted arrays combined. The overall run time complexity should be `O(log(m+n))`.
+
+Constraints: `0 <= m, n <= 1000`, `1 <= m + n <= 2000`, `-10^6 <= nums1[i], nums2[i] <= 10^6`, both arrays sorted non-decreasing.
+
+Example: `nums1 = [1,3]`, `nums2 = [2]` -> `2.0`. Example: `nums1 = [1,2]`, `nums2 = [3,4]` -> `2.5`.
+
+hint: A median splits the merged array into a left half and a right half of (almost) equal size where every left element is <= every right element — you only need that partition, not the merge.
+hint: Binary search the cut position in the shorter array; the cut in the other array is forced so the two left parts together hold half the elements.
+hint: A partition is correct when `maxLeft1 <= minRight2` and `maxLeft2 <= minRight1`; use `INT_MIN`/`INT_MAX` sentinels for cuts at the array ends.
+
+```cpp
+// starter
+#include <vector>
+double findMedianSortedArrays(std::vector<int>& nums1, std::vector<int>& nums2);
+```
+
+```cpp
+double findMedianSortedArrays(std::vector<int>& nums1, std::vector<int>& nums2) {
+    if (nums1.size() > nums2.size()) return findMedianSortedArrays(nums2, nums1);
+    int m = (int)nums1.size(), n = (int)nums2.size();
+    int total = m + n, half = (total + 1) / 2;
+    int lo = 0, hi = m;
+    while (lo <= hi) {
+        int i = (lo + hi) / 2;
+        int j = half - i;
+        int left1  = (i == 0) ? INT_MIN : nums1[i - 1];
+        int right1 = (i == m) ? INT_MAX : nums1[i];
+        int left2  = (j == 0) ? INT_MIN : nums2[j - 1];
+        int right2 = (j == n) ? INT_MAX : nums2[j];
+        if (left1 <= right2 && left2 <= right1) {
+            if (total % 2 == 1) return std::max(left1, left2);
+            return (std::max(left1, left2) + std::min(right1, right2)) / 2.0;
+        } else if (left1 > right2) {
+            hi = i - 1;
+        } else {
+            lo = i + 1;
+        }
+    }
+    return 0.0;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <vector>
+#include <algorithm>
+#include <climits>
+#include <cmath>
+using std::vector;
+static bool close(double got, double want) { return std::fabs(got - want) < 1e-6; }
+//__USER__
+int main() {
+    { vector<int> a{1,3},       b{2};     if (!close(findMedianSortedArrays(a, b), 2.0)) { std::puts("case1"); return 1; } }
+    { vector<int> a{1,2},       b{3,4};   if (!close(findMedianSortedArrays(a, b), 2.5)) { std::puts("case2"); return 1; } }
+    { vector<int> a{},          b{1};     if (!close(findMedianSortedArrays(a, b), 1.0)) { std::puts("case3"); return 1; } }
+    { vector<int> a{},          b{2,3};   if (!close(findMedianSortedArrays(a, b), 2.5)) { std::puts("case4"); return 1; } }
+    { vector<int> a{1,2,3,4,5}, b{6,7,8}; if (!close(findMedianSortedArrays(a, b), 4.5)) { std::puts("case5"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Binary search a partition of the shorter array; the complementary cut in the longer array is fixed so the combined left side holds exactly `(m+n+1)/2` elements. The partition is valid when both cross-boundary inequalities hold, at which point the median comes from the boundary values (`max` of the two left maxima for odd totals, averaged with the `min` of the right minima for even totals). Sentinels handle empty sides. O(log(min(m,n))) time, O(1) space.
 
 ## fact: An FPGA is a chip you rewire, not one you program
 tags: fundamentals, hardware
@@ -3318,6 +4846,10 @@ track: hft
 
 The bread-and-butter HFT structure: a single-producer, single-consumer queue with no locks. Buffer size `N` is a power of two. Track fill with **monotonically increasing** `head_` (pop index) and `tail_` (push index) of type `size_t`; the usable slot is `buf_[i & (N - 1)]`. Implement `bool push(const T& v)` (fails, returns false, when full — size `N`) and `bool pop(T& out)` (fails when empty). Single-threaded correctness only here; the real thing pairs `release`/`acquire` on the indices.
 
+hint: Because `head_` and `tail_` only ever increase, their difference `tail_ - head_` is exactly the number of unread elements.
+hint: Since N is a power of two, `i & (N - 1)` is the cheap replacement for `i % N` when mapping an index to a slot.
+hint: Full means the difference equals N; empty means `head_ == tail_`. Never reset the counters — let unsigned arithmetic wrap them naturally.
+
 ```cpp
 // starter
 template <class T, size_t N>
@@ -3377,11 +4909,17 @@ int main() {
 }
 ```
 
+**Editorial:** Monotonic `head_`/`tail_` counters turn full/empty checks into a subtraction: `tail_ - head_` is the current size, so full is `== N` and empty is `head_ == tail_`. Masking with `N - 1` (valid because N is a power of two) indexes the slot, and unsigned wraparound keeps this correct forever. Push and pop are O(1); storage is O(N). The concurrent version pairs release/acquire on the indices to publish writes safely.
+
 ## challenge: Fixed-capacity object pool
 tags: allocation, object-pool, memory
 track: hft
 
 No `new` on the hot path. Pre-allocate `N` slots, hand them out from a free list. Implement `T* alloc()` (returns `nullptr` when exhausted) and `void release(T* p)` (returns a slot to the pool). Use an intrusive free-list index stack over the storage — no allocation, O(1) both ways.
+
+hint: "No allocation" means the set of free slots must be tracked inside storage you already own.
+hint: A stack of free indices — pop one to allocate, push it back to release — gives O(1) in both directions.
+hint: Recover a returned pointer's slot index by pointer subtraction from the base, then push that index back.
 
 ```cpp
 // starter
@@ -3439,11 +4977,16 @@ int main() {
 }
 ```
 
+**Editorial:** An index free-list (a stack held in a plain array) hands out and reclaims pre-allocated slots without ever touching the allocator. `alloc` pops the top free index; `release` recovers the index via pointer arithmetic (`p - slot(0)`) and pushes it back. Both operations are O(1) and the pool is O(N) space with zero heap traffic on the hot path.
+
 ## challenge: Branchless min
 tags: branchless, bit-tricks
 track: hft
 
 Branch mispredicts cost ~15-20 cycles. Compute the minimum of two ints with a bit trick instead of a branch: `b ^ ((a ^ b) & -(a < b))`. Implement `int bmin(int a, int b)` returning the smaller. (The compiler often does this for you — but interviewers ask you to derive it.)
+
+hint: The trick removes the conditional jump so the CPU cannot mispredict it — the whole result comes from turning a boolean into a bitmask.
+hint: `-(a < b)` is either 0 (all bits clear) or -1 (all bits set), which selects between `a` and `b` using XOR.
 
 ```cpp
 int bmin(int a, int b) {
@@ -3469,11 +5012,17 @@ int main() {
 }
 ```
 
+**Editorial:** `a < b` evaluates to 0 or 1, and negating it produces an all-zero or all-ones mask. `b ^ ((a ^ b) & mask)` collapses to `b` when the mask is 0 and to `a` when it is all-ones, choosing the minimum with no branch to mispredict. Constant O(1) work.
+
 ## challenge: Round up to power of two
 tags: bit-tricks, ring-buffer
 track: hft
 
 Ring-buffer and hash-table sizes are powers of two so the modulo becomes a mask. Implement `uint64_t next_pow2(uint64_t x)` returning the smallest power of two that is `>= x`, for `2 <= x <= 2^62`. Bit-smear then increment.
+
+hint: A power of two minus one is a solid run of 1-bits; the plan is to fill every bit below the top set bit, then add one.
+hint: "Smear" the highest set bit downward with a cascade of `x |= x >> k` for k = 1, 2, 4, ..., 32.
+hint: Decrement first so that exact powers of two map to themselves rather than to the next one up.
 
 ```cpp
 uint64_t next_pow2(uint64_t x) {
@@ -3504,11 +5053,16 @@ int main() {
 }
 ```
 
+**Editorial:** Subtract 1 first (so exact powers stay put), then OR the value with right-shifted copies to propagate the top set bit into every lower position, producing `2^k - 1`; adding 1 gives `2^k`. The shift sequence 1, 2, 4, 8, 16, 32 covers all 64 bit positions in O(log bits) = O(1) steps.
+
 ## challenge: Type-pun a float without UB
 tags: undefined-behavior, aliasing, bit-cast
 track: hft
 
 Reinterpreting a `float` as its bits via `*(uint32_t*)&f` is a strict-aliasing violation — UB the optimizer can miscompile. The correct, zero-cost way is `std::memcpy` (or C++20 `std::bit_cast`). Implement `uint32_t float_bits(float f)` returning the IEEE-754 bit pattern with no aliasing violation.
+
+hint: Reading a float's storage through an unrelated pointer type breaks strict aliasing; the fix is to copy the bytes, not reinterpret them.
+hint: `std::memcpy` into a same-sized integer is the blessed, zero-cost idiom (C++20 adds `std::bit_cast`).
 
 ```cpp
 uint32_t float_bits(float f) {
@@ -3533,11 +5087,16 @@ int main() {
 }
 ```
 
+**Editorial:** `std::memcpy` copies the object representation into a `uint32_t` without ever forming a pointer that violates strict aliasing, so the optimizer cannot miscompile it — and it lowers to a single register move. This is the standard way to type-pun; `std::bit_cast` is the constexpr C++20 equivalent. O(1).
+
 ## challenge: O(1) swap-remove
 tags: cache, vector, data-structures
 track: hft
 
 When order doesn't matter, erasing from the middle of a `std::vector` in O(n) (shifting) is wasteful. Swap the target with the last element and pop — O(1), cache-friendly. Implement `void swap_remove(std::vector<int>& v, size_t i)` removing the element at index `i` (assume `i < v.size()`).
+
+hint: Erasing from the middle is O(n) only because of the shift — if order does not matter, avoid the shift entirely.
+hint: Overwrite the target slot with the last element, then `pop_back`.
 
 ```cpp
 void swap_remove(std::vector<int>& v, size_t i) {
@@ -3565,11 +5124,16 @@ int main() {
 }
 ```
 
+**Editorial:** When element order is irrelevant, move the last element into the slot being removed and shrink the vector, sidestepping the O(n) shift that `erase()` performs. It is O(1) and cache-friendly since it touches only two positions. O(1) space.
+
 ## challenge: popcount without the builtin
 tags: bit-tricks
 track: hft
 
 Count set bits. Kernighan's trick clears the lowest set bit each iteration (`x &= x - 1`), so it loops once per set bit rather than 64 times. Implement `int popcount(uint64_t x)` without `__builtin_popcount` / `std::popcount`.
+
+hint: You do not need to inspect all 64 bits — only the set ones matter.
+hint: `x &= x - 1` clears the lowest set bit; count how many times you can do it before x hits zero.
 
 ```cpp
 int popcount(uint64_t x) {
@@ -3594,11 +5158,16 @@ int main() {
 }
 ```
 
+**Editorial:** Kernighan's method: subtracting 1 flips the lowest set bit and all zeros beneath it, so `x & (x - 1)` clears exactly that one bit. The loop therefore runs once per set bit rather than a full 64 times, giving O(popcount) iterations and O(1) space.
+
 ## challenge: Cache-line aligned counter (kill false sharing)
 tags: false-sharing, cache, alignas
 track: hft
 
 Two threads incrementing two counters that share a 64-byte cache line ping-pong the line between cores — "false sharing" — and throughput collapses. Fix it by padding each counter onto its own line. Complete `PaddedCounter` so that `sizeof(PaddedCounter) == 64` and `alignof(PaddedCounter) == 64`, with a `long value` member.
+
+hint: Two counters on the same 64-byte cache line force cores to ping-pong ownership of that line — that is false sharing.
+hint: Give each counter its own cache line with `alignas(64)` plus trailing padding so the struct fills a whole 64 bytes.
 
 ```cpp
 // starter
@@ -3628,6 +5197,8 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** `alignas(64)` forces each counter onto its own cache line and the `pad_` bytes make `sizeof` a full 64, so two threads updating separate counters never contend for the same line — eliminating false sharing and the coherence traffic that otherwise collapses throughput. The cost is memory: a full cache line per counter.
 
 ## fact: The memory hierarchy is the whole game
 tags: cache, memory, latency

@@ -4,6 +4,9 @@ track: hft
 
 When order doesn't matter, erasing from the middle of a `std::vector` in O(n) (shifting) is wasteful. Swap the target with the last element and pop — O(1), cache-friendly. Implement `void swap_remove(std::vector<int>& v, size_t i)` removing the element at index `i` (assume `i < v.size()`).
 
+hint: Erasing from the middle is O(n) only because of the shift — if order does not matter, avoid the shift entirely.
+hint: Overwrite the target slot with the last element, then `pop_back`.
+
 ```cpp
 void swap_remove(std::vector<int>& v, size_t i) {
     v[i] = v.back();
@@ -29,3 +32,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** When element order is irrelevant, move the last element into the slot being removed and shrink the vector, sidestepping the O(n) shift that `erase()` performs. It is O(1) and cache-friendly since it touches only two positions. O(1) space.

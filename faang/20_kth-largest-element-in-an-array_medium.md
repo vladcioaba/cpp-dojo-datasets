@@ -9,6 +9,9 @@ Constraints: `1 <= k <= nums.length <= 10^5`, `-10^4 <= nums[i] <= 10^4`.
 
 Example: `nums = [3,2,1,5,6,4], k = 2` → `5`. Example: `nums = [3,2,3,1,2,4,5,5,6], k = 4` → `4`.
 
+hint: You do not need the whole array sorted — only the boundary between the top k elements and the rest.
+hint: Maintain a size-k min-heap; once you have seen everything, its smallest element is the k-th largest. (Quickselect is the O(n)-average alternative.)
+
 ```cpp
 // starter
 #include <vector>
@@ -43,3 +46,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Push elements into a min-heap capped at size k, evicting its smallest whenever it overflows; the heap's top is then the k-th largest. O(n log k) time, O(k) space. Quickselect achieves O(n) average time in place.

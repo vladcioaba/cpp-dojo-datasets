@@ -9,6 +9,9 @@ Constraints: `0 <= n <= 100` nodes, `-100 <= Node.val <= 100`.
 
 Example: `[4,2,7,1,3,6,9]` → `[4,7,2,9,6,3,1]` (level-order, `null` for missing children). Example: empty → empty.
 
+hint: Inverting a tree just means swapping the two children of every node.
+hint: Recurse into both subtrees, then swap the (already-inverted) left and right pointers.
+
 ```cpp
 // starter
 struct TreeNode {
@@ -80,3 +83,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Post-order recursion: invert each subtree, then swap the child pointers. Every node is visited exactly once. O(n) time, O(h) space for the recursion stack, where h is the tree height.

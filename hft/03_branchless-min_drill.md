@@ -4,6 +4,9 @@ track: hft
 
 Branch mispredicts cost ~15-20 cycles. Compute the minimum of two ints with a bit trick instead of a branch: `b ^ ((a ^ b) & -(a < b))`. Implement `int bmin(int a, int b)` returning the smaller. (The compiler often does this for you — but interviewers ask you to derive it.)
 
+hint: The trick removes the conditional jump so the CPU cannot mispredict it — the whole result comes from turning a boolean into a bitmask.
+hint: `-(a < b)` is either 0 (all bits clear) or -1 (all bits set), which selects between `a` and `b` using XOR.
+
 ```cpp
 int bmin(int a, int b) {
     return b ^ ((a ^ b) & -(a < b));
@@ -27,3 +30,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** `a < b` evaluates to 0 or 1, and negating it produces an all-zero or all-ones mask. `b ^ ((a ^ b) & mask)` collapses to `b` when the mask is 0 and to `a` when it is all-ones, choosing the minimum with no branch to mispredict. Constant O(1) work.

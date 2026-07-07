@@ -9,6 +9,9 @@ Constraints: `2 <= nums.length <= 10^4`, `-10^9 <= nums[i], target <= 10^9`.
 
 Example: `nums = [2,7,11,15], target = 9` → `[0,1]` (because `nums[0] + nums[1] == 9`). Example: `nums = [3,2,4], target = 6` → `[1,2]`.
 
+hint: Checking every pair is O(n^2); trade space for time by remembering what you've already seen as you scan.
+hint: A hash map from value to index lets you ask "have I already seen `target - nums[i]`?" in O(1).
+
 ```cpp
 // starter
 #include <vector>
@@ -47,3 +50,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** One pass with a hash map. For each element, look up its complement `target - nums[i]`; if it's present you have the answer, otherwise record the current value and index. Average O(1) lookups and inserts make the whole scan O(n) time, O(n) space.

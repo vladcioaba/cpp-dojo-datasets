@@ -9,6 +9,9 @@ Constraints: each list has `0 <= n <= 50` nodes, sorted non-decreasing, `-100 <=
 
 Example: `l1 = 1->2->4`, `l2 = 1->3->4` → `1->1->2->3->4->4`. Example: both empty → empty.
 
+hint: Repeatedly take the smaller of the two current heads and append it to the result.
+hint: A dummy head node removes the special case for the first append; keep a `tail` pointer to splice onto.
+
 ```cpp
 // starter
 struct ListNode {
@@ -60,3 +63,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** A two-pointer merge that splices existing nodes rather than allocating. A dummy node simplifies building the list; walk both inputs attaching the smaller front, then append whatever remains. O(n+m) time, O(1) extra space.

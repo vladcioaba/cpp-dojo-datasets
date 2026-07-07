@@ -9,6 +9,9 @@ Constraints: `1 <= intervals.length <= 10^4`, `intervals[i][0] <= intervals[i][1
 
 Example: `[[1,3],[2,6],[8,10],[15,18]]` → `[[1,6],[8,10],[15,18]]`. Example: `[[1,4],[4,5]]` → `[[1,5]]`.
 
+hint: Once intervals are sorted by start, any overlap can only occur between consecutive intervals.
+hint: Sort by start, then sweep, extending the last kept interval whenever the next one overlaps it.
+
 ```cpp
 // starter
 #include <vector>
@@ -50,3 +53,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Sort the intervals by start, then walk through them: if the current interval starts at or before the last merged interval's end, extend that end, otherwise append a new interval. Sorting dominates the cost. O(n log n) time, O(n) space (O(1) beyond the output).

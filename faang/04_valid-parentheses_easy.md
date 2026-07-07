@@ -9,6 +9,9 @@ Constraints: `1 <= s.length <= 10^4`.
 
 Example: `"()[]{}"` → `true`. Example: `"(]"` → `false`. Example: `"([)]"` → `false`. Example: `"{[]}"` → `true`.
 
+hint: The most recently opened bracket must be the first one to close — that is last-in-first-out behavior.
+hint: Push opening brackets onto a stack; on a closing bracket, pop and check that the types match.
+
 ```cpp
 // starter
 #include <string>
@@ -51,3 +54,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** A stack holds the currently unmatched openers. Each closing bracket must match the top of the stack, and any leftover openers at the end make the string invalid. O(n) time, O(n) space.

@@ -9,6 +9,10 @@ Constraints: `1 <= nums.length <= 10^5`, `1 <= k <= nums.length`, `-10^4 <= nums
 
 Example: `nums = [1,3,-1,-3,5,3,6,7], k = 3` → `[3,3,5,5,6,7]`. Example: `nums = [1], k = 1` → `[1]`.
 
+hint: The window's maximum only changes when the current max slides out or a larger value enters.
+hint: A monotonic deque of indices, values decreasing from front to back, keeps the current maximum at the front.
+hint: Before pushing i, pop smaller values off the back (they can never be the max again) and drop front indices that have left the window.
+
 ```cpp
 // starter
 #include <vector>
@@ -50,3 +54,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** A double-ended queue holds indices whose values decrease front-to-back, so its front is always the current window's maximum. Each index enters and leaves the deque exactly once as the window slides. O(n) time, O(k) space.

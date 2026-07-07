@@ -9,6 +9,9 @@ Constraints: `1 <= s.length <= 2*10^5`, `s` consists of printable ASCII.
 
 Example: `"A man, a plan, a canal: Panama"` → `true`. Example: `"race a car"` → `false`. Example: `" "` → `true`.
 
+hint: Compare the string from both ends inward, considering only alphanumeric characters.
+hint: Two pointers, one at each end, skipping non-alphanumeric characters and comparing case-insensitively.
+
 ```cpp
 // starter
 #include <string>
@@ -46,3 +49,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Two pointers converge from the ends. Advance each past non-alphanumeric characters, then compare the lowercased characters; any mismatch means it is not a palindrome. Because no filtered copy is built, it runs in O(n) time and O(1) extra space.

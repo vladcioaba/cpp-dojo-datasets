@@ -9,6 +9,9 @@ Constraints: `1 <= nums.length <= 10^4`, `0 <= nums[i] <= 10^5`.
 
 Example: `nums = [2,3,1,1,4]` → `true`. Example: `nums = [3,2,1,0,4]` → `false` (you get stuck at index 3). Example: `nums = [0]` → `true`.
 
+hint: Track the farthest index reachable so far; if the scan ever stands past it, you are stuck.
+hint: A single greedy pass maintaining the maximum reach is enough.
+
 ```cpp
 // starter
 #include <vector>
@@ -42,3 +45,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Greedily maintain the farthest reachable index. If the current index ever exceeds that reach you can never arrive; otherwise extend the reach by `i + nums[i]`. Reaching the end means success. O(n) time, O(1) space.

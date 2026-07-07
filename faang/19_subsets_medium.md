@@ -9,6 +9,9 @@ Constraints: `1 <= nums.length <= 10`, `-10 <= nums[i] <= 10`, all elements uniq
 
 Example: `nums = [1,2,3]` → `[[],[1],[2],[3],[1,2],[1,3],[2,3],[1,2,3]]` (8 subsets). Example: `nums = [0]` → `[[],[0]]`.
 
+hint: For each element you make a binary choice — include it or not — and the leaves of that decision tree are the subsets.
+hint: Backtracking over the include/exclude choices (or map each of the 2^n bitmasks to a subset).
+
 ```cpp
 // starter
 #include <vector>
@@ -67,3 +70,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Backtracking explores the include-or-exclude decision for each element and records the current selection at each leaf. There are 2^n subsets, each up to length n. O(n * 2^n) time, O(n) recursion depth.

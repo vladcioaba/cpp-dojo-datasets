@@ -9,6 +9,9 @@ Constraints: `0 <= s.length <= 5*10^4`, `s` consists of English letters, digits,
 
 Example: `"abcabcbb"` → `3` (`"abc"`). Example: `"bbbbb"` → `1`. Example: `"pwwkew"` → `3` (`"wke"`). Example: `""` → `0`.
 
+hint: Grow a window to the right; when a character repeats, the window's left edge must jump past its previous occurrence.
+hint: A sliding window plus a table storing each character's last-seen index.
+
 ```cpp
 // starter
 #include <string>
@@ -47,3 +50,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Slide a window while recording the last index at which each character appeared. When the current character was last seen at or after the window start, jump the start just past it; the answer is the widest window observed. O(n) time, O(min(n, alphabet)) space.

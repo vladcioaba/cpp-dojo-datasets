@@ -9,6 +9,9 @@ Constraints: `1 <= strs.length <= 10^4`, `0 <= strs[i].length <= 100`, lowercase
 
 Example: `["eat","tea","tan","ate","nat","bat"]` → `[["eat","tea","ate"],["tan","nat"],["bat"]]`. Example: `[""]` → `[[""]]`.
 
+hint: Anagrams share an invariant — a canonical form that is identical for every word in a group.
+hint: Sorting a word's letters (or a 26-letter count signature) yields a key you can group on with a hash map.
+
 ```cpp
 // starter
 #include <vector>
@@ -67,3 +70,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Map each string to a canonical key — its letters sorted — and bucket the originals by that key in a hash map, so anagrams collide into the same group. For n strings of length k it is O(n*k log k) time (a counting-based key drops it to O(n*k)); O(n*k) space.

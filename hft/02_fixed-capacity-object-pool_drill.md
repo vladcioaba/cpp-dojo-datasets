@@ -4,6 +4,10 @@ track: hft
 
 No `new` on the hot path. Pre-allocate `N` slots, hand them out from a free list. Implement `T* alloc()` (returns `nullptr` when exhausted) and `void release(T* p)` (returns a slot to the pool). Use an intrusive free-list index stack over the storage — no allocation, O(1) both ways.
 
+hint: "No allocation" means the set of free slots must be tracked inside storage you already own.
+hint: A stack of free indices — pop one to allocate, push it back to release — gives O(1) in both directions.
+hint: Recover a returned pointer's slot index by pointer subtraction from the base, then push that index back.
+
 ```cpp
 // starter
 template <class T, size_t N>
@@ -59,3 +63,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** An index free-list (a stack held in a plain array) hands out and reclaims pre-allocated slots without ever touching the allocator. `alloc` pops the top free index; `release` recovers the index via pointer arithmetic (`p - slot(0)`) and pushes it back. Both operations are O(1) and the pool is O(N) space with zero heap traffic on the hot path.

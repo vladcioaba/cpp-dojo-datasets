@@ -4,6 +4,10 @@ track: hft
 
 The bread-and-butter HFT structure: a single-producer, single-consumer queue with no locks. Buffer size `N` is a power of two. Track fill with **monotonically increasing** `head_` (pop index) and `tail_` (push index) of type `size_t`; the usable slot is `buf_[i & (N - 1)]`. Implement `bool push(const T& v)` (fails, returns false, when full — size `N`) and `bool pop(T& out)` (fails when empty). Single-threaded correctness only here; the real thing pairs `release`/`acquire` on the indices.
 
+hint: Because `head_` and `tail_` only ever increase, their difference `tail_ - head_` is exactly the number of unread elements.
+hint: Since N is a power of two, `i & (N - 1)` is the cheap replacement for `i % N` when mapping an index to a slot.
+hint: Full means the difference equals N; empty means `head_ == tail_`. Never reset the counters — let unsigned arithmetic wrap them naturally.
+
 ```cpp
 // starter
 template <class T, size_t N>
@@ -62,3 +66,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Monotonic `head_`/`tail_` counters turn full/empty checks into a subtraction: `tail_ - head_` is the current size, so full is `== N` and empty is `head_ == tail_`. Masking with `N - 1` (valid because N is a power of two) indexes the slot, and unsigned wraparound keeps this correct forever. Push and pop are O(1); storage is O(N). The concurrent version pairs release/acquire on the indices to publish writes safely.

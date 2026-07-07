@@ -3,6 +3,9 @@ tags: patterns, crtp, templates
 
 Write a struct template `Printable` taking `class D`, with a member function `print() const` that streams the derived object to `std::cout` via `std::cout << static_cast<const D&>(*this);`.
 
+hint: The base can call into the derived class without a vtable if it knows the derived type statically.
+hint: Template the base on the derived type and `static_cast<const D&>(*this)` to reach the derived object.
+
 ```cpp
 template <class D>
 struct Printable {
@@ -31,3 +34,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** The Curiously Recurring Template Pattern passes the derived type as a template parameter, so the base can `static_cast` `*this` to `D&` and call derived behavior with everything resolved at compile time — polymorphism at zero virtual-dispatch cost. The drill teaches static (compile-time) polymorphism via CRTP.

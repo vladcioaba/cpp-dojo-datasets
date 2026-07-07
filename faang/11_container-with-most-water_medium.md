@@ -9,6 +9,9 @@ Constraints: `2 <= height.length <= 10^5`, `0 <= height[i] <= 10^4`.
 
 Example: `height = [1,8,6,2,5,4,8,3,7]` → `49`. Example: `height = [1,1]` → `1`.
 
+hint: Area is the width times the shorter of the two walls, so begin as wide as possible.
+hint: Use two pointers at the ends; moving the taller wall inward can never help, so always move the shorter one.
+
 ```cpp
 // starter
 #include <vector>
@@ -43,3 +46,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** With pointers at both ends the area is `min(height[i], height[j]) * (j - i)`. Moving the shorter wall inward is the only move that can raise the limiting height, so greedily advance it. O(n) time, O(1) space.

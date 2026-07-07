@@ -9,6 +9,9 @@ Constraints: `1 <= prices.length <= 10^5`, `0 <= prices[i] <= 10^4`.
 
 Example: `prices = [7,1,5,3,6,4]` → `5` (buy at 1, sell at 6). Example: `prices = [7,6,4,3,1]` → `0` (never profitable).
 
+hint: You must buy before you sell, so at each day ask: if I sell today, what is the cheapest I could have bought earlier?
+hint: Sweep left to right tracking the minimum price seen so far and the best profit against it.
+
 ```cpp
 // starter
 #include <vector>
@@ -43,3 +46,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** A single pass keeps the running minimum price and the best profit `price - minSoFar`. Since the buy day is always at or before the sell day, one scan is enough. O(n) time, O(1) space.

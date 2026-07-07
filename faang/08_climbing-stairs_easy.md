@@ -9,6 +9,9 @@ Constraints: `1 <= n <= 45`.
 
 Example: `n = 2` → `2` (`1+1`, `2`). Example: `n = 3` → `3` (`1+1+1`, `1+2`, `2+1`). Example: `n = 5` → `8`.
 
+hint: The number of ways to reach step n depends only on the ways to reach steps n-1 and n-2.
+hint: That recurrence is exactly Fibonacci — you only need to keep the last two values.
+
 ```cpp
 // starter
 int climbStairs(int n);
@@ -40,3 +43,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** The last move onto step n is either a 1-step from n-1 or a 2-step from n-2, so ways(n) = ways(n-1) + ways(n-2). Roll two variables forward instead of storing the whole table. O(n) time, O(1) space.

@@ -1,5 +1,5 @@
 {
- "count": 217,
+ "count": 237,
  "cards": [
   {
    "topic": "cpp-core",
@@ -728,6 +728,166 @@
    "track": "faang",
    "level": "hard",
    "title": "Sliding Window Maximum"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/28_contains-duplicate_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Contains Duplicate"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/29_valid-anagram_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Valid Anagram"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/30_maximum-subarray_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Maximum Subarray"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/31_product-of-array-except-self_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Product of Array Except Self"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/32_two-sum-ii_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Two Sum II - Input Array Is Sorted"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/33_linked-list-cycle_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Linked List Cycle"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/34_evaluate-reverse-polish-notation_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Evaluate Reverse Polish Notation"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/35_longest-palindromic-substring_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Longest Palindromic Substring"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/36_house-robber_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "House Robber"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/37_longest-common-subsequence_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Longest Common Subsequence"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/38_combination-sum_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Combination Sum"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/39_permutations_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Permutations"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/40_maximum-depth-of-binary-tree_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Maximum Depth of Binary Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/41_same-tree_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Same Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/42_diameter-of-binary-tree_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Diameter of Binary Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/43_word-search_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Word Search"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/44_rotting-oranges_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Rotting Oranges"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/45_merge-k-sorted-lists_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Merge k Sorted Lists"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/46_largest-rectangle-in-histogram_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Largest Rectangle in Histogram"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/47_median-of-two-sorted-arrays_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Median of Two Sorted Arrays"
   },
   {
    "topic": "fpga",

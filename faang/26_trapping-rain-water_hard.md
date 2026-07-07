@@ -9,6 +9,10 @@ Constraints: `1 <= height.length <= 2*10^4`, `0 <= height[i] <= 10^5`.
 
 Example: `height = [0,1,0,2,1,0,1,3,2,1,2,1]` → `6`. Example: `height = [4,2,0,3,2,5]` → `9`.
 
+hint: Water sitting above a bar is bounded by the shorter of the tallest wall to its left and the tallest to its right.
+hint: Two pointers from both ends, tracking leftMax and rightMax, advancing the side with the smaller wall.
+hint: The side with the smaller running max is safe to settle, because the taller opposite side guarantees the bound holds.
+
 ```cpp
 // starter
 #include <vector>
@@ -50,3 +54,5 @@ int main() {
     std::puts("PASS");
 }
 ```
+
+**Editorial:** Two pointers move inward; the side with the lower running maximum determines the water trapped there, because the opposite side is known to be at least as tall. Add `runningMax - height` at each step. O(n) time, O(1) space.
