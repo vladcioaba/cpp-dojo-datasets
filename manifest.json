@@ -1,5 +1,5 @@
 {
- "count": 531,
+ "count": 593,
  "cards": [
   {
    "topic": "cpp-core",
@@ -4016,6 +4016,502 @@
    "track": "hft",
    "level": "quiz",
    "title": "Is `std::atomic<T>` always lock-free?"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_01_isolate-lowest-set-bit_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Isolate the lowest set bit"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_02_clear-lowest-set-bit_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Clear the lowest set bit"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_03_is-power-of-two_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Is it a power of two"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_04_xor-swap-no-temp_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Swap two ints without a temporary (XOR)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_05_count-trailing-zeros_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Count trailing zeros"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_06_parity_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Compute parity of a word"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_07_hamming-distance_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Bits to flip to convert A to B (Hamming distance)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_08_extract-bit-field_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Extract a bit field (offset + width)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_09_turn-off-trailing-ones_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Turn off the trailing run of 1s"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_10_reverse-bits-32_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Reverse the bits of a 32-bit word"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_11_morton-interleave_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Interleave two 16-bit values (Morton code)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/bit_12_gray-code-encode-decode_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Gray code encode and decode"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ds_01_fixed-ring-buffer_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Fixed-capacity ring buffer"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ds_02_fixed-stack_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Fixed-capacity stack"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ds_03_small-vector_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Inline small_vector<T,N>"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ds_04_bitset-fixed-set_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Bitset-backed fixed set"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ds_05_history-buffer_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Fixed history buffer (last-N values)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ds_06_intrusive-free-list_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Intrusive singly-linked free list"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ds_07_bump-arena_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Monotonic bump / arena allocator"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ds_08_fixed-deque_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Fixed-capacity double-ended queue"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ds_09_flat-hash-map_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Open-addressing flat hash map (linear probing)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ds_10_lru-cache_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Fixed-capacity O(1) LRU cache"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/lf_01_spinlock_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Spinlock"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/lf_02_atomic-counter_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Relaxed atomic counter"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/lf_03_ticket-lock_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Ticket lock"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/lf_04_treiber-stack_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Treiber lock-free stack"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/lf_05_atomic-max_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Atomic max via CAS loop"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/lf_06_spsc-mask-queue_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "SPSC ring with masked head/tail"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/lf_07_atomic-bitset_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Atomic bitset test-and-set"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/lf_08_seqlock_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Seqlock reader/writer"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/lf_09_mpsc-bounded-queue_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Bounded MPSC queue (Vyukov cells)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/lf_10_lockfree-freelist_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Fixed-size lock-free freelist"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/math_01_integer-log2-floor_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Integer log2 (floor)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/math_02_modulo-power-of-two_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Modulo by a power of two"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/math_03_average-no-overflow_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Overflow-safe midpoint of two integers"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/math_04_ceil-division_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Ceil division without floats"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/math_05_round-to-multiple_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Round to the nearest multiple of a power of two"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/math_06_isqrt_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Integer square root without floating point"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/math_07_fixed-point-multiply_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Q16.16 fixed-point multiply"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/math_08_binary-gcd_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Binary GCD (Stein's algorithm)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/math_09_saturating-multiply_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Saturating multiply (int32)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/math_10_divide-by-constant_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Divide by a constant via reciprocal multiply"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/mem_01_align-up-to-power-of-two_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Align up to a power-of-two boundary"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/mem_02_pack-struct-minimize-sizeof_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Pack a struct to minimize sizeof"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/mem_03_bump-arena-allocator_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Bump (arena) allocator"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/mem_04_freelist-pool-allocator_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Fixed-size free-list pool allocator"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/mem_05_stack-allocator-lifo_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "LIFO stack allocator"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/mem_06_power-of-two-ring-buffer_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Power-of-two ring buffer"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/mem_07_typed-object-pool-placement-new_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Typed object pool with placement new"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/mem_08_small-buffer-optimization-holder_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Small-buffer-optimization holder"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_01_branchless-max_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Branchless max"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_02_branchless-sign_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Branchless sign of an int"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_03_conditional-negate_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Conditional negate"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_04_branchless-select_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Branchless select (cond ? a : b)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_05_branchless-clamp_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Branchless clamp to [lo, hi]"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_06_branchless-abs-diff_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Branchless absolute difference |a - b|"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_07_three-way-compare_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Branchless three-way compare"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_08_compare-swap_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Branchless compare-swap (sorting-network primitive)"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_09_is-in-range_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Branchless is-in-range with the unsigned trick"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_10_saturating-add_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Branchless saturating add"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_11_saturating-sub_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Branchless saturating subtract"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/opt_12_count-ge-threshold_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Branchless count of elements >= threshold"
   },
   {
    "topic": "quant",

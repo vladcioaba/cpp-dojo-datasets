@@ -24824,6 +24824,4229 @@ std::atomic<Big> x;
 
 > `std::atomic` works for any trivially copyable type, but the CPU can only perform a truly atomic operation on operands up to its widest atomic instruction (8 bytes, or 16 with `cmpxchg16b`). A 24-byte struct exceeds that, so libstdc++/libc++ guard it with an internal lock (a mutex or a striped lock table), and reads/writes are no longer wait-free. Query `x.is_lock_free()` or the compile-time `std::atomic<Big>::is_always_lock_free`; a surprise lock in your supposedly lock-free fast path is a latency trap.
 
+## challenge: Isolate the lowest set bit
+tags: bit-tricks, hot-path
+track: hft
+difficulty: easy
+
+Given a 32-bit unsigned integer, return a value with only its lowest (least-significant) set bit kept and every other bit cleared. If the input is `0`, return `0`. Implement `uint32_t lowestSetBit(uint32_t x)`. This shows up whenever you walk a bitmask of ready events one at a time.
+
+Constraints: `0 <= x <= 2^32 - 1`. Must run in O(1) with no loop.
+
+Example: `lowestSetBit(0b1100) == 0b0100` (12 → 4). Example: `lowestSetBit(0xFFFFFFFF) == 1`.
+
+hint: Two's complement negation flips every bit strictly above the lowest set bit while leaving that bit and the trailing zeros alone.
+hint: `-x` equals `~x + 1`; ANDing `x` with it keeps exactly one bit — the lowest one.
+hint: Return `x & -x` (equivalently `x & (~x + 1)`).
+
+```cpp
+// starter
+#include <cstdint>
+uint32_t lowestSetBit(uint32_t x);
+```
+
+```cpp
+uint32_t lowestSetBit(uint32_t x) {
+    return x & -x;   // -x == ~x + 1 in two's complement
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint32_t x, want; } cases[] = {
+        {0u, 0u},                    // no bits set
+        {1u, 1u},                    // already isolated
+        {0b1100u, 0b0100u},          // 12 -> 4
+        {0xFFFFFFFFu, 1u},           // all ones -> lowest bit
+        {0x80000000u, 0x80000000u},  // INT_MIN pattern -> itself
+        {16u, 16u},                  // power of two -> itself
+    };
+    for (auto& c : cases) {
+        uint32_t got = lowestSetBit(c.x);
+        if (got != c.want) { std::printf("lowestSetBit(%u)=%u want %u\n", c.x, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** In two's complement, `-x = ~x + 1`. Negating flips every bit, then adding 1 ripples a carry up to and including the lowest set bit — so above that bit `x` and `-x` are exact complements (AND to 0), the lowest set bit is 1 in both (AND to 1), and the trailing zeros stay 0. Thus `x & -x` isolates precisely the lowest set bit. Constant-time, branchless — two ALU ops, no data-dependent jumps.
+
+## challenge: Clear the lowest set bit
+tags: bit-tricks, hot-path
+track: hft
+difficulty: easy
+
+Given a 32-bit unsigned integer, return it with its lowest (least-significant) set bit turned off; every other bit is unchanged. If the input is `0`, return `0`. Implement `uint32_t clearLowestSetBit(uint32_t x)`. This is the core step of the classic "iterate over set bits" loop and of Kernighan's popcount.
+
+Constraints: `0 <= x <= 2^32 - 1`. O(1), no loop.
+
+Example: `clearLowestSetBit(0b1100) == 0b1000` (12 → 8). Example: `clearLowestSetBit(7) == 6`.
+
+hint: Subtracting 1 turns the lowest set bit into a 0 and all trailing zeros into 1s, leaving higher bits untouched.
+hint: ANDing that result back with the original wipes exactly the lowest set bit.
+hint: Return `x & (x - 1)`.
+
+```cpp
+// starter
+#include <cstdint>
+uint32_t clearLowestSetBit(uint32_t x);
+```
+
+```cpp
+uint32_t clearLowestSetBit(uint32_t x) {
+    return x & (x - 1u);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint32_t x, want; } cases[] = {
+        {0u, 0u},                    // stays 0 (wraps but AND yields 0)
+        {1u, 0u},                    // single bit cleared
+        {0b1100u, 0b1000u},          // 12 -> 8
+        {7u, 6u},                    // 0b111 -> 0b110
+        {0xFFFFFFFFu, 0xFFFFFFFEu},  // all ones -> clears bit 0
+        {0x80000000u, 0u},           // INT_MIN pattern -> only bit gone
+    };
+    for (auto& c : cases) {
+        uint32_t got = clearLowestSetBit(c.x);
+        if (got != c.want) { std::printf("clearLowestSetBit(%u)=%u want %u\n", c.x, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `x - 1` flips the lowest set bit to 0 and sets every bit below it to 1, while bits above are untouched by the borrow. ANDing with the original keeps the high bits, clears the (now-mismatched) lowest bit, and the trailing bits AND to 0. For `x == 0`, unsigned `x - 1` wraps to `0xFFFFFFFF`, and `0 & 0xFFFFFFFF == 0`, so the zero case is correct without a branch. Constant-time, branchless — this is why `while (x) x &= x - 1;` counts set bits in as many iterations as there are 1s.
+
+## challenge: Is it a power of two
+tags: bit-tricks, hft
+track: hft
+difficulty: easy
+
+Given a 32-bit unsigned integer, return `true` if it is a power of two (exactly one bit set) and `false` otherwise. Zero is not a power of two. Implement `bool isPowerOfTwo(uint32_t x)`. Sizing ring buffers and hash tables to powers of two turns modulo into a mask, so this check guards those invariants.
+
+Constraints: `0 <= x <= 2^32 - 1`. O(1), no loop.
+
+Example: `isPowerOfTwo(16) == true`. Example: `isPowerOfTwo(0) == false`, `isPowerOfTwo(3) == false`.
+
+hint: A power of two has a single set bit; clearing the lowest set bit of such a number leaves zero.
+hint: `x & (x - 1)` clears the lowest set bit — for a power of two that empties the whole word.
+hint: Also exclude `0`, which would otherwise pass the mask test. Return `x != 0 && (x & (x - 1)) == 0`.
+
+```cpp
+// starter
+#include <cstdint>
+bool isPowerOfTwo(uint32_t x);
+```
+
+```cpp
+bool isPowerOfTwo(uint32_t x) {
+    return x != 0u && (x & (x - 1u)) == 0u;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint32_t x; bool want; } cases[] = {
+        {0u, false},           // zero is not a power of two
+        {1u, true},            // 2^0
+        {2u, true},            // 2^1
+        {3u, false},           // two bits set
+        {16u, true},           // 2^4
+        {0x80000000u, true},   // 2^31 (INT_MIN pattern)
+        {0xFFFFFFFFu, false},  // all ones
+    };
+    for (auto& c : cases) {
+        bool got = isPowerOfTwo(c.x);
+        if (got != c.want) { std::printf("isPowerOfTwo(%u)=%d want %d\n", c.x, (int)got, (int)c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A power of two has exactly one set bit. Clearing the lowest set bit with `x & (x - 1)` removes that single bit and yields 0 iff there was only one bit to begin with. The mask test alone would also accept `x == 0` (whose `x & (x-1)` is `0 & 0xFFFFFFFF == 0`), so the explicit `x != 0` guard excludes it. Constant-time, branchless arithmetic; the `&&` short-circuit is a cheap predicate, not a data-dependent loop.
+
+## challenge: Swap two ints without a temporary (XOR)
+tags: bit-tricks, hft
+track: hft
+difficulty: easy
+
+Swap the values of two `int`s in place using only XOR — no temporary variable and no addition. Implement `void xorSwap(int& a, int& b)`. It is an interview staple for testing whether you know the aliasing gotcha; in practice `std::swap` is what you ship.
+
+Constraints: works for any `int` values including `INT_MIN`/`INT_MAX`. Must be safe when both references alias the same variable.
+
+Example: after `xorSwap(a, b)` with `a=3, b=5` you get `a=5, b=3`. Example: `a=-2, b=4` becomes `a=4, b=-2`.
+
+hint: XOR is its own inverse: `x ^ y ^ y == x`. Three chained XORs move each value into the other slot.
+hint: `a ^= b; b ^= a; a ^= b;` leaves `a` and `b` swapped — trace it symbolically.
+hint: If both references point at the *same* object the chain XORs it to zero; guard with `if (&a == &b) return;`.
+
+```cpp
+// starter
+#include <cstdint>
+void xorSwap(int& a, int& b);
+```
+
+```cpp
+void xorSwap(int& a, int& b) {
+    if (&a == &b) return;   // aliasing would zero the object
+    a ^= b;
+    b ^= a;   // b = b ^ (a ^ b) = a
+    a ^= b;   // a = (a ^ b) ^ a = b
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    { int a = 3, b = 5; xorSwap(a, b); if (!(a == 5 && b == 3)) { std::puts("case1"); return 1; } }
+    { int a = -2, b = 4; xorSwap(a, b); if (!(a == 4 && b == -2)) { std::puts("case2"); return 1; } }
+    { int a = 0, b = 0; xorSwap(a, b); if (!(a == 0 && b == 0)) { std::puts("case3"); return 1; } }
+    { int a = INT_MIN, b = INT_MAX; xorSwap(a, b); if (!(a == INT_MAX && b == INT_MIN)) { std::puts("case4"); return 1; } }
+    { int a = 7, b = 7; xorSwap(a, b); if (!(a == 7 && b == 7)) { std::puts("case5"); return 1; } }
+    { int a = 42; xorSwap(a, a); if (a != 42) { std::puts("case6-alias"); return 1; } }  // must survive aliasing
+    std::puts("PASS");
+}
+```
+
+**Editorial:** XOR is associative, commutative, and self-inverse (`v ^ v == 0`, `v ^ 0 == v`). After `a ^= b`, `a` holds `a0 ^ b0`. Then `b ^= a` makes `b = b0 ^ a0 ^ b0 = a0`, and `a ^= b` makes `a = (a0 ^ b0) ^ a0 = b0` — swapped, no temporary. XOR on `int` is defined for all bit patterns including `INT_MIN`, unlike an add/subtract swap which can overflow. The one trap: if `&a == &b`, the first XOR zeroes the shared object and it is lost, so the `&a == &b` guard is mandatory. O(1), branchless apart from that one-time aliasing check.
+
+## challenge: Count trailing zeros
+tags: bit-tricks, hot-path
+track: hft
+difficulty: medium
+
+Given a 32-bit unsigned integer, return the number of consecutive zero bits starting from the least-significant end (the position of the lowest set bit). Define `countTrailingZeros(0) == 32`. Implement `int countTrailingZeros(uint32_t x)` without using `__builtin_ctz`/`std::countr_zero`. This is how you convert an isolated ready-bit back into an index.
+
+Constraints: `0 <= x <= 2^32 - 1`. Must be O(1) — a fixed number of steps, not a per-bit loop.
+
+Example: `countTrailingZeros(0b1000) == 3`. Example: `countTrailingZeros(0x80000000) == 31`, `countTrailingZeros(1) == 0`.
+
+hint: Binary-search the position: ask "are the low 16 bits all zero?", then the low 8 of what's left, and so on, accumulating the shift.
+hint: Each test either adds a power-of-two count and shifts, or does nothing — five tests cover 32 bits.
+hint: Handle `x == 0` up front (answer 32); otherwise the halving search lands exactly on the lowest set bit.
+
+```cpp
+// starter
+#include <cstdint>
+int countTrailingZeros(uint32_t x);
+```
+
+```cpp
+int countTrailingZeros(uint32_t x) {
+    if (x == 0u) return 32;
+    int n = 0;
+    if ((x & 0x0000FFFFu) == 0u) { n += 16; x >>= 16; }
+    if ((x & 0x000000FFu) == 0u) { n += 8;  x >>= 8;  }
+    if ((x & 0x0000000Fu) == 0u) { n += 4;  x >>= 4;  }
+    if ((x & 0x00000003u) == 0u) { n += 2;  x >>= 2;  }
+    if ((x & 0x00000001u) == 0u) { n += 1;             }
+    return n;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint32_t x; int want; } cases[] = {
+        {0u, 32},              // by definition
+        {1u, 0},               // lowest bit already set
+        {0b1000u, 3},          // 8
+        {12u, 2},              // 0b1100 -> lowest set bit at 2
+        {16u, 4},              // power of two
+        {0x80000000u, 31},     // only the top bit
+        {0xFFFFFFFFu, 0},      // all ones -> no trailing zeros
+    };
+    for (auto& c : cases) {
+        int got = countTrailingZeros(c.x);
+        if (got != c.want) { std::printf("countTrailingZeros(%u)=%d want %d\n", c.x, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The lowest set bit's index is found by binary search over the 32 positions. If the low 16 bits are all zero the answer is at least 16, so add 16 and shift the upper half down; repeat with 8, 4, 2, 1. Five conditional adds pin the exact position — total work is constant regardless of input. The `x == 0` guard supplies the conventional answer 32 (there is no set bit to point at). Each test is a mask-compare that most compilers lower to `cmov`, so the routine is effectively branchless; where available the hardware `tzcnt`/`bsf` instruction does the same in one op.
+
+## challenge: Compute parity of a word
+tags: bit-tricks, hft
+track: hft
+difficulty: medium
+
+Given a 64-bit unsigned integer, return `1` if it has an odd number of set bits and `0` if even — its parity. Implement `int parity(uint64_t x)` without `__builtin_parityll`/`std::popcount`. Parity is the 1-bit checksum behind RAID, ECC, and many exchange line protocols.
+
+Constraints: `0 <= x <= 2^64 - 1`. O(log bits) — no per-bit loop.
+
+Example: `parity(7) == 1` (three set bits). Example: `parity(3) == 0` (two set bits), `parity(0) == 0`.
+
+hint: Parity is the XOR of all bits. XOR is associative, so you can fold the word in halves instead of scanning bit by bit.
+hint: `x ^= x >> 32; x ^= x >> 16; ... x ^= x >> 1;` collapses the parity of all 64 bits into bit 0.
+hint: Return the final low bit: `x & 1`.
+
+```cpp
+// starter
+#include <cstdint>
+int parity(uint64_t x);
+```
+
+```cpp
+int parity(uint64_t x) {
+    x ^= x >> 32;
+    x ^= x >> 16;
+    x ^= x >> 8;
+    x ^= x >> 4;
+    x ^= x >> 2;
+    x ^= x >> 1;
+    return (int)(x & 1u);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint64_t x; int want; } cases[] = {
+        {0ull, 0},                       // no bits
+        {1ull, 1},                       // one bit -> odd
+        {3ull, 0},                       // two bits -> even
+        {7ull, 1},                       // three bits -> odd
+        {0x8000000000000000ull, 1},      // single high bit
+        {0xFFFFFFFFFFFFFFFFull, 0},      // 64 bits -> even
+        {0xAAAAAAAAull, 0},              // 16 bits -> even
+    };
+    for (auto& c : cases) {
+        int got = parity(c.x);
+        if (got != c.want) { std::printf("parity(%llu)=%d want %d\n", (unsigned long long)c.x, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Parity is the XOR reduction of all bits, and XOR is associative and commutative, so a tree fold is legal. Each step `x ^= x >> k` (with k = 32, 16, 8, 4, 2, 1) XORs the upper half of the still-live window into the lower half; after the last step, bit 0 holds the XOR of all 64 original bits. Masking `x & 1` reads it off. Six shift/XOR pairs — O(log 64) = constant work, fully branchless. (On x86, `popcnt` plus `& 1` is the one-instruction alternative.)
+
+## challenge: Bits to flip to convert A to B (Hamming distance)
+tags: bit-tricks, hot-path
+track: hft
+difficulty: medium
+
+Given two 32-bit unsigned integers, return how many bit positions differ — equivalently, the minimum number of single-bit flips to turn `a` into `b`. Implement `int hammingDistance(uint32_t a, uint32_t b)` without `__builtin_popcount`/`std::popcount`. It measures how far apart two bitmasks are, e.g. how many order-book levels changed between snapshots.
+
+Constraints: `0 <= a, b <= 2^32 - 1`. O(1), no per-bit loop.
+
+Example: `hammingDistance(1, 2) == 2` (bit 0 vs bit 1). Example: `hammingDistance(0xFFFFFFFF, 0) == 32`.
+
+hint: The positions that differ are exactly the set bits of `a ^ b`; the answer is the population count of that XOR.
+hint: Count bits in parallel with the SWAR trick: sum adjacent pairs, then nibbles, then bytes — no loop.
+hint: The final `(v * 0x01010101) >> 24` sums the four per-byte counts into one number.
+
+```cpp
+// starter
+#include <cstdint>
+int hammingDistance(uint32_t a, uint32_t b);
+```
+
+```cpp
+int hammingDistance(uint32_t a, uint32_t b) {
+    uint32_t x = a ^ b;
+    x = x - ((x >> 1) & 0x55555555u);
+    x = (x & 0x33333333u) + ((x >> 2) & 0x33333333u);
+    x = (x + (x >> 4)) & 0x0F0F0F0Fu;
+    return (int)((x * 0x01010101u) >> 24);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint32_t a, b; int want; } cases[] = {
+        {0u, 0u, 0},                       // identical
+        {1u, 0u, 1},                       // one bit differs
+        {1u, 2u, 2},                       // 0b01 vs 0b10
+        {0xFFFFFFFFu, 0u, 32},             // all bits differ
+        {0xFFFFFFFFu, 0xFFFFFFFFu, 0},     // identical all-ones
+        {0x80000000u, 0u, 1},              // top bit only
+        {0xAAAAAAAAu, 0x55555555u, 32},    // fully complementary
+    };
+    for (auto& c : cases) {
+        int got = hammingDistance(c.a, c.b);
+        if (got != c.want) { std::printf("hammingDistance(%u,%u)=%d want %d\n", c.a, c.b, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `a ^ b` has a 1 exactly where the inputs differ, so the Hamming distance is `popcount(a ^ b)`. The population count uses the classic SWAR (SIMD-within-a-register) fold: the first line replaces each 2-bit field with the count of set bits in it, the second sums those into 4-bit fields, the third into byte fields, and the multiply-by-`0x01010101` plus `>> 24` adds the four byte counts in one shot (the high byte of the product is their sum). No branches, no loop, a handful of ALU ops — O(1). On modern x86 this is what `popcnt(a ^ b)` does in hardware.
+
+## challenge: Extract a bit field (offset + width)
+tags: bit-tricks, hft
+track: hft
+difficulty: medium
+
+Given a 32-bit unsigned integer and a field described by a starting bit `offset` and a `width`, return the `width` bits beginning at `offset`, right-aligned (shifted down to bit 0). Implement `uint32_t extractBits(uint32_t x, int offset, int width)`. Packed exchange messages and hardware registers cram several fields into one word; this is how you read one out.
+
+Constraints: `0 <= offset <= 31`, `0 <= width <= 32`, `offset + width <= 32`. A `width` of `0` returns `0`. Beware the undefined behavior of shifting a 32-bit value by 32.
+
+Example: `extractBits(0xDA, 1, 3) == 5` (0b11011010, bits 1..3 are 0b101). Example: `extractBits(0xFFFFFFFF, 4, 4) == 0xF`.
+
+hint: Shift the field down by `offset` so it starts at bit 0, then mask off everything above `width`.
+hint: The low-`width` mask is `(1u << width) - 1`, but `1u << 32` is undefined — special-case `width == 32`.
+hint: Return `(x >> offset) & mask`.
+
+```cpp
+// starter
+#include <cstdint>
+uint32_t extractBits(uint32_t x, int offset, int width);
+```
+
+```cpp
+uint32_t extractBits(uint32_t x, int offset, int width) {
+    if (width == 0) return 0u;
+    uint32_t mask = (width >= 32) ? 0xFFFFFFFFu : ((1u << width) - 1u);
+    return (x >> offset) & mask;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint32_t x; int off, w; uint32_t want; } cases[] = {
+        {0xDAu, 1, 3, 5u},                    // 0b11011010 -> bits 1..3 = 0b101
+        {0xFFFFFFFFu, 4, 4, 0xFu},            // a nibble of ones
+        {0xFFFFFFFFu, 0, 32, 0xFFFFFFFFu},    // full width (no UB shift)
+        {0x80000000u, 31, 1, 1u},             // top bit alone
+        {0u, 0, 8, 0u},                       // zero source
+        {12345u, 3, 0, 0u},                   // zero width -> 0
+    };
+    for (auto& c : cases) {
+        uint32_t got = extractBits(c.x, c.off, c.w);
+        if (got != c.want) { std::printf("extractBits(%u,%d,%d)=%u want %u\n", c.x, c.off, c.w, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A field is isolated in two moves: shift right by `offset` to bring its low bit to position 0, then AND with a mask of `width` ones to drop everything above it. The mask `(1u << width) - 1` produces `width` low ones — but shifting a 32-bit type by 32 is undefined in C++, so `width == 32` is handled explicitly as the all-ones mask, and `width == 0` returns 0 directly. Constant-time, branchless apart from those two boundary guards; hardware `BEXTR` performs the same extraction in one instruction.
+
+## challenge: Turn off the trailing run of 1s
+tags: bit-tricks, hot-path
+track: hft
+difficulty: medium
+
+Given a 32-bit unsigned integer, clear the contiguous run of 1-bits at its least-significant end, leaving every bit above that run unchanged. If the lowest bit is already 0 (no trailing run), return the value untouched. Implement `uint32_t turnOffTrailingOnes(uint32_t x)`. It is the dual of clearing the lowest set bit and shows up when releasing a block of consecutively allocated slots.
+
+Constraints: `0 <= x <= 2^32 - 1`. O(1), no loop.
+
+Example: `turnOffTrailingOnes(0b1011) == 0b1000` (11 → 8). Example: `turnOffTrailingOnes(0b10110111) == 0b10110000` (183 → 176).
+
+hint: Adding 1 propagates a carry through exactly the trailing run of 1s, flipping them to 0 and setting the next 0 to 1.
+hint: ANDing that result with the original keeps the high bits and wipes the trailing ones that got flipped.
+hint: Return `x & (x + 1)`.
+
+```cpp
+// starter
+#include <cstdint>
+uint32_t turnOffTrailingOnes(uint32_t x);
+```
+
+```cpp
+uint32_t turnOffTrailingOnes(uint32_t x) {
+    return x & (x + 1u);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint32_t x, want; } cases[] = {
+        {0u, 0u},                    // no trailing ones -> unchanged
+        {7u, 0u},                    // 0b111 -> all cleared
+        {0b1011u, 0b1000u},          // 11 -> 8
+        {0b10110111u, 0b10110000u},  // 183 -> 176
+        {8u, 8u},                    // power of two: bit0 is 0 -> unchanged
+        {0xFFFFFFFFu, 0u},           // all ones -> everything cleared
+        {0x80000000u, 0x80000000u},  // top bit, no trailing run -> unchanged
+    };
+    for (auto& c : cases) {
+        uint32_t got = turnOffTrailingOnes(c.x);
+        if (got != c.want) { std::printf("turnOffTrailingOnes(%u)=%u want %u\n", c.x, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `x + 1` adds a carry that ripples through the trailing run of 1s, turning each into 0 and setting the first higher 0-bit to 1; bits above that are untouched. ANDing with the original keeps the unchanged high bits, and the trailing positions — now 1 in `x` but 0 in `x + 1` — clear to 0. If the lowest bit is already 0 there is no run: `x + 1` only sets bit 0, and `x & (x + 1) == x`, leaving the value alone. For all-ones the carry runs off the top (wraps to 0) and everything clears. Constant-time, branchless — the mirror image of `x & (x - 1)`.
+
+## challenge: Reverse the bits of a 32-bit word
+tags: bit-tricks, hft
+track: hft
+difficulty: hard
+
+Given a 32-bit unsigned integer, return the value with its bit order reversed: bit 0 becomes bit 31, bit 1 becomes bit 30, and so on. Implement `uint32_t reverseBits(uint32_t x)` in O(log bits) using a parallel swap network — no per-bit loop. Bit-reversal permutations appear in FFTs and in some hardware address remaps.
+
+Constraints: `0 <= x <= 2^32 - 1`. Fixed number of steps regardless of input.
+
+Example: `reverseBits(1) == 0x80000000`. Example: `reverseBits(0xFFFF0000) == 0x0000FFFF`.
+
+hint: Reverse by repeatedly swapping ever-larger blocks: first swap adjacent bits, then 2-bit groups, then nibbles, bytes, and finally the two halves.
+hint: Each stage is a masked shift pair, e.g. swap odd/even bits with masks `0xAAAAAAAA` and `0x55555555`.
+hint: Five stages (1, 2, 4, 8, 16-bit swaps) fully reverse a 32-bit word.
+
+```cpp
+// starter
+#include <cstdint>
+uint32_t reverseBits(uint32_t x);
+```
+
+```cpp
+uint32_t reverseBits(uint32_t x) {
+    x = ((x & 0xAAAAAAAAu) >> 1)  | ((x & 0x55555555u) << 1);   // swap adjacent bits
+    x = ((x & 0xCCCCCCCCu) >> 2)  | ((x & 0x33333333u) << 2);   // swap 2-bit groups
+    x = ((x & 0xF0F0F0F0u) >> 4)  | ((x & 0x0F0F0F0Fu) << 4);   // swap nibbles
+    x = ((x & 0xFF00FF00u) >> 8)  | ((x & 0x00FF00FFu) << 8);   // swap bytes
+    x = (x >> 16) | (x << 16);                                  // swap halves
+    return x;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint32_t x, want; } cases[] = {
+        {0u, 0u},                          // symmetric
+        {0xFFFFFFFFu, 0xFFFFFFFFu},        // all ones symmetric
+        {1u, 0x80000000u},                 // bit 0 -> bit 31
+        {0x80000000u, 1u},                 // bit 31 -> bit 0
+        {0x00000002u, 0x40000000u},        // bit 1 -> bit 30
+        {0xFFFF0000u, 0x0000FFFFu},        // upper half -> lower half
+        {0xAAAAAAAAu, 0x55555555u},        // even bits -> odd bits
+    };
+    for (auto& c : cases) {
+        uint32_t got = reverseBits(c.x);
+        if (got != c.want) { std::printf("reverseBits(0x%08X)=0x%08X want 0x%08X\n", c.x, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A full bit-reversal is a sequence of swaps at doubling granularity. Stage 1 exchanges each even/odd bit pair (mask the odd bits down, the even bits up, OR them). Stage 2 swaps 2-bit groups, stage 3 nibbles, stage 4 bytes, stage 5 the two 16-bit halves. After all five, the bit that started at position `i` ends at `31 - i`. This is O(log 32) = 5 stages of constant work — fully branchless, no data-dependent shift counts, and far faster than a 32-iteration shift-and-test loop. Some ISAs expose it directly (ARM `RBIT`).
+
+## challenge: Interleave two 16-bit values (Morton code)
+tags: bit-tricks, hft
+track: hft
+difficulty: hard
+
+Given two 16-bit unsigned integers `x` and `y`, produce the 32-bit Morton code (Z-order value) that interleaves their bits: bit `i` of `x` lands in output position `2*i`, and bit `i` of `y` in position `2*i + 1`. Implement `uint32_t mortonInterleave(uint16_t x, uint16_t y)` with a parallel bit-spread — no per-bit loop. Morton codes linearize 2-D coordinates so nearby points stay near in memory.
+
+Constraints: `0 <= x, y <= 65535`. Fixed number of steps.
+
+Example: `mortonInterleave(1, 0) == 1`, `mortonInterleave(0, 1) == 2`, `mortonInterleave(1, 1) == 3`. Example: `mortonInterleave(0xFFFF, 0) == 0x55555555`.
+
+hint: Spread each 16-bit value so its bits occupy only the even positions (gaps in between), then shift `y`'s spread left by one and OR.
+hint: Spread by repeatedly splitting and shifting halves apart, masking with `0x00FF00FF`, `0x0F0F0F0F`, `0x33333333`, `0x55555555`.
+hint: `part(x) | (part(y) << 1)` combines the two interleaved streams.
+
+```cpp
+// starter
+#include <cstdint>
+uint32_t mortonInterleave(uint16_t x, uint16_t y);
+```
+
+```cpp
+static uint32_t spreadBits(uint32_t n) {
+    n &= 0x0000FFFFu;
+    n = (n | (n << 8)) & 0x00FF00FFu;
+    n = (n | (n << 4)) & 0x0F0F0F0Fu;
+    n = (n | (n << 2)) & 0x33333333u;
+    n = (n | (n << 1)) & 0x55555555u;
+    return n;
+}
+
+uint32_t mortonInterleave(uint16_t x, uint16_t y) {
+    return spreadBits(x) | (spreadBits(y) << 1);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint16_t x, y; uint32_t want; } cases[] = {
+        {0u, 0u, 0u},                       // origin
+        {1u, 0u, 1u},                       // x bit0 -> pos0
+        {0u, 1u, 2u},                       // y bit0 -> pos1
+        {1u, 1u, 3u},                       // both bit0
+        {0xFFFFu, 0u, 0x55555555u},         // x fills even positions
+        {0u, 0xFFFfu, 0xAAAAAAAAu},         // y fills odd positions
+        {0xFFFFu, 0xFFFFu, 0xFFFFFFFFu},    // fully packed
+    };
+    for (auto& c : cases) {
+        uint32_t got = mortonInterleave(c.x, c.y);
+        if (got != c.want) { std::printf("mortonInterleave(%u,%u)=0x%08X want 0x%08X\n", c.x, c.y, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `spreadBits` takes a 16-bit value and inserts a zero between each pair of adjacent bits, expanding 16 bits across 32 positions (bit `i` → position `2*i`). It does this in log steps: each `n = (n | (n << k)) & mask` splits the current groups in half and pushes them apart, with masks `0x00FF00FF`, `0x0F0F0F0F`, `0x33333333`, `0x55555555` keeping the bits in their new even slots. Spreading `x` fills the even positions; spreading `y` and shifting left by one fills the odd positions; OR-ing merges them. All constant work, no branches, no loop — O(1). (BMI2 `PDEP` with mask `0x55555555` does the spread in a single instruction.)
+
+## challenge: Gray code encode and decode
+tags: bit-tricks, hft
+track: hft
+difficulty: hard
+
+Implement the reflected binary (Gray) code round trip on 32-bit unsigned integers: `uint32_t grayEncode(uint32_t x)` maps a binary value to its Gray code (consecutive values differ in exactly one bit), and `uint32_t grayDecode(uint32_t g)` inverts it. `grayDecode(grayEncode(x)) == x` for every `x`. Gray coding lets a rotary/optical encoder cross a boundary without transient glitches, and appears in clock-domain-crossing FIFO pointers.
+
+Constraints: `0 <= x, g <= 2^32 - 1`. Encode is O(1); decode is O(log bits). No loop over individual values.
+
+Example: `grayEncode(2) == 3`, `grayEncode(3) == 2`, `grayEncode(4) == 6`. Example: `grayDecode(6) == 4`.
+
+hint: Encoding is a single XOR of the value with itself shifted right by one — each Gray bit is the XOR of two adjacent binary bits.
+hint: Decoding must undo a prefix-XOR, so it XOR-folds the shifted copies back together (shifts of 16, 8, 4, 2, 1).
+hint: `encode: x ^ (x >> 1)`; `decode: g ^= g>>16; g^=g>>8; ... g^=g>>1;`.
+
+```cpp
+// starter
+#include <cstdint>
+uint32_t grayEncode(uint32_t x);
+uint32_t grayDecode(uint32_t g);
+```
+
+```cpp
+uint32_t grayEncode(uint32_t x) {
+    return x ^ (x >> 1);
+}
+
+uint32_t grayDecode(uint32_t g) {
+    g ^= g >> 16;
+    g ^= g >> 8;
+    g ^= g >> 4;
+    g ^= g >> 2;
+    g ^= g >> 1;
+    return g;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    // Known encodings: consecutive values differ in exactly one bit.
+    struct { uint32_t x, want; } enc[] = {
+        {0u, 0u}, {1u, 1u}, {2u, 3u}, {3u, 2u}, {4u, 6u},
+        {0xFFFFFFFFu, 0x80000000u},   // all ones -> single high bit
+    };
+    for (auto& c : enc) {
+        uint32_t got = grayEncode(c.x);
+        if (got != c.want) { std::printf("grayEncode(%u)=0x%08X want 0x%08X\n", c.x, got, c.want); return 1; }
+    }
+    // Round-trip decode(encode(x)) == x, including edge patterns.
+    uint32_t probes[] = {0u, 1u, 2u, 4u, 255u, 0x80000000u, 0xFFFFFFFFu, 0xDEADBEEFu};
+    for (uint32_t x : probes) {
+        uint32_t back = grayDecode(grayEncode(x));
+        if (back != x) { std::printf("roundtrip x=0x%08X got 0x%08X\n", x, back); return 1; }
+    }
+    // Adjacent Gray codes must differ in exactly one bit.
+    for (uint32_t x = 0; x < 64; ++x) {
+        uint32_t d = grayEncode(x) ^ grayEncode(x + 1);
+        if ((d & (d - 1)) != 0u || d == 0u) { std::printf("not single-bit at x=%u\n", x); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Gray bit `i` is defined as binary bit `i` XOR binary bit `i+1`, which in one shot is `x ^ (x >> 1)` — so incrementing the binary value flips exactly one Gray bit (the encoder never shows a half-updated code). Decoding must recover binary bit `i` as the XOR of *all* Gray bits from `i` up to the top (a suffix parity). Doing that naively is a 31-step chain `b[i] = g[i] ^ b[i+1]`; the shift-fold `g ^= g>>16; g^=g>>8; ...; g^=g>>1` computes the same suffix-XOR for all bits in parallel in log steps. Encode is one XOR (O(1)); decode is five XOR-shift pairs (O(log 32)). Both are branchless — no data-dependent control flow.
+
+## challenge: Fixed-capacity ring buffer
+tags: allocation, ring-buffer, circular-buffer, cache-locality
+track: hft
+difficulty: easy
+
+A single-threaded FIFO queue that never allocates. Back it with one contiguous array of `N` slots and two cursors — the index of the front element and a live count. Implement `bool push(const T&)` (returns `false` when full), `bool pop(T& out)` (returns `false` when empty and otherwise writes the front element), plus `full()`, `empty()`, and `size()`. Wrapping is done with modular arithmetic so the buffer reuses the same memory indefinitely.
+
+Constraints: capacity `N` is a compile-time constant, `1 <= N`. No heap allocation, no `std::` containers. All operations are O(1).
+
+Example: on `RingBuffer<int,3>`, `push(1); push(2); push(3)` fills it; a 4th `push` returns `false`; `pop` yields `1` then `2` (FIFO); after popping you can `push` again and the storage wraps around.
+
+hint: Track the front index and a count instead of a front and a back pointer — it removes the "is it full or empty?" ambiguity when the two cursors coincide.
+hint: The physical slot of the k-th element is `(head_ + k) % N`; the tail you write to is `(head_ + count_) % N`.
+hint: `push` bumps the count, `pop` advances `head_` modulo `N` and drops the count — neither ever moves existing elements.
+
+```cpp
+// starter
+template <class T, size_t N>
+struct RingBuffer {
+    T buf_[N];
+    size_t head_ = 0;    // index of the front element
+    size_t count_ = 0;   // number of live elements
+    // implement push / pop / full / empty / size
+};
+```
+
+```cpp
+bool empty() const { return count_ == 0; }
+bool full()  const { return count_ == N; }
+size_t size() const { return count_; }
+bool push(const T& v) {
+    if (count_ == N) return false;
+    buf_[(head_ + count_) % N] = v;
+    ++count_;
+    return true;
+}
+bool pop(T& out) {
+    if (count_ == 0) return false;
+    out = buf_[head_];
+    head_ = (head_ + 1) % N;
+    --count_;
+    return true;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+using std::size_t;
+template <class T, size_t N>
+struct RingBuffer {
+    T buf_[N];
+    size_t head_ = 0;
+    size_t count_ = 0;
+    //__USER__
+};
+int main() {
+    RingBuffer<int, 3> r;
+    if (!r.empty() || r.full() || r.size() != 0) { std::puts("init state"); return 1; }
+    if (!r.push(1) || !r.push(2) || !r.push(3)) { std::puts("push to full failed"); return 1; }
+    if (!r.full() || r.size() != 3) { std::puts("should be full"); return 1; }
+    if (r.push(4)) { std::puts("push on full must return false"); return 1; }
+    int x;
+    if (!r.pop(x) || x != 1) { std::puts("FIFO order at 1"); return 1; }
+    if (!r.pop(x) || x != 2) { std::puts("FIFO order at 2"); return 1; }
+    // wrap: writing past the physical end reuses freed slots
+    if (!r.push(5) || !r.push(6)) { std::puts("wrap push failed"); return 1; }
+    if (r.size() != 3) { std::puts("size after wrap"); return 1; }
+    if (!r.pop(x) || x != 3) { std::puts("FIFO order at 3"); return 1; }
+    if (!r.pop(x) || x != 5) { std::puts("wrap order at 5"); return 1; }
+    if (!r.pop(x) || x != 6) { std::puts("wrap order at 6"); return 1; }
+    if (!r.empty()) { std::puts("should be empty"); return 1; }
+    if (r.pop(x)) { std::puts("pop on empty must return false"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A `head + count` circular buffer is the canonical allocation-free FIFO. The elements live in one cache-friendly array, so pushes and pops touch adjacent memory and never chase pointers; contrast `std::queue<std::deque>`, whose block-of-blocks layout costs an allocation per growth and scatters elements across the heap. Using a live `count_` rather than a separate tail cursor removes the classic full-vs-empty ambiguity when the two indices meet, keeping every operation branch-light and O(1) with zero heap traffic on the hot path.
+
+## challenge: Fixed-capacity stack
+tags: allocation, stack, lifo, cache-locality
+track: hft
+difficulty: easy
+
+A LIFO stack with a compile-time capacity and no dynamic memory. Store elements in one array and keep a single size cursor. Implement `bool push(const T&)` (returns `false` when full), `bool pop(T& out)` (returns `false` when empty, else writes the popped top), `bool top(T& out) const` (peek without removing), plus `full()`, `empty()`, and `size()`. Every operation is O(1) and touches only the top of the array.
+
+Constraints: capacity `N` is a compile-time constant, `1 <= N`. No heap allocation, no `std::` containers.
+
+Example: on `FixedStack<int,2>`, `push(7); push(8)` fills it; a 3rd `push` returns `false`; `top` reads `8`; `pop` yields `8` then `7` (LIFO).
+
+hint: A stack needs exactly one piece of mutable state beyond the storage: how many elements are live.
+hint: The top element is always at index `size_ - 1`; push writes there after incrementing, pop reads there before decrementing.
+hint: `push` writing `buf_[size_++]` and `pop` reading `buf_[--size_]` are mirror images — no element is ever moved.
+
+```cpp
+// starter
+template <class T, size_t N>
+struct FixedStack {
+    T buf_[N];
+    size_t size_ = 0;
+    // implement push / pop / top / full / empty / size
+};
+```
+
+```cpp
+bool empty() const { return size_ == 0; }
+bool full()  const { return size_ == N; }
+size_t size() const { return size_; }
+bool push(const T& v) {
+    if (size_ == N) return false;
+    buf_[size_++] = v;
+    return true;
+}
+bool pop(T& out) {
+    if (size_ == 0) return false;
+    out = buf_[--size_];
+    return true;
+}
+bool top(T& out) const {
+    if (size_ == 0) return false;
+    out = buf_[size_ - 1];
+    return true;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+using std::size_t;
+template <class T, size_t N>
+struct FixedStack {
+    T buf_[N];
+    size_t size_ = 0;
+    //__USER__
+};
+int main() {
+    FixedStack<int, 2> s;
+    if (!s.empty() || s.full() || s.size() != 0) { std::puts("init state"); return 1; }
+    int x;
+    if (s.pop(x)) { std::puts("pop on empty must return false"); return 1; }
+    if (s.top(x)) { std::puts("top on empty must return false"); return 1; }
+    if (!s.push(7) || !s.push(8)) { std::puts("push to full failed"); return 1; }
+    if (!s.full() || s.size() != 2) { std::puts("should be full"); return 1; }
+    if (s.push(9)) { std::puts("push on full must return false"); return 1; }
+    if (!s.top(x) || x != 8) { std::puts("top should read 8"); return 1; }
+    if (s.size() != 2) { std::puts("top must not pop"); return 1; }
+    if (!s.pop(x) || x != 8) { std::puts("LIFO order at 8"); return 1; }
+    if (!s.pop(x) || x != 7) { std::puts("LIFO order at 7"); return 1; }
+    if (!s.empty()) { std::puts("should be empty"); return 1; }
+    if (s.pop(x)) { std::puts("pop on empty again"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A stack is the simplest allocation-free container: one array plus a size cursor. Because pushes and pops only ever touch `buf_[size_]`, the working set stays hot in L1 and the branch predictor sees a trivial full/empty test. This is what you reach for instead of `std::stack<std::deque>` on the hot path — no per-element node, no allocator call, no pointer indirection. The whole structure is `N * sizeof(T) + sizeof(size_t)` bytes, entirely on the stack or inside a parent object, with O(1) operations and zero heap traffic.
+
+## challenge: Inline small_vector<T,N>
+tags: allocation, small-vector, inline-storage, cache-locality
+track: hft
+difficulty: medium
+
+A growable-looking vector whose entire capacity lives inline — no heap, ever. Storage is one array of `N` elements plus a size. Implement `bool push_back(const T&)` (returns `false` at capacity instead of allocating), `size()`, `full()`, mutable and const `operator[]`, `back()`, and `clear()`. The point is a `std::vector`-like API with `std::array`-like locality: the object owns its bytes, so copying or embedding it moves the data with it and never touches the allocator.
+
+Constraints: capacity `N` is a compile-time constant, `1 <= N`. No heap allocation, no `std::vector`. Indexing is unchecked (caller guarantees `i < size()`), matching `operator[]`'s contract.
+
+Example: on `SmallVector<int,4>`, `push_back(10); push_back(20)` gives `size()==2`, `v[0]==10`, `v[1]==20`; `v[0] = 99` mutates in place; a 5th `push_back` on a full vector returns `false`; `clear()` resets `size()` to 0 without releasing memory.
+
+hint: The only difference from a stack is the random-access interface — but the storage discipline (array + size, append at the end) is identical.
+hint: `operator[]` returns a reference into `buf_`; provide both a non-const overload (for assignment) and a const overload (for read-only access).
+hint: `clear()` need not touch the elements for trivial `T` — resetting `size_` to 0 logically empties the vector with no work.
+
+```cpp
+// starter
+template <class T, size_t N>
+struct SmallVector {
+    T buf_[N];
+    size_t size_ = 0;
+    // implement push_back / size / full / operator[] (x2) / back / clear
+};
+```
+
+```cpp
+size_t size() const { return size_; }
+bool full() const { return size_ == N; }
+bool push_back(const T& v) {
+    if (size_ == N) return false;
+    buf_[size_++] = v;
+    return true;
+}
+T& operator[](size_t i) { return buf_[i]; }
+const T& operator[](size_t i) const { return buf_[i]; }
+T& back() { return buf_[size_ - 1]; }
+void clear() { size_ = 0; }
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+using std::size_t;
+template <class T, size_t N>
+struct SmallVector {
+    T buf_[N];
+    size_t size_ = 0;
+    //__USER__
+};
+static int sum_const(const SmallVector<int, 4>& v) {
+    int s = 0;
+    for (size_t i = 0; i < v.size(); ++i) s += v[i];   // exercises const operator[]
+    return s;
+}
+int main() {
+    SmallVector<int, 4> v;
+    if (v.size() != 0 || v.full()) { std::puts("init state"); return 1; }
+    if (!v.push_back(10) || !v.push_back(20) || !v.push_back(30)) { std::puts("push_back failed"); return 1; }
+    if (v.size() != 3) { std::puts("size wrong"); return 1; }
+    if (v[0] != 10 || v[1] != 20 || v[2] != 30) { std::puts("read via operator[]"); return 1; }
+    v[0] = 99;                                // exercises mutable operator[]
+    if (v[0] != 99) { std::puts("write via operator[]"); return 1; }
+    if (v.back() != 30) { std::puts("back wrong"); return 1; }
+    if (!v.push_back(40)) { std::puts("fourth push_back"); return 1; }
+    if (!v.full()) { std::puts("should be full"); return 1; }
+    if (v.push_back(50)) { std::puts("push_back on full must return false"); return 1; }
+    if (v.size() != 4) { std::puts("size after full-reject"); return 1; }
+    if (sum_const(v) != 99 + 20 + 30 + 40) { std::puts("const sum wrong"); return 1; }
+    v.clear();
+    if (v.size() != 0 || v.full()) { std::puts("clear must reset size"); return 1; }
+    if (!v.push_back(1)) { std::puts("reuse after clear"); return 1; }
+    if (v.size() != 1 || v[0] != 1) { std::puts("state after reuse"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** An inline `small_vector` gives you `vector`'s ergonomics with `array`'s memory model: the elements are members, not a heap pointer, so the container is trivially copyable/relocatable and every access is a direct offset into a contiguous block that stays in cache. `push_back` refuses to grow rather than calling the allocator, which is exactly the trade you want on a latency-critical path where the maximum size is known and a mid-hot-path `malloc` (or a `vector` reallocation that invalidates iterators and copies every element) is unacceptable. Real libraries (LLVM's `SmallVector`, Boost's `small_vector`) generalize this with a heap fallback, but the fixed-capacity core here is the allocation-free hot-path building block.
+
+## challenge: Bitset-backed fixed set
+tags: allocation, bitset, set, bit-manipulation
+track: hft
+difficulty: medium
+
+A set of small integers drawn from `[0, N)`, stored as a packed bitmap instead of a node-based container. Back it with an array of 64-bit words. Implement `insert(x)`, `bool contains(x) const`, `erase(x)`, and `count() const` (population count of live elements). Membership is a single bit test, insert/erase are single bit-set/clear operations, and the whole set of `N` possible elements fits in `ceil(N/64)` words.
+
+Constraints: `N` is a compile-time constant, `1 <= N`. Elements satisfy `0 <= x < N`. No heap allocation. `insert` of a present element and `erase` of an absent element are both no-ops (idempotent).
+
+Example: on `BitSet<130>` (3 words), `insert(1); insert(65); insert(129)` gives `count()==3` and `contains(65)==true`, `contains(2)==false`; `erase(65)` drops `count()` to 2; inserting `1` again keeps `count()` at 2.
+
+hint: Element `x` lives at bit `x & 63` of word `x >> 6` — the word index is the high bits, the bit index is the low 6 bits.
+hint: `insert` ORs in `1ull << (x & 63)`; `erase` ANDs with the complement of that mask; `contains` shifts the word right and tests the low bit.
+hint: `count()` sums `__builtin_popcountll` over the words — the hardware `POPCNT` counts set bits in a word in one instruction.
+
+```cpp
+// starter
+template <size_t N>
+struct BitSet {
+    static constexpr size_t W = (N + 63) / 64;   // number of 64-bit words
+    uint64_t words_[W] = {};                      // all bits clear = empty set
+    // implement insert / contains / erase / count
+};
+```
+
+```cpp
+void insert(size_t x) { words_[x >> 6] |= (uint64_t(1) << (x & 63)); }
+bool contains(size_t x) const { return (words_[x >> 6] >> (x & 63)) & 1u; }
+void erase(size_t x) { words_[x >> 6] &= ~(uint64_t(1) << (x & 63)); }
+size_t count() const {
+    size_t c = 0;
+    for (size_t i = 0; i < W; ++i) c += (size_t)__builtin_popcountll(words_[i]);
+    return c;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+#include <cstdint>
+using std::size_t;
+template <size_t N>
+struct BitSet {
+    static constexpr size_t W = (N + 63) / 64;
+    uint64_t words_[W] = {};
+    //__USER__
+};
+int main() {
+    BitSet<130> s;                              // spans 3 words
+    if (s.count() != 0) { std::puts("empty count"); return 1; }
+    if (s.contains(65)) { std::puts("empty contains"); return 1; }
+    s.insert(1);                                // word 0
+    s.insert(65);                               // word 1
+    s.insert(129);                              // word 2, boundary
+    if (s.count() != 3) { std::puts("count after inserts"); return 1; }
+    if (!s.contains(1) || !s.contains(65) || !s.contains(129)) { std::puts("membership"); return 1; }
+    if (s.contains(0) || s.contains(2) || s.contains(64) || s.contains(128)) { std::puts("false positives"); return 1; }
+    s.insert(65);                               // idempotent
+    if (s.count() != 3) { std::puts("insert must be idempotent"); return 1; }
+    s.erase(65);
+    if (s.contains(65) || s.count() != 2) { std::puts("erase failed"); return 1; }
+    s.erase(64);                                // absent -> no-op
+    if (s.count() != 2) { std::puts("erase of absent must be no-op"); return 1; }
+    s.insert(63); s.insert(64);                 // straddle the word boundary
+    if (!s.contains(63) || !s.contains(64) || s.count() != 4) { std::puts("word boundary"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A bitset represents a set over a bounded universe as raw bits, so a whole 128-element set is two machine words that live in a single cache line — versus `std::set<int>` (a red-black tree: one heap node with three pointers and a color bit per element, scattered across memory) or even `std::unordered_set` (buckets plus nodes). Insert, erase, and membership become single ALU ops with no branches and no pointer chasing, and `count()` rides the hardware `POPCNT`. When your keys are dense small integers — order-book price levels, active session ids, a free/used mask — the bitset is both the smallest and the fastest representation, with zero allocation.
+
+## challenge: Fixed history buffer (last-N values)
+tags: allocation, ring-buffer, sliding-window, cache-locality
+track: hft
+difficulty: medium
+
+A rolling window that always remembers the most recent `N` values pushed and silently forgets older ones. Back it with a circular array and a write cursor. Implement `push(const T&)` (overwrites the oldest slot once full), `size()` (number stored, capped at `N`), and `recent(i)` — the i-th most recent value, where `recent(0)` is the newest and `recent(size()-1)` is the oldest still retained. No allocation and no shifting: pushing is O(1) even though the logical window slides on every call.
+
+Constraints: `N` is a compile-time constant, `1 <= N`. For `recent(i)`, `0 <= i < size()`. No heap allocation. Order of retrieval must reflect recency, not physical slot order.
+
+Example: on `History<int,3>`, after `push(1); push(2); push(3); push(4)` the window holds the last 3: `size()==3`, `recent(0)==4`, `recent(1)==3`, `recent(2)==2` (the `1` was overwritten).
+
+hint: Keep a cursor to where the next value will be written; the newest value is one slot behind it, modulo `N`.
+hint: Never shift elements — pushing just writes at the cursor, advances it modulo `N`, and grows the count until it saturates at `N`.
+hint: `recent(i)` maps recency to a physical slot: start from the newest index `(next_ + N - 1)` and walk back by `i`, all modulo `N` (add `N` before the modulo to stay non-negative).
+
+```cpp
+// starter
+template <class T, size_t N>
+struct History {
+    T buf_[N];
+    size_t next_ = 0;    // slot the next push writes to
+    size_t count_ = 0;   // values retained, saturates at N
+    // implement push / size / recent
+};
+```
+
+```cpp
+void push(const T& v) {
+    buf_[next_] = v;
+    next_ = (next_ + 1) % N;
+    if (count_ < N) ++count_;
+}
+size_t size() const { return count_; }
+T recent(size_t i) const {
+    // i == 0 -> newest (slot next_-1); larger i -> older
+    return buf_[(next_ + N - 1 - i) % N];
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+using std::size_t;
+template <class T, size_t N>
+struct History {
+    T buf_[N];
+    size_t next_ = 0;
+    size_t count_ = 0;
+    //__USER__
+};
+int main() {
+    History<int, 3> h;
+    if (h.size() != 0) { std::puts("init size"); return 1; }
+    h.push(1); h.push(2);
+    if (h.size() != 2) { std::puts("size before full"); return 1; }
+    if (h.recent(0) != 2 || h.recent(1) != 1) { std::puts("recency before full"); return 1; }
+    h.push(3);
+    if (h.size() != 3) { std::puts("size at capacity"); return 1; }
+    if (h.recent(0) != 3 || h.recent(1) != 2 || h.recent(2) != 1) { std::puts("recency at capacity"); return 1; }
+    h.push(4);                                  // overwrites oldest (1)
+    if (h.size() != 3) { std::puts("size stays capped"); return 1; }
+    if (h.recent(0) != 4 || h.recent(1) != 3 || h.recent(2) != 2) { std::puts("recency after overwrite"); return 1; }
+    h.push(5); h.push(6);                        // more wraps
+    if (h.recent(0) != 6 || h.recent(1) != 5 || h.recent(2) != 4) { std::puts("recency after wraps"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A last-N window is a circular buffer read newest-first. Because pushing overwrites the slot the cursor points at and just advances the cursor modulo `N`, every update is O(1) with no element movement — unlike a naive "erase front, append back" on a `std::deque` or a shifting array, which is O(N) per tick and churns the allocator. The fixed array is one contiguous, cache-resident block, so scanning the recent window (moving averages, last-N trades, a rolling checksum) streams through memory. The only subtlety is the index math in `recent()`: recency `i` maps to physical slot `(next_ - 1 - i) mod N`, computed with a `+N` bias so the subtraction never underflows the unsigned index.
+
+## challenge: Intrusive singly-linked free list
+tags: allocation, free-list, intrusive, memory
+track: hft
+difficulty: medium
+
+Node-based structures without a per-node allocation: pre-allocate `N` nodes in an array and thread a free list through a `next` index that each node already owns. The same `next` field links a node into the free list while it is idle and into a user list while it is in use — that is what "intrusive" means. Implement `size_t acquire()` (unlink and return a free node index, or `NIL` when exhausted) and `void release(size_t)` (push a node back onto the free list). Both are O(1) and never touch the allocator.
+
+Constraints: `N` is a compile-time constant, `1 <= N`. `NIL` is a sentinel index. No heap allocation. `acquire`/`release` form a stack (a released node is the next one handed out — LIFO).
+
+Example: on `FreeList<3>`, three `acquire()` calls return three distinct valid indices, the 4th returns `NIL`; after `release(b)`, the next `acquire()` returns `b` again; nodes can be chained via their `next` field into a user list and traversed without any allocation.
+
+hint: Initialize the free list once in the constructor by linking node `i` to node `i+1`, with the last node's `next` set to `NIL` and a `free_head_` pointing at node 0.
+hint: `acquire` pops the head: remember `free_head_`, advance it to that node's `next`, return the old head.
+hint: `release` pushes onto the head: set the node's `next` to the current `free_head_`, then point `free_head_` at that node.
+
+```cpp
+// starter
+template <size_t N>
+struct FreeList {
+    struct Node { int value; size_t next; };
+    static constexpr size_t NIL = ~size_t(0);
+    Node nodes_[N];
+    size_t free_head_;
+    FreeList() {
+        for (size_t i = 0; i < N; ++i) nodes_[i].next = i + 1;
+        nodes_[N - 1].next = NIL;
+        free_head_ = 0;
+    }
+    // implement acquire / release
+};
+```
+
+```cpp
+size_t acquire() {
+    if (free_head_ == NIL) return NIL;
+    size_t i = free_head_;
+    free_head_ = nodes_[i].next;
+    return i;
+}
+void release(size_t i) {
+    nodes_[i].next = free_head_;
+    free_head_ = i;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+using std::size_t;
+template <size_t N>
+struct FreeList {
+    struct Node { int value; size_t next; };
+    static constexpr size_t NIL = ~size_t(0);
+    Node nodes_[N];
+    size_t free_head_;
+    FreeList() {
+        for (size_t i = 0; i < N; ++i) nodes_[i].next = i + 1;
+        nodes_[N - 1].next = NIL;
+        free_head_ = 0;
+    }
+    //__USER__
+};
+int main() {
+    const size_t NIL = FreeList<3>::NIL;
+    FreeList<3> fl;
+    size_t a = fl.acquire();
+    size_t b = fl.acquire();
+    size_t c = fl.acquire();
+    if (a == NIL || b == NIL || c == NIL) { std::puts("first 3 acquires must succeed"); return 1; }
+    if (a == b || b == c || a == c) { std::puts("acquired nodes must be distinct"); return 1; }
+    if (fl.acquire() != NIL) { std::puts("exhausted list must return NIL"); return 1; }
+    // intrusive use: chain a -> b -> c through the same next field, then traverse
+    fl.nodes_[a].value = 10; fl.nodes_[a].next = b;
+    fl.nodes_[b].value = 20; fl.nodes_[b].next = c;
+    fl.nodes_[c].value = 30; fl.nodes_[c].next = NIL;
+    int sum = 0;
+    for (size_t i = a; i != NIL; i = fl.nodes_[i].next) sum += fl.nodes_[i].value;
+    if (sum != 60) { std::puts("intrusive chain traversal"); return 1; }
+    fl.release(b);                              // b goes back to the free list
+    size_t d = fl.acquire();
+    if (d != b) { std::puts("released node must be reused (LIFO)"); return 1; }
+    if (fl.acquire() != NIL) { std::puts("full again must return NIL"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** An intrusive free list is how you get node-based data structures (linked lists, trees, hash chains) with zero per-node allocation: the nodes live in one contiguous array and the `next` link is a field they already carry, doing double duty as the free-list pointer when idle and the user-list pointer when live. `acquire`/`release` are a pointer-free stack over that array — pop the head to allocate, push to free — so both are branch-light O(1). Versus `std::list` or a `new`-per-node scheme, you save an allocator round-trip on every insert, keep the nodes cache-adjacent (indices, not scattered heap addresses), and can even relocate the whole pool by copying the array, because links are indices rather than absolute pointers.
+
+## challenge: Monotonic bump / arena allocator
+tags: allocation, arena, bump-allocator, alignment
+track: hft
+difficulty: medium
+
+A monotonic allocator over one fixed byte buffer: each request bumps a cursor forward and returns an aligned offset; there is no per-object free, only a bulk `reset()` that rewinds the cursor to zero. Implement `size_t allocate(size_t size, size_t align)` returning the aligned offset of a `size`-byte block (or `FAIL` if it would overflow the buffer), `void reset()`, and `size_t used() const`. Allocation is a couple of integer ops — round the cursor up to the alignment, hand back that offset, advance past the block.
+
+Constraints: `Capacity` is a compile-time constant. `align` is a power of two. No heap allocation — the arena owns a fixed byte array. Returned offsets must satisfy `offset % align == 0` and blocks must not overlap.
+
+Example: on `BumpArena<64>`, `allocate(1,1)` returns `0` (cursor -> 1); `allocate(8,8)` rounds up and returns `8` (cursor -> 16); `allocate(4,4)` returns `16` (cursor -> 20); `allocate(64,1)` overflows and returns `FAIL`; `used()==20`; after `reset()`, `allocate(1,1)` returns `0` again.
+
+hint: Rounding an offset up to a power-of-two alignment is `(offset + align - 1) & ~(align - 1)` — no division needed.
+hint: Compute the aligned start first, then check `aligned + size <= Capacity` before committing; only advance the cursor on success.
+hint: `reset()` is the whole deallocation story — set the cursor back to 0 and the entire buffer is free again in O(1).
+
+```cpp
+// starter
+template <size_t Capacity>
+struct BumpArena {
+    alignas(std::max_align_t) unsigned char buf_[Capacity];
+    size_t offset_ = 0;
+    static constexpr size_t FAIL = ~size_t(0);
+    // implement allocate / reset / used
+};
+```
+
+```cpp
+size_t allocate(size_t size, size_t align) {
+    size_t aligned = (offset_ + (align - 1)) & ~(align - 1);
+    if (aligned + size > Capacity) return FAIL;
+    offset_ = aligned + size;
+    return aligned;
+}
+void reset() { offset_ = 0; }
+size_t used() const { return offset_; }
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+using std::size_t;
+template <size_t Capacity>
+struct BumpArena {
+    alignas(std::max_align_t) unsigned char buf_[Capacity];
+    size_t offset_ = 0;
+    static constexpr size_t FAIL = ~size_t(0);
+    //__USER__
+};
+int main() {
+    BumpArena<64> a;
+    if (a.used() != 0) { std::puts("init used"); return 1; }
+    size_t o1 = a.allocate(1, 1);
+    if (o1 != 0 || a.used() != 1) { std::puts("first alloc"); return 1; }
+    size_t o2 = a.allocate(8, 8);              // must round 1 up to 8
+    if (o2 != 8 || (o2 % 8) != 0 || a.used() != 16) { std::puts("aligned alloc"); return 1; }
+    size_t o3 = a.allocate(4, 4);
+    if (o3 != 16 || (o3 % 4) != 0 || a.used() != 20) { std::puts("third alloc"); return 1; }
+    // blocks must not overlap: o2's [8,16) sits after o1's [0,1), o3 starts at 16
+    if (!(o1 + 1 <= o2 && o2 + 8 <= o3)) { std::puts("blocks overlap"); return 1; }
+    if (a.allocate(64, 1) != BumpArena<64>::FAIL) { std::puts("overflow must return FAIL"); return 1; }
+    if (a.used() != 20) { std::puts("failed alloc must not advance cursor"); return 1; }
+    size_t o4 = a.allocate(16, 16);            // round 20 up to 32
+    if (o4 != 32 || (o4 % 16) != 0) { std::puts("16-byte alignment"); return 1; }
+    a.reset();
+    if (a.used() != 0) { std::puts("reset must rewind"); return 1; }
+    if (a.allocate(1, 1) != 0) { std::puts("reuse after reset"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A bump allocator is the fastest possible allocator: `allocate` is an align-and-add on a single cursor, and freeing is deferred to a bulk `reset()` that costs one store. That is exactly the shape you want for per-tick or per-message scratch memory — carve out everything you need for one unit of work from a pre-sized arena, then rewind at the top of the next iteration. Compared to `malloc`/`new`, there is no free-list search, no header per allocation, no fragmentation, and no lock; the arena is one contiguous, cache-friendly block. The one thing you must get right is alignment: rounding up with `(off + align-1) & ~(align-1)` keeps every returned offset suitably aligned for the type you'll placement-construct there, and checking `aligned + size <= Capacity` before committing keeps the cursor honest on overflow.
+
+## challenge: Fixed-capacity double-ended queue
+tags: allocation, deque, ring-buffer, cache-locality
+track: hft
+difficulty: medium
+
+A double-ended queue with a compile-time capacity, backed by a single circular array — push and pop at both ends in O(1) with no allocation. Implement `bool push_front(const T&)` and `bool push_back(const T&)` (each returns `false` when full), `bool pop_front(T& out)` and `bool pop_back(T& out)` (each returns `false` when empty, else writes the removed element), plus `full()`, `empty()`, and `size()`. Track a front index and a live count; both ends wrap with modular arithmetic.
+
+Constraints: capacity `N` is a compile-time constant, `1 <= N`. No heap allocation. All four push/pop operations are O(1) and move no existing elements.
+
+Example: on `Deque<int,3>`, `push_back(1); push_back(2); push_front(0)` fills it as `[0,1,2]`; further pushes at either end return `false`; `pop_front` yields `0`, `pop_back` yields `2`, `pop_front` yields `1`.
+
+hint: A front index plus a count describes the whole deque; the back element is at `(head_ + count_ - 1) % N`.
+hint: `push_front` moves the head one slot backward — `(head_ + N - 1) % N` — then writes there; `push_back` writes at the tail `(head_ + count_) % N`.
+hint: `pop_front` advances the head forward modulo `N`; `pop_back` just drops the count. Neither shifts elements.
+
+```cpp
+// starter
+template <class T, size_t N>
+struct Deque {
+    T buf_[N];
+    size_t head_ = 0;    // index of the front element
+    size_t count_ = 0;   // number of live elements
+    // implement push_front / push_back / pop_front / pop_back / full / empty / size
+};
+```
+
+```cpp
+bool empty() const { return count_ == 0; }
+bool full()  const { return count_ == N; }
+size_t size() const { return count_; }
+bool push_back(const T& v) {
+    if (count_ == N) return false;
+    buf_[(head_ + count_) % N] = v;
+    ++count_;
+    return true;
+}
+bool push_front(const T& v) {
+    if (count_ == N) return false;
+    head_ = (head_ + N - 1) % N;
+    buf_[head_] = v;
+    ++count_;
+    return true;
+}
+bool pop_front(T& out) {
+    if (count_ == 0) return false;
+    out = buf_[head_];
+    head_ = (head_ + 1) % N;
+    --count_;
+    return true;
+}
+bool pop_back(T& out) {
+    if (count_ == 0) return false;
+    out = buf_[(head_ + count_ - 1) % N];
+    --count_;
+    return true;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+using std::size_t;
+template <class T, size_t N>
+struct Deque {
+    T buf_[N];
+    size_t head_ = 0;
+    size_t count_ = 0;
+    //__USER__
+};
+int main() {
+    Deque<int, 3> d;
+    if (!d.empty() || d.full() || d.size() != 0) { std::puts("init state"); return 1; }
+    int x;
+    if (d.pop_front(x) || d.pop_back(x)) { std::puts("pop on empty must fail"); return 1; }
+    if (!d.push_back(1) || !d.push_back(2)) { std::puts("push_back failed"); return 1; }
+    if (!d.push_front(0)) { std::puts("push_front failed"); return 1; }   // [0,1,2]
+    if (!d.full() || d.size() != 3) { std::puts("should be full"); return 1; }
+    if (d.push_back(9) || d.push_front(9)) { std::puts("push on full must fail"); return 1; }
+    if (!d.pop_front(x) || x != 0) { std::puts("pop_front should give 0"); return 1; }
+    if (!d.pop_back(x)  || x != 2) { std::puts("pop_back should give 2"); return 1; }
+    if (!d.pop_front(x) || x != 1) { std::puts("pop_front should give 1"); return 1; }
+    if (!d.empty()) { std::puts("should be empty"); return 1; }
+    // exercise head wraparound via repeated push_front
+    if (!d.push_front(5) || !d.push_front(6) || !d.push_front(7)) { std::puts("wrap push_front"); return 1; }
+    if (d.size() != 3) { std::puts("size after wrap"); return 1; }         // front->back: 7,6,5
+    if (!d.pop_front(x) || x != 7) { std::puts("wrap pop_front 7"); return 1; }
+    if (!d.pop_back(x)  || x != 5) { std::puts("wrap pop_back 5"); return 1; }
+    if (!d.pop_front(x) || x != 6) { std::puts("wrap pop_front 6"); return 1; }
+    if (!d.empty()) { std::puts("empty after wrap drain"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A fixed deque is a ring buffer that grows and shrinks at both ends. The trick is the same `head + count` bookkeeping as a plain circular queue, extended with a backward step for `push_front` (`(head - 1) mod N`, written as `+ N - 1` to avoid unsigned underflow). Every operation is a modular index update over one contiguous array, so no element ever moves and there is no allocation — unlike `std::deque`, whose segmented block-of-blocks layout allocates blocks on demand, scatters them across the heap, and pays a double indirection on access. When you need bounded front-and-back access on the hot path (a bounded work queue, a sliding window you trim from either side), this keeps the whole structure in a few cache lines with O(1) branch-light operations.
+
+## challenge: Open-addressing flat hash map (linear probing)
+tags: allocation, hash-map, open-addressing, linear-probing, cache-locality
+track: hft
+difficulty: hard
+
+A fixed-capacity integer-keyed hash map stored in flat parallel arrays, resolving collisions by linear probing rather than chaining through heap nodes. Keep a `keys`, a `vals`, and a per-slot `state` (EMPTY / OCCUPIED / DELETED). Implement `bool insert(long key, long val)` (updates in place if present, inserts otherwise, returns `false` only if the table is full and the key is absent), `long* find(long key)` (pointer to the stored value or `nullptr`), `bool erase(long key)`, and `size()`. Erase must use tombstones so it never breaks a probe chain, and insert must reuse a tombstoned slot while still detecting an existing key further along the chain.
+
+Constraints: capacity `N` is a compile-time constant, `1 <= N`. Keys are non-negative. No heap allocation, no `std::unordered_map`. Probing is linear: on collision, step to `(idx + 1) % N`.
+
+Example: on `FlatHashMap<8>` with `hash(k) = k % 8`, inserting keys `1`, `9`, `17` (all hash to slot 1) lands them at slots 1, 2, 3; `find(17)` probes past the chain; `erase(9)` tombstones slot 2 but `find(17)` still succeeds; a later `insert` for a colliding key reuses the tombstoned slot.
+
+hint: `find` walks the probe chain from `hash(key)`, stops and returns `nullptr` at the first EMPTY slot, and matches only OCCUPIED slots — it must skip DELETED slots, not stop at them.
+hint: `insert` scans the chain remembering the first DELETED slot it sees; it still must continue until it either matches the key (update) or hits EMPTY (insert), only then choosing the remembered tombstone if there was one.
+hint: `erase` finds the OCCUPIED slot for the key and marks it DELETED (a tombstone) rather than EMPTY, so probe chains that ran through it stay intact.
+
+```cpp
+// starter
+template <size_t N>
+struct FlatHashMap {
+    enum State : unsigned char { EMPTY, OCCUPIED, DELETED };
+    long  keys_[N];
+    long  vals_[N];
+    State state_[N] = {};   // all EMPTY (0)
+    size_t size_ = 0;
+    size_t hash(long k) const { return (size_t)k % N; }
+    // implement insert / find / erase / size
+};
+```
+
+```cpp
+size_t size() const { return size_; }
+bool insert(long k, long v) {
+    size_t h = hash(k);
+    size_t first_del = N;                       // sentinel: no tombstone seen
+    for (size_t i = 0; i < N; ++i) {
+        size_t idx = (h + i) % N;
+        if (state_[idx] == EMPTY) {
+            size_t put = (first_del != N) ? first_del : idx;
+            keys_[put] = k; vals_[put] = v; state_[put] = OCCUPIED; ++size_;
+            return true;
+        }
+        if (state_[idx] == DELETED) {
+            if (first_del == N) first_del = idx;
+        } else if (keys_[idx] == k) {           // OCCUPIED with matching key
+            vals_[idx] = v;                     // update in place
+            return true;
+        }
+    }
+    if (first_del != N) {                       // table full of live+tombstones, reuse one
+        keys_[first_del] = k; vals_[first_del] = v; state_[first_del] = OCCUPIED; ++size_;
+        return true;
+    }
+    return false;                               // genuinely full, key absent
+}
+long* find(long k) {
+    size_t h = hash(k);
+    for (size_t i = 0; i < N; ++i) {
+        size_t idx = (h + i) % N;
+        if (state_[idx] == EMPTY) return nullptr;
+        if (state_[idx] == OCCUPIED && keys_[idx] == k) return &vals_[idx];
+    }
+    return nullptr;
+}
+bool erase(long k) {
+    size_t h = hash(k);
+    for (size_t i = 0; i < N; ++i) {
+        size_t idx = (h + i) % N;
+        if (state_[idx] == EMPTY) return false;
+        if (state_[idx] == OCCUPIED && keys_[idx] == k) {
+            state_[idx] = DELETED; --size_; return true;
+        }
+    }
+    return false;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+using std::size_t;
+template <size_t N>
+struct FlatHashMap {
+    enum State : unsigned char { EMPTY, OCCUPIED, DELETED };
+    long  keys_[N];
+    long  vals_[N];
+    State state_[N] = {};
+    size_t size_ = 0;
+    size_t hash(long k) const { return (size_t)k % N; }
+    //__USER__
+};
+int main() {
+    FlatHashMap<8> m;
+    // three keys colliding at slot 1 -> linear probe into slots 1,2,3
+    if (!m.insert(1, 10) || !m.insert(9, 11) || !m.insert(17, 12)) { std::puts("collision inserts"); return 1; }
+    if (m.size() != 3) { std::puts("size after inserts"); return 1; }
+    long* p;
+    if (!(p = m.find(1))  || *p != 10) { std::puts("find 1"); return 1; }
+    if (!(p = m.find(9))  || *p != 11) { std::puts("find 9"); return 1; }
+    if (!(p = m.find(17)) || *p != 12) { std::puts("find 17 through chain"); return 1; }
+    if (m.find(2) != nullptr) { std::puts("find absent must be null"); return 1; }
+    // update existing key, size unchanged
+    if (!m.insert(1, 100) || m.size() != 3) { std::puts("update in place"); return 1; }
+    if (!(p = m.find(1)) || *p != 100) { std::puts("value after update"); return 1; }
+    // erase the middle of the chain -> tombstone; probing past it must still work
+    if (!m.erase(9) || m.size() != 2) { std::puts("erase 9"); return 1; }
+    if (m.find(9) != nullptr) { std::puts("erased key must be gone"); return 1; }
+    if (!(p = m.find(17)) || *p != 12) { std::puts("find 17 past tombstone"); return 1; }
+    if (m.erase(9)) { std::puts("erase of absent must return false"); return 1; }
+    // insert a colliding key -> must reuse the tombstoned slot
+    if (!m.insert(25, 13) || m.size() != 3) { std::puts("insert reusing tombstone"); return 1; }
+    if (!(p = m.find(25)) || *p != 13) { std::puts("find reused key"); return 1; }
+    if (!(p = m.find(17)) || *p != 12) { std::puts("chain intact after reuse"); return 1; }
+    // fill to capacity, then a fresh key must be rejected
+    if (!m.insert(2, 20) || !m.insert(3, 30) || !m.insert(4, 40) ||
+        !m.insert(5, 50) || !m.insert(6, 60)) { std::puts("fill to capacity"); return 1; }
+    if (m.size() != 8) { std::puts("should be full at 8"); return 1; }
+    if (m.insert(99, 990)) { std::puts("insert into full table must return false"); return 1; }
+    if (m.find(99) != nullptr) { std::puts("rejected key must be absent"); return 1; }
+    // updating an existing key in a full table must still work
+    if (!m.insert(4, 400) || m.size() != 8) { std::puts("update in full table"); return 1; }
+    if (!(p = m.find(4)) || *p != 400) { std::puts("value after full-table update"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A flat, open-addressed hash map keeps everything in contiguous arrays and resolves collisions by walking to the next slot, so a lookup streams through cache lines instead of dereferencing a chain of heap nodes the way `std::unordered_map` does (one allocation per element, pointer-chasing per probe, poor locality). The subtlety is deletion: you cannot blank a slot to EMPTY, because that would terminate a probe chain that legitimately runs through it and hide keys inserted later — so you plant a DELETED tombstone that `find` skips and `insert` may reclaim. `insert` therefore can't stop at the first tombstone; it remembers it but keeps probing so it still detects an existing key further down the chain, and only falls back to the tombstone when it reaches an EMPTY terminator. Linear probing (step +1) maximizes cache-line reuse; the price is tombstone buildup, which production maps bound with a load-factor cap and periodic rehash. Average operations are O(1); zero heap traffic on the hot path.
+
+## challenge: Fixed-capacity O(1) LRU cache
+tags: allocation, lru-cache, intrusive-list, hash-map, cache-locality
+track: hft
+difficulty: hard
+
+A least-recently-used cache with a compile-time capacity and no dynamic allocation, offering O(1) `get` and `put`. Combine two flat structures over the same node slots: a doubly-linked recency list (most-recently-used at the head, least-recently-used at the tail) threaded through `prev_`/`next_` index arrays, and an open-addressed key index for O(1) lookup. Implement `bool get(long key, long& out)` (on hit, copy the value and promote the key to most-recently-used) and `void put(long key, long val)` (insert or update, promoting to MRU; when full, evict the tail before inserting). On a miss `get` returns `false`.
+
+Constraints: capacity `N` is a compile-time constant, `1 <= N`. Keys are non-negative. No heap allocation, no `std::` containers. `get`/`put` are O(1): list splices are pointer (index) updates and lookups go through the key index. Evictions remove exactly the least-recently-used entry.
+
+Example: on `LRUCache<3>`, `put(1,10); put(2,20); put(3,30)` fills it (MRU order 3,2,1); `get(1)` returns `10` and promotes `1`; `put(4,40)` now evicts `2` (the LRU); a later `get(2)` returns `false`.
+
+hint: Keep the recency order as an intrusive doubly-linked list over index arrays — promoting a node is `detach` then `attach_front`; evicting is `detach(tail_)`.
+hint: When not full, take the next unused slot (`size_`); when full, reuse the evicted tail's slot for the new key so you never allocate.
+hint: The key-to-slot index is a linear-probing hash sized larger than `N` (so it always has an empty slot); on eviction remove the old key from it with backward-shift deletion so no tombstones accumulate.
+
+```cpp
+// starter
+template <size_t N>
+struct LRUCache {
+    static constexpr int NIL = -1;
+    static constexpr size_t M = 2 * N;          // key index slots (load factor < 1)
+    static constexpr size_t MNIL = ~size_t(0);
+    long key_[N];
+    long val_[N];
+    int  prev_[N];
+    int  next_[N];
+    int  head_ = NIL;      // MRU
+    int  tail_ = NIL;      // LRU
+    size_t size_ = 0;
+    long   mkey_[M];
+    int    mslot_[M];
+    bool   mocc_[M] = {};
+    size_t mhash(long k) const { return (size_t)k % M; }
+    // implement get / put (plus any private list/index helpers you need)
+};
+```
+
+```cpp
+// ---- intrusive recency list over index arrays ----
+void detach(int s) {
+    int p = prev_[s], n = next_[s];
+    if (p != NIL) next_[p] = n; else head_ = n;
+    if (n != NIL) prev_[n] = p; else tail_ = p;
+}
+void attach_front(int s) {
+    prev_[s] = NIL;
+    next_[s] = head_;
+    if (head_ != NIL) prev_[head_] = s; else tail_ = s;
+    head_ = s;
+}
+void move_to_front(int s) {
+    if (head_ == s) return;
+    detach(s);
+    attach_front(s);
+}
+// ---- linear-probing key index (key -> node slot) ----
+size_t map_find(long k) const {
+    size_t idx = mhash(k);
+    for (size_t i = 0; i < M; ++i) {
+        if (!mocc_[idx]) return MNIL;
+        if (mkey_[idx] == k) return idx;
+        idx = (idx + 1) % M;
+    }
+    return MNIL;
+}
+void map_insert(long k, int slot) {
+    size_t idx = mhash(k);
+    while (mocc_[idx]) idx = (idx + 1) % M;     // guaranteed to terminate: size_ < M
+    mocc_[idx] = true; mkey_[idx] = k; mslot_[idx] = slot;
+}
+void map_erase_at(size_t i) {                   // backward-shift deletion, no tombstones
+    while (true) {
+        mocc_[i] = false;
+        size_t j = i;
+        while (true) {
+            j = (j + 1) % M;
+            if (!mocc_[j]) return;
+            size_t k = mhash(mkey_[j]);
+            bool keep = (i <= j) ? (i < k && k <= j) : (i < k || k <= j);
+            if (!keep) break;                   // entry j can slide back to fill i
+        }
+        mkey_[i] = mkey_[j]; mslot_[i] = mslot_[j]; mocc_[i] = true;
+        i = j;
+    }
+}
+// ---- public API ----
+bool get(long k, long& out) {
+    size_t p = map_find(k);
+    if (p == MNIL) return false;
+    int s = mslot_[p];
+    out = val_[s];
+    move_to_front(s);
+    return true;
+}
+void put(long k, long v) {
+    size_t p = map_find(k);
+    if (p != MNIL) {                            // update existing
+        int s = mslot_[p];
+        val_[s] = v;
+        move_to_front(s);
+        return;
+    }
+    int s;
+    if (size_ < N) {
+        s = (int)size_++;                       // next unused slot
+    } else {
+        s = tail_;                              // evict LRU, reuse its slot
+        map_erase_at(map_find(key_[s]));
+        detach(s);
+    }
+    key_[s] = k; val_[s] = v;
+    map_insert(k, s);
+    attach_front(s);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+using std::size_t;
+template <size_t N>
+struct LRUCache {
+    static constexpr int NIL = -1;
+    static constexpr size_t M = 2 * N;
+    static constexpr size_t MNIL = ~size_t(0);
+    long key_[N];
+    long val_[N];
+    int  prev_[N];
+    int  next_[N];
+    int  head_ = NIL;
+    int  tail_ = NIL;
+    size_t size_ = 0;
+    long   mkey_[M];
+    int    mslot_[M];
+    bool   mocc_[M] = {};
+    size_t mhash(long k) const { return (size_t)k % M; }
+    //__USER__
+};
+int main() {
+    long out;
+    // ---- scenario A: recency + eviction ----
+    LRUCache<3> c;
+    if (c.get(1, out)) { std::puts("get on empty must miss"); return 1; }
+    c.put(1, 10); c.put(2, 20); c.put(3, 30);   // MRU order: 3,2,1
+    if (!c.get(1, out) || out != 10) { std::puts("get 1"); return 1; }     // promotes 1 -> MRU: 1,3,2
+    c.put(4, 40);                               // evicts LRU (2); MRU: 4,1,3
+    if (c.get(2, out)) { std::puts("2 must be evicted"); return 1; }
+    if (!c.get(1, out) || out != 10) { std::puts("1 must survive"); return 1; }
+    if (!c.get(3, out) || out != 30) { std::puts("3 must survive"); return 1; }   // promote 3
+    if (!c.get(4, out) || out != 40) { std::puts("4 must survive"); return 1; }   // MRU: 4,3,1
+    c.put(5, 50);                               // LRU is 1 -> evict 1
+    if (c.get(1, out)) { std::puts("1 must be evicted"); return 1; }
+    if (!c.get(3, out) || out != 30) { std::puts("3 still here"); return 1; }
+    if (!c.get(4, out) || out != 40) { std::puts("4 still here"); return 1; }
+    if (!c.get(5, out) || out != 50) { std::puts("5 still here"); return 1; }
+    // update existing value must not evict, must promote
+    c.put(3, 333);
+    if (!c.get(3, out) || out != 333) { std::puts("update value"); return 1; }
+
+    // ---- scenario B: key index collisions + backward-shift on evict ----
+    LRUCache<4> d;                              // M = 8
+    d.put(2, 20); d.put(10, 100); d.put(18, 180); d.put(26, 260);  // all hash to slot 2 mod 8
+    if (!d.get(2, out)  || out != 20)  { std::puts("collide find 2"); return 1; }
+    if (!d.get(10, out) || out != 100) { std::puts("collide find 10"); return 1; }
+    if (!d.get(18, out) || out != 180) { std::puts("collide find 18"); return 1; }
+    if (!d.get(26, out) || out != 260) { std::puts("collide find 26"); return 1; }
+    d.put(34, 340);                             // full -> evict LRU (2), backward-shift its key out
+    if (d.get(2, out)) { std::puts("2 must be evicted from collision chain"); return 1; }
+    if (!d.get(10, out) || out != 100) { std::puts("10 findable after shift"); return 1; }
+    if (!d.get(18, out) || out != 180) { std::puts("18 findable after shift"); return 1; }
+    if (!d.get(26, out) || out != 260) { std::puts("26 findable after shift"); return 1; }
+    if (!d.get(34, out) || out != 340) { std::puts("34 findable after shift"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** An O(1) LRU needs two structures that agree on the same entries: a recency order and a key lookup. Both are built flat over fixed index arrays with no per-node allocation. The recency order is an intrusive doubly-linked list threaded through `prev_`/`next_` (indices, not pointers), so promoting an entry to most-recently-used or evicting the least-recently-used tail is a handful of index writes — versus `std::list`, which would heap-allocate a node per entry. The lookup is an open-addressed linear-probing index from key to node slot; using backward-shift deletion on eviction keeps it tombstone-free, so the probe chains for colliding keys stay short and correct even as entries churn. Crucially, an eviction and the following insert reuse the same physical slot, so a full cache does steady-state work with zero heap traffic and a compact, cache-resident footprint — the difference between a predictable few-nanosecond `get` and an allocator-bound one on the hot path.
+
+## challenge: Spinlock
+tags: lock-free, spinlock, atomics
+track: hft
+difficulty: easy
+
+The simplest mutual-exclusion primitive in a hot path: a **test-and-set spinlock** over a single `std::atomic<bool>`. Implement `void lock()` (busy-wait until acquired), `bool try_lock()` (grab the lock if free, otherwise return `false` without blocking), and `void unlock()` (release it). Acquisition must *atomically* observe "was free, now held" so two callers can never both win. Single-threaded correctness only here — the harness checks the lock/try_lock/unlock state machine; the real thing pairs `acquire` on the take with `release` on the drop.
+
+Constraints: no `std::mutex`, no OS calls — only `std::atomic<bool>` and its operations. `try_lock()` must never spin.
+
+Example: on a fresh lock `try_lock()` returns `true`; a second `try_lock()` (while held) returns `false`; after `unlock()`, `try_lock()` returns `true` again.
+
+hint: A plain "read then write" is two steps and can race. `compare_exchange` fuses them: swap `false`→`true` and tell you whether the swap happened.
+hint: `try_lock()` is exactly one `compare_exchange_strong(expected=false, true)` — success means you acquired it.
+hint: The take needs `memory_order_acquire`; the release (`unlock`) needs `memory_order_release`, so work inside the critical section can't leak out.
+
+```cpp
+// starter
+#include <atomic>
+struct SpinLock {
+    std::atomic<bool> locked_{false};
+    void lock();
+    bool try_lock();
+    void unlock();
+};
+```
+
+```cpp
+void lock() {
+    bool expected = false;
+    while (!locked_.compare_exchange_weak(expected, true,
+               std::memory_order_acquire, std::memory_order_relaxed)) {
+        expected = false;   // CAS wrote the observed value back into expected
+    }
+}
+bool try_lock() {
+    bool expected = false;
+    return locked_.compare_exchange_strong(expected, true,
+               std::memory_order_acquire, std::memory_order_relaxed);
+}
+void unlock() {
+    locked_.store(false, std::memory_order_release);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <atomic>
+struct SpinLock {
+    std::atomic<bool> locked_{false};
+    //__USER__
+};
+int main() {
+    SpinLock m;
+    if (!m.try_lock()) { std::puts("try_lock on free must succeed"); return 1; }
+    if (m.try_lock())  { std::puts("try_lock on held must fail"); return 1; }
+    m.unlock();
+    if (!m.try_lock()) { std::puts("try_lock after unlock must succeed"); return 1; }
+    m.unlock();
+    m.lock();
+    if (m.try_lock())  { std::puts("lock() must hold the lock"); return 1; }
+    m.unlock();
+    for (int i = 0; i < 1000; ++i) {
+        m.lock();
+        if (m.try_lock()) { std::puts("held after lock"); return 1; }
+        m.unlock();
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The whole primitive rests on one indivisible action: `compare_exchange` from `false` to `true`. Read-modify-write in a single instruction is what makes "observe free *and* claim it" impossible to interleave, so at most one thread ever sees the transition. `lock()` retries that CAS (use the `_weak` form in a loop — it can fail spuriously but is cheaper on LL/SC machines); `try_lock()` uses `_strong` and returns the outcome. The minimal-correct orders: the successful take is `acquire` and `unlock` is `release`, forming a release/acquire pair so everything a thread wrote before releasing is visible to the next thread that acquires — the failure path of the CAS only needs `relaxed`. Cost is O(1) per operation but unbounded spinning under contention; production versions add a PAUSE/backoff and often a load-before-CAS to avoid hammering the cache line.
+
+## challenge: Relaxed atomic counter
+tags: atomics, counter, relaxed
+track: hft
+difficulty: easy
+
+A shared statistics counter (messages processed, packets dropped) that many threads bump but whose *value* nobody uses for synchronization. Wrap a `std::atomic<uint64_t>` and implement `void inc()` (add one), `uint64_t add(uint64_t k)` (add `k`, return the value **before** the add — the fetch-add semantic), and `uint64_t get() const`. Because the count doesn't order any other memory, every operation should use the cheapest correct order: `memory_order_relaxed`. Correctness of the tally is guaranteed by atomicity of `fetch_add` alone.
+
+Constraints: use `fetch_add`, not a load-then-store (that would drop concurrent increments). All operations `relaxed`.
+
+Example: after 100000 `inc()` calls, `get() == 100000`. `add(5)` on a counter at 100000 returns `100000` and leaves it at `100005`.
+
+hint: `n += 1` on an atomic is a load, an add, and a store — three steps that can interleave and lose counts. `fetch_add` is one indivisible RMW.
+hint: `fetch_add` returns the *previous* value, which is exactly what `add` must return.
+hint: A counter read by no synchronizing thread needs no ordering — `relaxed` still guarantees each RMW is atomic and the total is exact.
+
+```cpp
+// starter
+#include <atomic>
+#include <cstdint>
+struct Counter {
+    std::atomic<std::uint64_t> n_{0};
+    void inc();
+    std::uint64_t add(std::uint64_t k);   // returns previous value
+    std::uint64_t get() const;
+};
+```
+
+```cpp
+void inc() { n_.fetch_add(1, std::memory_order_relaxed); }
+std::uint64_t add(std::uint64_t k) { return n_.fetch_add(k, std::memory_order_relaxed); }
+std::uint64_t get() const { return n_.load(std::memory_order_relaxed); }
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <atomic>
+#include <cstdint>
+struct Counter {
+    std::atomic<std::uint64_t> n_{0};
+    //__USER__
+};
+int main() {
+    Counter c;
+    if (c.get() != 0) { std::puts("init must be 0"); return 1; }
+    for (int i = 0; i < 100000; ++i) c.inc();
+    if (c.get() != 100000) { std::puts("inc count wrong"); return 1; }
+    std::uint64_t prev = c.add(5);
+    if (prev != 100000) { std::puts("add must return previous"); return 1; }
+    if (c.get() != 100005) { std::puts("add not applied"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The correctness of a concurrent counter has *nothing* to do with memory ordering and *everything* to do with atomicity. `fetch_add` is a single read-modify-write the hardware performs indivisibly (`lock xadd` on x86), so N threads each adding once always yields exactly N — no lost updates. Since the counter value never publishes other data (no reader says "the count is 5, therefore buffer X is ready"), it participates in no happens-before relationship, and `relaxed` — which drops all fences and lets the compiler/CPU reorder surrounding code freely — is the minimal-correct order. That's the point of the drill: reach for `relaxed` when you want an atomic *number*, and reserve `acquire`/`release` for when the number *gates* access to other memory. `fetch_add` returning the prior value also gives you a free unique-ticket generator (see the ticket lock).
+
+## challenge: Ticket lock
+tags: lock-free, ticket-lock, fairness
+track: hft
+difficulty: medium
+
+A **fair** spinlock that hands out service in FIFO order — no thread starves, unlike the test-and-set spinlock. Keep two counters: `next_` (the next ticket to dispense) and `serving_` (the ticket currently allowed in). `lock()` atomically takes a ticket with `next_.fetch_add(1)` then spins until `serving_ == my_ticket`. `unlock()` bumps `serving_` so the next ticket-holder proceeds. Add a `try_lock()` that succeeds only when the lock is completely free (`serving_ == next_`) and no one is queued. Single-threaded correctness only; the harness drives the ticket/serving state machine.
+
+Constraints: `lock()` must grab its ticket with one atomic RMW. `try_lock()` must not advance `next_` unless it actually acquires.
+
+Example: from a fresh lock, `try_lock()` grabs it and `next_` becomes 1 while `serving_` stays 0; a second `try_lock()` (held) fails; after `unlock()`, `serving_` is 1 and a `lock()` taking ticket 1 proceeds immediately.
+
+hint: The ticket you hold is the value `fetch_add` returns — a unique, monotonically increasing integer per caller.
+hint: The lock is free exactly when `serving_ == next_` (nobody dispensed and unserved). That is the only state where `try_lock()` may claim it.
+hint: `unlock()` publishes the critical section with a `release` store/RMW on `serving_`; waiters `acquire`-load `serving_` so they see that work.
+
+```cpp
+// starter
+#include <atomic>
+struct TicketLock {
+    std::atomic<unsigned> next_{0};      // next ticket to hand out
+    std::atomic<unsigned> serving_{0};   // ticket being served now
+    void lock();
+    bool try_lock();
+    void unlock();
+};
+```
+
+```cpp
+void lock() {
+    unsigned my = next_.fetch_add(1, std::memory_order_relaxed);
+    while (serving_.load(std::memory_order_acquire) != my) { /* spin */ }
+}
+bool try_lock() {
+    unsigned s = serving_.load(std::memory_order_relaxed);
+    unsigned n = next_.load(std::memory_order_relaxed);
+    if (s != n) return false;            // held or someone queued
+    return next_.compare_exchange_strong(n, n + 1,
+               std::memory_order_acquire, std::memory_order_relaxed);
+}
+void unlock() {
+    serving_.fetch_add(1, std::memory_order_release);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <atomic>
+struct TicketLock {
+    std::atomic<unsigned> next_{0};
+    std::atomic<unsigned> serving_{0};
+    //__USER__
+};
+int main() {
+    TicketLock t;
+    if (!t.try_lock()) { std::puts("try_lock on free must succeed"); return 1; }
+    if (t.next_.load() != 1 || t.serving_.load() != 0) { std::puts("counters after grab"); return 1; }
+    if (t.try_lock()) { std::puts("try_lock on held must fail"); return 1; }
+    t.unlock();
+    if (t.serving_.load() != 1) { std::puts("serving after unlock"); return 1; }
+    t.lock();
+    if (t.next_.load() != 2) { std::puts("next after lock"); return 1; }
+    if (t.try_lock()) { std::puts("try_lock on held 2"); return 1; }
+    t.unlock();
+    for (int i = 0; i < 1000; ++i) {
+        t.lock();
+        if (t.try_lock()) { std::puts("stress held"); return 1; }
+        t.unlock();
+    }
+    if (t.next_.load() != t.serving_.load()) { std::puts("must be balanced"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The ticket lock trades the spinlock's unfairness for FIFO service by turning acquisition into "take a number, wait for it to be called." `next_.fetch_add(1)` is a single atomic RMW that hands every caller a distinct, strictly increasing ticket, so ordering is decided at the moment you enter the queue — impossible with a bare test-and-set where the winner is whoever the cache-coherence protocol happens to favor. A caller spins reading `serving_` (a cheap load, not a CAS, so under contention only one line is written per handoff), and `unlock()` increments `serving_`, releasing exactly the holder of the next ticket. Minimal-correct ordering: `next_.fetch_add` can be `relaxed` (it only needs uniqueness, not publication), the spin load on `serving_` is `acquire`, and `unlock`'s increment is `release` — that release/acquire pair transfers the critical section from holder to successor. `try_lock` refuses unless `serving_ == next_`, the only genuinely-free state, and uses a CAS so it can't steal a ticket someone else is about to claim.
+
+## challenge: Treiber lock-free stack
+tags: lock-free, stack, cas
+track: hft
+difficulty: medium
+
+The canonical lock-free container: a **Treiber stack**, a singly-linked LIFO whose only shared state is an `std::atomic<Node*> head_`. `push(v)` allocates a node, points its `next` at the current head, and CAS-swaps the head to the new node. `pop(out)` reads the head; if null the stack is empty, otherwise CAS the head to `head->next` and hand back the popped value. Both use a CAS retry loop so a concurrent modification just re-reads and tries again. Single-threaded correctness only; the harness checks LIFO ordering and empty handling.
+
+Constraints: the only synchronization is CAS on `head_`. `pop` on an empty stack returns `false`.
+
+Example: push 0,1,2,3,4 then pop five times yields 4,3,2,1,0 (LIFO); popping the now-empty stack returns `false`.
+
+hint: `push` sets `n->next = head` then loops `compare_exchange_weak(n->next, n)` — on failure the CAS refreshes `n->next` to the new head for free, so you just retry.
+hint: `pop` must load `old = head`, check for null, then CAS `head` from `old` to `old->next`; loop while the CAS fails.
+hint: Publishing the node needs `release` on the successful `push` CAS; a popper `acquire`-loads the head so it sees the fully-written node.
+
+```cpp
+// starter
+#include <atomic>
+template <class T>
+struct TreiberStack {
+    struct Node { T val; Node* next; };
+    std::atomic<Node*> head_{nullptr};
+    void push(const T& v);
+    bool pop(T& out);
+};
+```
+
+```cpp
+void push(const T& v) {
+    Node* n = new Node{v, head_.load(std::memory_order_relaxed)};
+    while (!head_.compare_exchange_weak(n->next, n,
+               std::memory_order_release, std::memory_order_relaxed)) {}
+    // on failure, n->next was refreshed to the current head; retry
+}
+bool pop(T& out) {
+    Node* old = head_.load(std::memory_order_acquire);
+    while (old && !head_.compare_exchange_weak(old, old->next,
+               std::memory_order_acquire, std::memory_order_relaxed)) {}
+    if (!old) return false;
+    out = old->val;
+    delete old;
+    return true;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <atomic>
+template <class T>
+struct TreiberStack {
+    struct Node { T val; Node* next; };
+    std::atomic<Node*> head_{nullptr};
+    //__USER__
+};
+int main() {
+    TreiberStack<int> s;
+    int x = 0;
+    if (s.pop(x)) { std::puts("pop on empty must fail"); return 1; }
+    for (int i = 0; i < 5; ++i) s.push(i);
+    for (int i = 4; i >= 0; --i) {
+        if (!s.pop(x) || x != i) { std::puts("LIFO order broken"); return 1; }
+    }
+    if (s.pop(x)) { std::puts("empty again must fail"); return 1; }
+    s.push(10); s.push(20);
+    if (!s.pop(x) || x != 20) { std::puts("i1"); return 1; }
+    s.push(30);
+    if (!s.pop(x) || x != 30) { std::puts("i2"); return 1; }
+    if (!s.pop(x) || x != 10) { std::puts("i3"); return 1; }
+    if (s.pop(x)) { std::puts("i4"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The Treiber stack shows the CAS-retry pattern in its purest form: read the head, build the intended new head, and atomically swap only if the head hasn't moved — otherwise loop. The elegance is that `compare_exchange_weak(expected, desired)` writes the *observed* value back into `expected` on failure, so `push`'s retry automatically re-links the new node onto whatever the head became. Minimal-correct ordering: the `push` success is `release` so the node's fields are visible before its pointer is published; `pop` `acquire`-loads (and acquires on its CAS) so a popper that observes a node also observes that node's contents — a classic release/acquire pair on `head_`. The failure legs only need `relaxed`. Two real-world caveats the single-threaded harness can't show: the **ABA problem** (head goes A→B→A between your load and CAS, fooling the compare) which production code fixes with tagged pointers or hazard pointers, and **safe reclamation** — you cannot simply `delete` a popped node while other threads may still hold it, so real implementations defer freeing. Here, single-threaded, `delete` is safe and LIFO ordering is exact.
+
+## challenge: Atomic max via CAS loop
+tags: atomics, cas-loop, compare-exchange
+track: hft
+difficulty: medium
+
+`std::atomic` gives you `fetch_add` and `fetch_and`, but there is no `fetch_max`. To track a high-water mark (peak queue depth, max observed latency) across threads you must build it yourself with a **compare-exchange loop**. Implement `void update(long x)` that atomically sets the stored value to `max(current, x)`, and `long get() const`. The pattern: load the current value; if `x` isn't larger, stop; otherwise CAS current→x, and on failure re-read (the CAS refreshes your expected) and re-test. Start the value at `LONG_MIN`. Single-threaded correctness; the harness feeds a sequence and checks the running maximum.
+
+Constraints: no locks. `update` must be a lock-free CAS loop, not a plain load-then-store.
+
+Example: feeding 3,1,4,1,5,9,2,6 leaves the max at 9; a later `update(-100)` is ignored, `update(1000)` raises it to 1000.
+
+hint: If `x <= current` there is nothing to do — bail out before touching the atomic. That also makes the common case a single load.
+hint: `compare_exchange_weak(cur, x)` writes the freshly-observed value back into `cur` on failure, so your loop re-tests `x > cur` with no extra load.
+hint: The value orders no other memory, so both the success and failure legs can be `relaxed`.
+
+```cpp
+// starter
+#include <atomic>
+#include <climits>
+struct AtomicMax {
+    std::atomic<long> val_{LONG_MIN};
+    void update(long x);   // val_ = max(val_, x), atomically
+    long get() const;
+};
+```
+
+```cpp
+void update(long x) {
+    long cur = val_.load(std::memory_order_relaxed);
+    while (x > cur && !val_.compare_exchange_weak(cur, x,
+               std::memory_order_relaxed, std::memory_order_relaxed)) {
+        // CAS failed: cur now holds the latest value; loop re-checks x > cur
+    }
+}
+long get() const { return val_.load(std::memory_order_relaxed); }
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <atomic>
+#include <climits>
+struct AtomicMax {
+    std::atomic<long> val_{LONG_MIN};
+    //__USER__
+};
+int main() {
+    AtomicMax m;
+    long data[] = {3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5};
+    long best = LONG_MIN;
+    for (long v : data) {
+        m.update(v);
+        if (v > best) best = v;
+        if (m.get() != best) { std::puts("running max wrong"); return 1; }
+    }
+    if (m.get() != 9) { std::puts("final max wrong"); return 1; }
+    m.update(-100);
+    if (m.get() != 9) { std::puts("smaller must be ignored"); return 1; }
+    m.update(1000);
+    if (m.get() != 1000) { std::puts("larger must apply"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Any read-modify-write the hardware doesn't provide natively is synthesized from a CAS loop, and `fetch_max` is the textbook case. The invariant that makes it correct under concurrency: you only ever install `x` if the value you're overwriting is still the one you decided was smaller than `x`. If another thread slips a larger value in between your load and your CAS, the compare fails, `compare_exchange_weak` hands you the new current value, and you re-evaluate `x > cur` — which may now be false, so you correctly drop out without clobbering the larger value. The early `x > cur` guard means non-improving updates cost a single relaxed load with zero writes, which matters when the max rarely moves. Minimal-correct ordering is `relaxed` on every leg: like a plain counter, the maximum publishes no other memory, so it needs atomicity but no fences. Use `_weak` in the loop (cheaper on ARM/POWER LL-SC, and a spurious failure just spins once more); reach for `_strong` only when there is no surrounding loop to absorb a spurious failure.
+
+## challenge: SPSC ring with masked head/tail
+tags: lock-free, spsc, ring-buffer
+track: hft
+difficulty: medium
+
+A variant of the SPSC queue that keeps `head_`/`tail_` as **already-masked positions** in `[0, N)` rather than free-running counters. Buffer size `N` is a power of two; `tail_` is the write slot, `head_` the read slot, and both advance with `(i + 1) & (N - 1)`. To tell *full* from *empty* when both indices can be equal, sacrifice one slot: the queue is **empty** when `head_ == tail_` and **full** when advancing `tail_` would collide with `head_` — so usable capacity is `N - 1`. Implement `bool push(const T&)` and `bool pop(T&)`. Single-threaded correctness; the concurrent version pairs `release`/`acquire` on the two indices.
+
+Constraints: `N` a power of two, indices stored pre-masked in `[0, N)`. Usable capacity is `N - 1`, not `N`.
+
+Example: with `N = 4`, three pushes succeed and the fourth fails (one slot reserved); pop returns them FIFO; the ring wraps cleanly across the buffer end forever.
+
+hint: The next write position is `next = (tail_ + 1) & (N - 1)`; the ring is full precisely when `next == head_`.
+hint: Empty is simply `head_ == tail_` — the reserved slot guarantees full and empty never look the same.
+hint: The producer publishes data by `release`-storing the new `tail_`; the consumer `acquire`-loads `tail_` so it never reads a slot before the value landed (and symmetrically for `head_`).
+
+```cpp
+// starter
+#include <atomic>
+#include <cstddef>
+using std::size_t;
+template <class T, size_t N>
+struct SpscRing {
+    static_assert((N & (N - 1)) == 0, "N must be a power of two");
+    T buf_[N];
+    std::atomic<size_t> head_{0};   // read position, pre-masked
+    std::atomic<size_t> tail_{0};   // write position, pre-masked
+    bool push(const T& v);
+    bool pop(T& out);
+};
+```
+
+```cpp
+bool push(const T& v) {
+    size_t t = tail_.load(std::memory_order_relaxed);
+    size_t next = (t + 1) & (N - 1);
+    if (next == head_.load(std::memory_order_acquire)) return false;   // full
+    buf_[t] = v;
+    tail_.store(next, std::memory_order_release);
+    return true;
+}
+bool pop(T& out) {
+    size_t h = head_.load(std::memory_order_relaxed);
+    if (h == tail_.load(std::memory_order_acquire)) return false;      // empty
+    out = buf_[h];
+    head_.store((h + 1) & (N - 1), std::memory_order_release);
+    return true;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <atomic>
+#include <cstddef>
+using std::size_t;
+template <class T, size_t N>
+struct SpscRing {
+    static_assert((N & (N - 1)) == 0, "N must be a power of two");
+    T buf_[N];
+    std::atomic<size_t> head_{0};
+    std::atomic<size_t> tail_{0};
+    //__USER__
+};
+int main() {
+    SpscRing<int, 4> q;   // usable capacity N-1 == 3
+    int x = 0;
+    if (q.pop(x)) { std::puts("pop on empty must fail"); return 1; }
+    for (int i = 0; i < 3; ++i) if (!q.push(i)) { std::puts("must fit 3"); return 1; }
+    if (q.push(99)) { std::puts("full at N-1 must fail"); return 1; }
+    for (int i = 0; i < 3; ++i) { if (!q.pop(x) || x != i) { std::puts("FIFO order broken"); return 1; } }
+    if (q.pop(x)) { std::puts("empty again must fail"); return 1; }
+    for (int r = 0; r < 20; ++r) { if (!q.push(r) || !q.pop(x) || x != r) { std::puts("wrap-around broken"); return 1; } }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** This is the "masked-index" ring, contrasted with the monotonic-counter ring where `head_`/`tail_` grow without bound and you compute size as `tail_ - head_`. Storing pre-masked positions keeps the indices small but reintroduces the classic ambiguity: `head_ == tail_` could mean either empty or completely full. The standard fix is to keep one slot always empty, so full is detected *before* the collision — `(tail_ + 1) & (N - 1) == head_` — at the cost of one unusable slot (capacity `N - 1`). That is the trade against the counter version, which uses all `N` slots because subtraction distinguishes the two states. Masking with `N - 1` is the cheap `% N` and is why `N` must be a power of two. Minimal-correct ordering for the real SPSC case: the producer `release`-stores `tail_` after writing the slot, and the consumer `acquire`-loads `tail_` before reading it, so the data write happens-before the read; `head_` carries the symmetric handshake so the producer never overwrites an unread slot. Each side only writes its own index, so no CAS is needed — that single-writer-per-variable property is what makes SPSC the fastest lock-free queue.
+
+## challenge: Atomic bitset test-and-set
+tags: atomics, bitset, test-and-set
+track: hft
+difficulty: medium
+
+A fixed-size bitset that many threads probe to **claim slots exactly once** — think a pool of `Bits` order buffers where `test_and_set(i)` returns `false` for the caller that won slot `i` and `true` for everyone who arrives after. Back it with an array of `std::atomic<uint64_t>` words (`W = ceil(Bits/64)`). Implement `bool test_and_set(size_t i)` (atomically set bit `i`, return its *previous* value), `bool test(size_t i) const`, and `void reset(size_t i)`. Bit `i` lives in word `i >> 6` at position `i & 63`. Single-threaded correctness; the harness checks the claim-once idiom and cross-word independence.
+
+Constraints: use `fetch_or` / `fetch_and` on the word — never a load-modify-store, which would race with a claim on a neighbouring bit in the same word.
+
+Example: `test_and_set(65)` on a clear bitset returns `false` (you won it) and sets the bit; a second `test_and_set(65)` returns `true`; setting bit 129 leaves bit 65 untouched (different word).
+
+hint: Setting one bit atomically is `fetch_or(1ull << (i & 63))` on `words_[i >> 6]`; the return value is the whole old word, so mask it to recover the old bit.
+hint: `reset` clears a bit with `fetch_and(~mask)` — again a single atomic RMW, not read-modify-write.
+hint: `test_and_set` on shared state needs `acq_rel` so the claim both publishes and observes; a pure `test` load can be `acquire`.
+
+```cpp
+// starter
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+using std::size_t;
+template <size_t Bits>
+struct AtomicBitset {
+    static constexpr size_t W = (Bits + 63) / 64;
+    std::atomic<std::uint64_t> words_[W];
+    AtomicBitset() { for (size_t i = 0; i < W; ++i) words_[i].store(0, std::memory_order_relaxed); }
+    bool test_and_set(size_t i);   // set bit i, return its previous value
+    bool test(size_t i) const;
+    void reset(size_t i);
+};
+```
+
+```cpp
+bool test_and_set(size_t i) {
+    std::uint64_t mask = std::uint64_t(1) << (i & 63);
+    std::uint64_t prev = words_[i >> 6].fetch_or(mask, std::memory_order_acq_rel);
+    return (prev & mask) != 0;
+}
+bool test(size_t i) const {
+    std::uint64_t mask = std::uint64_t(1) << (i & 63);
+    return (words_[i >> 6].load(std::memory_order_acquire) & mask) != 0;
+}
+void reset(size_t i) {
+    std::uint64_t mask = std::uint64_t(1) << (i & 63);
+    words_[i >> 6].fetch_and(~mask, std::memory_order_release);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+using std::size_t;
+template <size_t Bits>
+struct AtomicBitset {
+    static constexpr size_t W = (Bits + 63) / 64;
+    std::atomic<std::uint64_t> words_[W];
+    AtomicBitset() { for (size_t i = 0; i < W; ++i) words_[i].store(0, std::memory_order_relaxed); }
+    //__USER__
+};
+int main() {
+    AtomicBitset<130> bs;
+    for (size_t i = 0; i < 130; ++i) if (bs.test(i)) { std::puts("must start clear"); return 1; }
+    if (bs.test_and_set(65)) { std::puts("first t&s must report was-clear"); return 1; }
+    if (!bs.test(65)) { std::puts("bit must be set"); return 1; }
+    if (!bs.test_and_set(65)) { std::puts("second t&s must report was-set"); return 1; }
+    if (bs.test(1) || bs.test(64) || bs.test(129)) { std::puts("no cross-word bleed"); return 1; }
+    if (bs.test_and_set(129)) { std::puts("129 was clear"); return 1; }
+    if (!bs.test(129) || !bs.test(65)) { std::puts("both must be set"); return 1; }
+    bs.reset(65);
+    if (bs.test(65)) { std::puts("reset failed"); return 1; }
+    if (!bs.test(129)) { std::puts("reset must not bleed"); return 1; }
+    int claimed = 0;
+    for (int r = 0; r < 3; ++r)
+        for (size_t i = 0; i < 130; ++i)
+            if (!bs.test_and_set(i)) ++claimed;   // count first-time wins
+    if (claimed != 130 - 1) { std::puts("each slot claimed once"); return 1; } // 129 stays set; 65 re-won
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The whole reason to store the bitset as an array of atomic words rather than a plain `bool[]` is that neighbouring bits share a word: two threads claiming bit 3 and bit 5 both write the same 64-bit cell. A naive `word = word | mask` (load, OR, store) would let one thread's store clobber the other's, silently un-setting a claim. `fetch_or` performs the OR atomically inside the memory system, so every bit's set is durable regardless of concurrent sets to its word-mates — and it conveniently returns the *entire* prior word, so masking recovers whether *this* bit was already set. That old-bit value is what makes `test_and_set` a one-shot claim primitive: exactly one caller sees `false`. Minimal-correct ordering: a claim that guards other work needs `acq_rel` (release to publish what the winner does with the slot, acquire to see prior owners' effects); a read-only `test` needs only `acquire`, and `reset` needs `release`. If you never synchronize other memory through the bitset, all of these collapse to `relaxed` — the atomicity of `fetch_or`, not the ordering, is what prevents lost bits.
+
+## challenge: Seqlock reader/writer
+tags: lock-free, seqlock, versioning
+track: hft
+difficulty: hard
+
+A **seqlock** lets one writer publish a small struct (a price + size, a timestamp pair) to many readers with *no reader-side writes and no reader ever blocking the writer* — ideal for a market-data snapshot read far more often than updated. A single `std::atomic<unsigned> seq_` versions the payload. The writer bumps `seq_` to **odd** (signalling "update in progress"), stores the fields, then bumps it to **even** (signalling "stable"). A reader snapshots `seq_`, copies the fields, re-reads `seq_`, and retries if the version changed or was odd — guaranteeing it never returns a torn (half-updated) pair. Implement `void write(long a, long b)` and `void read(long& a, long& b) const`. Single-threaded correctness; the harness drives the version protocol.
+
+Constraints: readers must not write shared state. The version must go odd during a write and even when stable; a read must retry on an odd or changed version.
+
+Example: after `write(i, 2*i)` the version is even and equals `2*i`; a `read` returns exactly the pair `(i, 2*i)` — never a mix of two different writes.
+
+hint: The writer does two `seq_` stores around the data writes: `seq_+1` (odd) before, `seq_+2` (even) after. A stable version is always even.
+hint: The reader loops: read `s0`, copy the fields, read `s1`; accept only when `s0 == s1` and `s0` is even, otherwise a write overlapped — retry.
+hint: The writer's second store is `release` and the reader's re-read is `acquire` (with an `acquire` fence after copying), so the field reads can't be reordered past the version check.
+
+```cpp
+// starter
+#include <atomic>
+struct SeqLock {
+    std::atomic<unsigned> seq_{0};   // even = stable, odd = write in progress
+    long a_ = 0;
+    long b_ = 0;
+    void write(long a, long b);
+    void read(long& a, long& b) const;
+};
+```
+
+```cpp
+void write(long a, long b) {
+    unsigned s = seq_.load(std::memory_order_relaxed);
+    seq_.store(s + 1, std::memory_order_relaxed);        // enter: odd
+    std::atomic_thread_fence(std::memory_order_release); // fields land after the odd marker
+    a_ = a;
+    b_ = b;
+    seq_.store(s + 2, std::memory_order_release);        // leave: even, publish
+}
+void read(long& a, long& b) const {
+    unsigned s0, s1;
+    do {
+        s0 = seq_.load(std::memory_order_acquire);
+        a = a_;
+        b = b_;
+        std::atomic_thread_fence(std::memory_order_acquire);
+        s1 = seq_.load(std::memory_order_relaxed);
+    } while ((s0 & 1u) || s0 != s1);   // retry if writing, or a write overlapped
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <atomic>
+struct SeqLock {
+    std::atomic<unsigned> seq_{0};
+    long a_ = 0;
+    long b_ = 0;
+    //__USER__
+};
+int main() {
+    SeqLock sl;
+    long a, b;
+    sl.read(a, b);
+    if (a != 0 || b != 0) { std::puts("initial read"); return 1; }
+    for (long i = 1; i <= 1000; ++i) {
+        sl.write(i, i * 2);
+        if (sl.seq_.load() & 1u) { std::puts("seq must be even after write"); return 1; }
+        if (sl.seq_.load() != (unsigned)(2 * i)) { std::puts("seq must += 2 per write"); return 1; }
+        sl.read(a, b);
+        if (a != i || b != 2 * i) { std::puts("incoherent pair"); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A seqlock inverts the usual read/write cost model: writers are cheap and never wait for readers, readers pay nothing but a version check and *may* retry, and — crucially — readers issue no stores, so the payload cache line stays in shared state and isn't ping-ponged by reader-side lock acquisition. That is exactly what you want for a hot, read-mostly snapshot. The protocol is the odd/even sequence counter: an odd `seq_` means "in flight," so a reader that samples an odd value, or sees `seq_` change between its two reads, knows a writer overlapped its copy and discards the possibly-torn result. Because the reader reads the plain `a_`/`b_` fields *between* two atomic reads of `seq_`, ordering is essential: the writer's final store is `release` and the reader's version reads are `acquire`, and the `acquire` fence after copying the fields prevents the compiler or CPU from hoisting those field reads below the second `seq_` load — without it the check would be meaningless. The odd-marking store can be `relaxed` paired with a `release` fence before the data. Two caveats the single-threaded harness can't exercise: the payload is formally a data race in a real multi-threaded run (readers may observe a half-written value, which the retry then throws away — well-defined only under the seqlock idiom, not the abstract C++ memory model), and a reader can livelock under a relentlessly-writing writer, so seqlocks suit *infrequent* updates.
+
+## challenge: Bounded MPSC queue (Vyukov cells)
+tags: lock-free, mpsc, bounded-queue
+track: hft
+difficulty: hard
+
+A bounded queue that many producers push to and (here) a consumer drains, using **per-cell sequence numbers** — Dmitry Vyukov's design, the workhorse behind many order-gateway queues. Each of `N` cells (N a power of two) carries an `std::atomic<size_t> seq`. Producers claim slots by CAS-advancing a shared `enq_` counter, but only when the target cell's `seq` equals the ticket — that gate is what makes it bounded and ABA-free. A cell is *ready to write* when `seq == pos`, *ready to read* when `seq == pos + 1`; after writing you set `seq = pos + 1`, after reading `seq = pos + N`. Initialize `buf_[i].seq = i`. Implement the constructor plus `bool push(const T&)` and `bool pop(T&)`. Single-threaded correctness; the harness checks FIFO, full/empty, and wraparound.
+
+Constraints: `N` a power of two. `push` returns `false` when full, `pop` returns `false` when empty — detected via the signed `seq - pos` difference, never a separate size counter.
+
+Example: with `N = 4`, four pushes fill it and the fifth fails; draining returns them in FIFO order; interleaving push/pop wraps around the ring indefinitely.
+
+hint: `dif = (intptr_t)seq - (intptr_t)pos`. For `push`: `dif == 0` means the cell is yours to claim (CAS `enq_`), `dif < 0` means full, `dif > 0` means another producer moved on — reload `enq_` and retry.
+hint: `pop` is symmetric against `pos + 1`: `dif == 0` claim it, `dif < 0` empty, `dif > 0` reload `deq_`.
+hint: Read the cell's `seq` with `acquire` and publish the new `seq` with `release`; the `enq_`/`deq_` CAS itself can be `relaxed` because the per-cell `seq` carries the real handshake.
+
+```cpp
+// starter
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+using std::size_t;
+template <class T, size_t N>
+struct MpscQueue {
+    static_assert((N & (N - 1)) == 0, "N must be a power of two");
+    struct Cell { std::atomic<size_t> seq; T data; };
+    Cell buf_[N];
+    std::atomic<size_t> enq_{0};   // producer ticket
+    std::atomic<size_t> deq_{0};   // consumer ticket
+    MpscQueue();                   // seq[i] = i
+    bool push(const T& v);
+    bool pop(T& out);
+};
+```
+
+```cpp
+MpscQueue() {
+    for (size_t i = 0; i < N; ++i)
+        buf_[i].seq.store(i, std::memory_order_relaxed);
+}
+bool push(const T& v) {
+    size_t pos = enq_.load(std::memory_order_relaxed);
+    Cell* c;
+    for (;;) {
+        c = &buf_[pos & (N - 1)];
+        size_t seq = c->seq.load(std::memory_order_acquire);
+        std::intptr_t dif = (std::intptr_t)seq - (std::intptr_t)pos;
+        if (dif == 0) {
+            if (enq_.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed)) break;
+        } else if (dif < 0) {
+            return false;   // full
+        } else {
+            pos = enq_.load(std::memory_order_relaxed);
+        }
+    }
+    c->data = v;
+    c->seq.store(pos + 1, std::memory_order_release);   // mark readable
+    return true;
+}
+bool pop(T& out) {
+    size_t pos = deq_.load(std::memory_order_relaxed);
+    Cell* c;
+    for (;;) {
+        c = &buf_[pos & (N - 1)];
+        size_t seq = c->seq.load(std::memory_order_acquire);
+        std::intptr_t dif = (std::intptr_t)seq - (std::intptr_t)(pos + 1);
+        if (dif == 0) {
+            if (deq_.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed)) break;
+        } else if (dif < 0) {
+            return false;   // empty
+        } else {
+            pos = deq_.load(std::memory_order_relaxed);
+        }
+    }
+    out = c->data;
+    c->seq.store(pos + N, std::memory_order_release);   // free for the next lap
+    return true;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+using std::size_t;
+template <class T, size_t N>
+struct MpscQueue {
+    static_assert((N & (N - 1)) == 0, "N must be a power of two");
+    struct Cell { std::atomic<size_t> seq; T data; };
+    Cell buf_[N];
+    std::atomic<size_t> enq_{0};
+    std::atomic<size_t> deq_{0};
+    //__USER__
+};
+int main() {
+    MpscQueue<int, 4> q;
+    int x = 0;
+    if (q.pop(x)) { std::puts("pop on empty must fail"); return 1; }
+    for (int i = 0; i < 4; ++i) if (!q.push(i)) { std::puts("must fit 4"); return 1; }
+    if (q.push(99)) { std::puts("push on full must fail"); return 1; }
+    for (int i = 0; i < 4; ++i) { if (!q.pop(x) || x != i) { std::puts("FIFO order broken"); return 1; } }
+    if (q.pop(x)) { std::puts("empty again must fail"); return 1; }
+    for (int r = 0; r < 100; ++r) { if (!q.push(r) || !q.pop(x) || x != r) { std::puts("wrap-around broken"); return 1; } }
+    for (int i = 0; i < 3; ++i) q.push(i);
+    if (!q.pop(x) || x != 0) { std::puts("p0"); return 1; }
+    q.push(100);
+    if (!q.pop(x) || x != 1) { std::puts("p1"); return 1; }
+    if (!q.pop(x) || x != 2) { std::puts("p2"); return 1; }
+    if (!q.pop(x) || x != 100) { std::puts("p3"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Vyukov's bounded queue is the design to reach for when you need multiple producers, a fixed footprint, and no dynamic allocation. Its trick is the per-cell sequence number, which encodes *whose turn it is* for each slot on each lap around the ring. The signed difference `seq - pos` is a three-way verdict: `0` means "this cell is exactly at the ticket you hold, claim it"; negative means "the cell is still owned by an earlier lap" — for a producer that's a full queue, for a consumer an empty one; positive means "another thread already advanced past here," so you reload the shared counter and retry. Producers race only on the `enq_` CAS; the loser simply re-reads and targets the next cell, so there is no lock and no unbounded retry storm. Crucially this sidesteps ABA without tagged pointers: a cell's `seq` only ever increases (by 1 when written, by `N` when consumed), so a stale observation can never masquerade as current. Minimal-correct ordering: the cell `seq` load is `acquire` and its store `release`, forming the real producer→consumer handshake that publishes `data`; the `enq_`/`deq_` counter CAS carries no payload and can stay `relaxed`. Single-threaded, all of this reduces to a clean FIFO ring with full capacity `N` — but the sequence-number scaffolding is exactly what lets it stay correct once the producers are real threads.
+
+## challenge: Fixed-size lock-free freelist
+tags: lock-free, freelist, cas
+track: hft
+difficulty: hard
+
+A lock-free **index allocator**: hand out and reclaim slots of a fixed pool of `N` objects (message buffers, order records) with no `malloc` on the hot path. Instead of linking free *pointers* (which invites ABA and reclamation hazards), thread a stack through an `int next_[N]` array and keep an `std::atomic<int> head_` holding the index of the first free slot (`-1` = exhausted). Initialize the chain `0→1→…→N-1→-1` with `head_ = 0`. `alloc()` CAS-pops the head, returning its index or `-1`; `free(i)` CAS-pushes `i` back on. Implement the constructor plus `int alloc()` and `void free(int i)`. Single-threaded correctness; the harness checks exhaustion and reuse.
+
+Constraints: no dynamic allocation, no locks. `alloc` returns `-1` when the pool is empty; freed indices become available again.
+
+Example: with `N = 8`, eight `alloc()` calls yield eight distinct indices and the ninth returns `-1`; freeing two indices lets exactly two more `alloc()` calls succeed, reusing those slots.
+
+hint: `alloc` is a Treiber pop over indices: load `h = head_`; if `-1` return it; else CAS `head_` from `h` to `next_[h]`, looping on failure.
+hint: `free(i)` is a Treiber push: set `next_[i] = head_`, then CAS `head_` to `i`; retry if the head moved under you.
+hint: `alloc` should `acquire` (the slot's contents were published by whoever `free`d it) and `free` should `release`; the failing CAS legs need only `relaxed`.
+
+```cpp
+// starter
+#include <atomic>
+#include <cstddef>
+using std::size_t;
+template <size_t N>
+struct FreeList {
+    std::atomic<int> head_;
+    int next_[N];
+    FreeList();          // chain 0->1->...->N-1->-1, head_ = 0
+    int alloc();         // returns a free index, or -1 if exhausted
+    void free(int i);    // returns index i to the pool
+};
+```
+
+```cpp
+FreeList() {
+    for (size_t i = 0; i + 1 < N; ++i) next_[i] = (int)(i + 1);
+    next_[N - 1] = -1;
+    head_.store(0, std::memory_order_relaxed);
+}
+int alloc() {
+    int h = head_.load(std::memory_order_acquire);
+    while (h != -1 && !head_.compare_exchange_weak(h, next_[h],
+               std::memory_order_acquire, std::memory_order_relaxed)) {
+        // CAS refreshed h to the current head; retry
+    }
+    return h;
+}
+void free(int i) {
+    int h = head_.load(std::memory_order_relaxed);
+    do {
+        next_[i] = h;
+    } while (!head_.compare_exchange_weak(h, i,
+               std::memory_order_release, std::memory_order_relaxed));
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <atomic>
+#include <cstddef>
+using std::size_t;
+template <size_t N>
+struct FreeList {
+    std::atomic<int> head_;
+    int next_[N];
+    //__USER__
+};
+int main() {
+    FreeList<8> fl;
+    bool seen[8] = {false};
+    int idx[8];
+    for (int i = 0; i < 8; ++i) {
+        idx[i] = fl.alloc();
+        if (idx[i] < 0 || idx[i] >= 8 || seen[idx[i]]) { std::puts("alloc must yield distinct valid indices"); return 1; }
+        seen[idx[i]] = true;
+    }
+    if (fl.alloc() != -1) { std::puts("exhausted must return -1"); return 1; }
+    fl.free(idx[3]);
+    fl.free(idx[5]);
+    int a = fl.alloc();
+    int b = fl.alloc();
+    if (fl.alloc() != -1) { std::puts("exhausted again must return -1"); return 1; }
+    bool ok = (a == idx[5] && b == idx[3]) || (a == idx[3] && b == idx[5]);
+    if (!ok) { std::puts("must reuse freed indices"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A freelist is a Treiber stack in disguise, and the interesting design decision is storing *indices* rather than pointers. The `next` links live in a side array `next_[]` indexed by slot number, and `head_` is a plain `int`, so `alloc`/`free` are the same load-check-CAS loops as the pointer stack but operate on small integers. Two payoffs: allocation is O(1) with zero `malloc`, and — because an `int` index is not a reusable heap address — you dodge the worst of the pointer stack's **ABA problem** and its reclamation hazard (there is no node to free; the storage is the pool itself, which outlives every operation). ABA can still bite in principle if a slot is popped, pushed, and re-popped between one thread's load and CAS, so production allocators fold a version tag into a double-width `head_` (a packed `{index, tag}` swapped with a 64-bit or `cmpxchg16b` CAS); this single-threaded version doesn't need it. Minimal-correct ordering: `alloc`'s successful CAS is `acquire` so a reused slot's contents (written by the previous owner before it called `free`) are visible, and `free`'s CAS is `release` to publish them — a release/acquire pair through `head_`. The failing legs are `relaxed`. `alloc` returning `-1` on an empty list is the graceful "pool exhausted" signal a fixed-size design must always provide.
+
+## challenge: Integer log2 (floor)
+tags: bit-tricks, fast-math
+track: hft
+difficulty: easy
+
+On the hot path you often need `floor(log2(x))` — to pick a size class, a bucket, or a shift amount — and calling `std::log2` drags in the FPU and its rounding surprises. Implement `int ilog2(uint64_t x)` returning the position of the highest set bit, i.e. `floor(log2(x))`. `x` is guaranteed non-zero.
+
+Constraints: `1 <= x <= 2^64 - 1`. No floating point.
+
+Example: `ilog2(1) == 0`, `ilog2(2) == 1`, `ilog2(3) == 1`, `ilog2(255) == 7`, `ilog2(256) == 8`.
+
+hint: The floor of log2 is just the index of the most significant set bit — no arithmetic needed, only a bit scan.
+hint: Hardware exposes a "count leading zeros" instruction; GCC/Clang surface it as `__builtin_clzll`.
+hint: In a 64-bit word the MSB index is `63 - clz(x)`; that is why `x` must be non-zero, since `clz(0)` is undefined.
+
+```cpp
+// starter
+#include <cstdint>
+int ilog2(uint64_t x);
+```
+
+```cpp
+int ilog2(uint64_t x) {
+    return 63 - __builtin_clzll(x);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint64_t x; int want; } cases[] = {
+        {1,0},{2,1},{3,1},{4,2},{7,2},{8,3},{255,7},{256,8},
+        {1023,9},{1024,10},{(uint64_t)1<<62,62},{(uint64_t)1<<63,63},
+        {UINT64_MAX,63},
+    };
+    for (auto& c : cases) {
+        int got = ilog2(c.x);
+        if (got != c.want) { std::printf("ilog2(%llu)=%d want %d\n",
+            (unsigned long long)c.x, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `floor(log2(x))` equals the index of the highest set bit. `__builtin_clzll` returns the count of leading zero bits, so `63 - clz` is that index — a single hardware instruction (BSR/LZCNT, ~1-3 cycles) versus a `std::log2` call that goes through the FPU (tens of cycles) and can misround right at exact powers of two. It is undefined for `x == 0`, hence the non-zero constraint.
+
+## challenge: Modulo by a power of two
+tags: bit-tricks, fast-math
+track: hft
+difficulty: easy
+
+Ring buffers and hash tables sized to a power of two let you replace an expensive `%` with a bit mask. Implement `uint64_t mod_pow2(uint64_t x, uint64_t n)` returning `x % n`, given that `n` is a power of two. Do not use `/` or `%`.
+
+Constraints: `n` is a power of two, `1 <= n <= 2^63`. `0 <= x <= 2^64 - 1`.
+
+Example: `mod_pow2(13, 8) == 5`, `mod_pow2(16, 8) == 0`, `mod_pow2(255, 16) == 15`, `mod_pow2(x, 1) == 0`.
+
+hint: For `n = 2^k`, the remainder is exactly the low `k` bits of `x`.
+hint: Subtracting one from a power of two yields a mask of all-ones below that bit: `n - 1 = 0b0111...1`.
+hint: `x & (n - 1)` keeps precisely those low bits — no division unit involved.
+
+```cpp
+// starter
+#include <cstdint>
+uint64_t mod_pow2(uint64_t x, uint64_t n);
+```
+
+```cpp
+uint64_t mod_pow2(uint64_t x, uint64_t n) {
+    return x & (n - 1);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint64_t x, n, want; } cases[] = {
+        {13,8,5},{16,8,0},{255,16,15},{0,8,0},{7,1,0},
+        {1024,1024,0},{1025,1024,1},{123456789,256,123456789ull & 255},
+        {UINT64_MAX,(uint64_t)1<<63,(UINT64_MAX) & (((uint64_t)1<<63)-1)},
+    };
+    for (auto& c : cases) {
+        uint64_t got = mod_pow2(c.x, c.n);
+        if (got != c.want) { std::printf("mod_pow2(%llu,%llu)=%llu want %llu\n",
+            (unsigned long long)c.x,(unsigned long long)c.n,
+            (unsigned long long)got,(unsigned long long)c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Division and modulo on x86 are 20-40+ cycle latency operations that also pipeline poorly; masking is a single cycle. It works only because a power of two `n = 2^k` gives a remainder equal to `x`'s low `k` bits, and `n - 1` is exactly the all-ones mask for those bits.
+
+## challenge: Overflow-safe midpoint of two integers
+tags: bit-tricks, fast-math, overflow
+track: hft
+difficulty: easy
+
+Computing `(a + b) / 2` is the natural midpoint, but `a + b` can overflow when both are large — the classic binary-search bug. Implement `int64_t avg(int64_t a, int64_t b)` returning `floor((a + b) / 2)` with no intermediate overflow, over the full `int64` range. Use the bitwise identity, not a wider type.
+
+Constraints: `INT64_MIN <= a, b <= INT64_MAX`. Result is `floor((a + b) / 2)`.
+
+Example: `avg(3, 5) == 4`, `avg(2, 7) == 4`, `avg(INT64_MAX, INT64_MAX) == INT64_MAX`, `avg(-4, -1) == -3`, `avg(1, -2) == -1`.
+
+hint: Split the sum into a carry-free part and a carry part: `a + b == (a ^ b) + 2*(a & b)`.
+hint: Halving `2*(a & b)` is exact (it is `a & b`), and halving `(a ^ b)` with an arithmetic right shift supplies the floored remainder.
+hint: `(a & b) + ((a ^ b) >> 1)` never forms the full sum, so it cannot overflow; in C++20 signed `>>` is guaranteed arithmetic (floor).
+
+```cpp
+// starter
+#include <cstdint>
+int64_t avg(int64_t a, int64_t b);
+```
+
+```cpp
+int64_t avg(int64_t a, int64_t b) {
+    return (a & b) + ((a ^ b) >> 1);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { int64_t a, b, want; } cases[] = {
+        {3,5,4},{2,7,4},{0,0,0},{-4,-1,-3},{1,-2,-1},{-1,-1,-1},{7,7,7},
+        {INT64_MAX,INT64_MAX,INT64_MAX},{INT64_MIN,INT64_MIN,INT64_MIN},
+        {INT64_MAX,INT64_MIN,-1},{INT64_MAX,0,INT64_MAX/2},
+    };
+    for (auto& c : cases) {
+        int64_t got = avg(c.a, c.b);
+        if (got != c.want) { std::printf("avg(%lld,%lld)=%lld want %lld\n",
+            (long long)c.a,(long long)c.b,(long long)got,(long long)c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** This is the Bloch binary-search overflow bug fixed with bit math. The identity `a + b == (a ^ b) + ((a & b) << 1)` separates the non-carrying bits (XOR) from the carrying bits (AND, weight 2). Halving the AND term is exact; halving the XOR term with an arithmetic shift supplies the floor. Because the wide sum is never materialized, there is no overflow — pure bit ops, no division.
+
+## challenge: Ceil division without floats
+tags: fast-math, integer-math
+track: hft
+difficulty: medium
+
+You need `ceil(a / b)` — say, the number of fixed-size blocks to cover a byte count — but `(uint64_t)ceil((double)a / b)` pays for a float divide and silently misrounds once `a` exceeds `2^53`. Implement `uint64_t ceil_div(uint64_t a, uint64_t b)` using only integer arithmetic.
+
+Constraints: `0 <= a`, `1 <= b`, and `a + b - 1` fits in `uint64` (i.e. `a <= 2^64 - b`). One integer divide is allowed.
+
+Example: `ceil_div(7, 3) == 3`, `ceil_div(6, 3) == 2`, `ceil_div(0, 5) == 0`, `ceil_div(1, 1000) == 1`, `ceil_div(10^18, 7) == 142857142857142858`.
+
+hint: Integer `/` already floors; you want to floor a value that has been nudged up by just under one whole `b`.
+hint: Adding `b - 1` before dividing turns any nonzero remainder into one extra count, while an exact multiple is left unchanged.
+hint: Guard the add against overflow — `(a + b - 1) / b` is valid only while `a + b - 1` does not wrap; if `a` can be near the max, use `a / b + (a % b != 0)` instead.
+
+```cpp
+// starter
+#include <cstdint>
+uint64_t ceil_div(uint64_t a, uint64_t b);
+```
+
+```cpp
+uint64_t ceil_div(uint64_t a, uint64_t b) {
+    return (a + b - 1) / b;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint64_t a, b, want; } cases[] = {
+        {7,3,3},{6,3,2},{9,3,3},{0,5,0},{1,1000,1},{1000,1,1000},
+        {8,8,1},{9,8,2},{1,1,1},
+        {1000000000000000000ull,7,142857142857142858ull},
+        {1000000000000000000ull,1000000000ull,1000000000ull},
+    };
+    for (auto& c : cases) {
+        uint64_t got = ceil_div(c.a, c.b);
+        if (got != c.want) { std::printf("ceil_div(%llu,%llu)=%llu want %llu\n",
+            (unsigned long long)c.a,(unsigned long long)c.b,
+            (unsigned long long)got,(unsigned long long)c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** One integer divide is unavoidable for a runtime divisor, but this eliminates the float round-trip and its precision loss (a `double` has only 53 mantissa bits, so `ceil((double)a / b)` misrounds above `2^53`). Adding `b - 1` lifts any partial block into the next integer; an exact multiple `a = k*b` gives `(k*b + b - 1) / b = k`. The only caveat is overflow of `a + b - 1`; when `a` can approach the max, `a / b + (a % b != 0)` is the overflow-proof form.
+
+## challenge: Round to the nearest multiple of a power of two
+tags: bit-tricks, fast-math, alignment
+track: hft
+difficulty: medium
+
+Quantizing a value to a grid (price levels, memory alignment) is a divide-then-multiply in the naive form. When the grid step `n` is a power of two, rounding to the nearest multiple is just a bias-and-mask. Implement `uint64_t round_to_multiple(uint64_t x, uint64_t n)` returning `x` rounded to the nearest multiple of `n` (ties round up), where `n` is a power of two. Use no `/`, `*`, or `%`.
+
+Constraints: `n` is a power of two, `1 <= n <= 2^62`. `x + n/2 <= 2^64 - 1`.
+
+Example: `round_to_multiple(11, 8) == 8`, `round_to_multiple(12, 8) == 16` (tie up), `round_to_multiple(13, 8) == 16`, `round_to_multiple(3, 8) == 0`, `round_to_multiple(x, 1) == x`.
+
+hint: Rounding to nearest = shift the value up by half a step, then truncate down to a step boundary.
+hint: Truncating down to a multiple of `n = 2^k` means clearing the low `k` bits: `& ~(n - 1)`.
+hint: Add `n/2` (which is `n >> 1`) first so that a value exactly halfway lands on the upper multiple.
+
+```cpp
+// starter
+#include <cstdint>
+uint64_t round_to_multiple(uint64_t x, uint64_t n);
+```
+
+```cpp
+uint64_t round_to_multiple(uint64_t x, uint64_t n) {
+    return (x + (n >> 1)) & ~(n - 1);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint64_t x, n, want; } cases[] = {
+        {11,8,8},{12,8,16},{13,8,16},{3,8,0},{4,8,8},{0,8,0},{8,8,8},
+        {100,1,100},{1000,1024,1024},{1600,1024,2048},{511,1024,0},{512,1024,1024},
+        {(uint64_t)1<<62,(uint64_t)1<<62,(uint64_t)1<<62},
+    };
+    for (auto& c : cases) {
+        uint64_t got = round_to_multiple(c.x, c.n);
+        if (got != c.want) { std::printf("round_to_multiple(%llu,%llu)=%llu want %llu\n",
+            (unsigned long long)c.x,(unsigned long long)c.n,
+            (unsigned long long)got,(unsigned long long)c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The naive `round(x / n) * n` costs a divide and a multiply. For power-of-two `n`, truncating down to a multiple is just masking off the low `k` bits (`& ~(n - 1)`), and rounding-to-nearest is achieved by pre-adding half the step (`n/2 = n >> 1`) so the truncation crosses to the next multiple exactly at the halfway point. Ties round up by construction. The whole thing is one add and one and — a couple of cycles.
+
+## challenge: Integer square root without floating point
+tags: fast-math, integer-math, bit-tricks
+track: hft
+difficulty: hard
+
+`(uint64_t)sqrt((double)x)` can be off by one near perfect squares — a `double`'s 53-bit mantissa cannot represent every 64-bit integer — and the FPU round-trip is slow. Implement `uint64_t isqrt(uint64_t x)` returning `floor(sqrt(x))` exactly over the full unsigned 64-bit range, using only integer operations.
+
+Constraints: `0 <= x <= 2^64 - 1`. The result `r` satisfies `r*r <= x < (r+1)*(r+1)` (reason about the upper bound; `(r+1)^2` may overflow if computed naively).
+
+Example: `isqrt(0) == 0`, `isqrt(1) == 1`, `isqrt(15) == 3`, `isqrt(16) == 4`, `isqrt(24) == 4`, `isqrt(2^64 - 1) == 4294967295`.
+
+hint: Build the root two bits of radicand at a time, most-significant first, like long division for square roots.
+hint: Maintain a "bit" that walks down the powers of four (`1<<62`, `1<<60`, ...); start it at the largest power of four not exceeding `x`.
+hint: At each step test whether the current root plus the candidate bit still squares within the remainder; the update `res = (res >> 1) + bit` advances the running root with no multiply.
+
+```cpp
+// starter
+#include <cstdint>
+uint64_t isqrt(uint64_t x);
+```
+
+```cpp
+uint64_t isqrt(uint64_t x) {
+    uint64_t res = 0;
+    uint64_t bit = (uint64_t)1 << 62;
+    while (bit > x) bit >>= 2;
+    while (bit) {
+        if (x >= res + bit) {
+            x -= res + bit;
+            res = (res >> 1) + bit;
+        } else {
+            res >>= 1;
+        }
+        bit >>= 2;
+    }
+    return res;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint64_t x, want; } fixed[] = {
+        {0,0},{1,1},{2,1},{3,1},{4,2},{8,2},{15,3},{16,4},{24,4},{25,5},
+        {18446744065119617025ull,4294967295ull},        // 4294967295^2
+        {18446744065119617025ull+1,4294967295ull},
+        {UINT64_MAX,4294967295ull},
+        {4000000000000000000ull,2000000000ull},          // 2e9^2 = 4e18
+    };
+    for (auto& c : fixed) {
+        uint64_t got = isqrt(c.x);
+        if (got != c.want) { std::printf("isqrt(%llu)=%llu want %llu\n",
+            (unsigned long long)c.x,(unsigned long long)got,(unsigned long long)c.want); return 1; }
+    }
+    // dense sweep: r tracked incrementally, no overflow (r small)
+    uint64_t r = 0;
+    for (uint64_t x = 0; x <= 300000; ++x) {
+        while ((r + 1) * (r + 1) <= x) ++r;
+        if (isqrt(x) != r) { std::printf("sweep isqrt(%llu)=%llu want %llu\n",
+            (unsigned long long)x,(unsigned long long)isqrt(x),(unsigned long long)r); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Bit-by-bit "digit at a time" square root. Processing two bits per step (`bit` moves by `>>2` over powers of four) mirrors decimal long-division square root in base 4. The invariant keeps `res` as the partial root, and the test `x >= res + bit` decides each bit without ever multiplying. It is exact across all `2^64` values, unlike the `double` path which loses precision above `2^53` and needs a correction step. Cost is 32 iterations of adds and shifts, fully integer.
+
+## challenge: Q16.16 fixed-point multiply
+tags: fixed-point, fast-math, overflow
+track: hft
+difficulty: medium
+
+Fixed-point keeps fractional math deterministic and float-free. In Q16.16 a real number `v` is stored as the `int32` raw `round(v * 65536)` (16 integer bits, 16 fractional bits). Multiplying two Q16.16 raws naively as `int32` overflows and lands in the wrong scale. Implement `int32_t qmul(int32_t a, int32_t b)` returning the Q16.16 product, using a 64-bit intermediate.
+
+Constraints: inputs are Q16.16 raws in `INT32_MIN..INT32_MAX`; the true product fits in Q16.16. Truncate toward negative infinity (arithmetic shift).
+
+Example: with `1.0 = 65536`, `2.0 = 131072`, `1.5 = 98304`: `qmul(65536, 131072) == 131072` (1.0*2.0), `qmul(98304, 98304) == 147456` (1.5*1.5 = 2.25), `qmul(-98304, 98304) == -147456`.
+
+hint: Two Q16.16 values multiplied give a Q32.32 number — the binary point moves to bit 32, so you must shift back down by 16.
+hint: `int32 * int32` can need 62 bits; form the product in `int64` before shifting.
+hint: The scaled result is `((int64_t)a * b) >> 16`; in C++20 a signed right shift is arithmetic, giving floor (truncation toward -inf).
+
+```cpp
+// starter
+#include <cstdint>
+int32_t qmul(int32_t a, int32_t b);
+```
+
+```cpp
+int32_t qmul(int32_t a, int32_t b) {
+    return (int32_t)(((int64_t)a * b) >> 16);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { int32_t a, b, want; } cases[] = {
+        {65536,131072,131072},     // 1.0 * 2.0 = 2.0
+        {98304,98304,147456},      // 1.5 * 1.5 = 2.25
+        {-98304,98304,-147456},    // -1.5 * 1.5 = -2.25
+        {-98304,-98304,147456},    // -1.5 * -1.5 = 2.25
+        {196608,16384,49152},      // 3.0 * 0.25 = 0.75
+        {0,123456,0},
+        {65536,65536,65536},       // 1.0 * 1.0 = 1.0
+        {16711680,131072,33423360},// 255.0 * 2.0 = 510.0
+    };
+    for (auto& c : cases) {
+        int32_t got = qmul(c.a, c.b);
+        if (got != c.want) { std::printf("qmul(%d,%d)=%d want %d\n",
+            (int)c.a,(int)c.b,(int)got,(int)c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Multiplying `Qm.f` by `Qm.f` yields `Q(2m).(2f)`; the binary point is now `2f = 32` bits up, so `>> 16` realigns to Q16.16 and divides out the doubled scale in one step. The 64-bit intermediate is mandatory — two 32-bit operands need up to 62 result bits. For round-to-nearest instead of truncation, add `(1 << 15)` before the shift. Everything is integer: no FPU, and bit-for-bit reproducible across machines, which matters for deterministic pricing.
+
+## challenge: Binary GCD (Stein's algorithm)
+tags: fast-math, integer-math, bit-tricks
+track: hft
+difficulty: medium
+
+Euclid's GCD leans on `%`, the slowest integer op. Stein's binary GCD replaces every modulo with subtractions and shifts. Implement `uint64_t gcd(uint64_t a, uint64_t b)` returning the greatest common divisor, with `gcd(0, b) == b` and `gcd(a, 0) == a`, using no `/` or `%`.
+
+Constraints: `0 <= a, b <= 2^64 - 1`. No division or modulo.
+
+Example: `gcd(12, 18) == 6`, `gcd(48, 36) == 12`, `gcd(17, 5) == 1`, `gcd(0, 9) == 9`, `gcd(2^60, 2^40) == 2^40`.
+
+hint: Pull out common factors of two first: `gcd(2a, 2b) = 2*gcd(a, b)`; count the shared trailing zeros once with `__builtin_ctzll(a | b)`.
+hint: If exactly one operand is even, that factor of two is not common — strip it, since it cannot divide the odd one.
+hint: With both odd, `gcd(a, b) = gcd(|a - b| / 2, min(a, b))`; subtract smaller from larger, strip trailing zeros, and loop until one hits zero.
+
+```cpp
+// starter
+#include <cstdint>
+uint64_t gcd(uint64_t a, uint64_t b);
+```
+
+```cpp
+uint64_t gcd(uint64_t a, uint64_t b) {
+    if (a == 0) return b;
+    if (b == 0) return a;
+    int shift = __builtin_ctzll(a | b);
+    a >>= __builtin_ctzll(a);
+    do {
+        b >>= __builtin_ctzll(b);
+        if (a > b) { uint64_t t = a; a = b; b = t; }
+        b -= a;
+    } while (b != 0);
+    return a << shift;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+#include <numeric>
+//__USER__
+int main() {
+    struct { uint64_t a, b, want; } cases[] = {
+        {12,18,6},{48,36,12},{17,5,1},{0,9,9},{9,0,9},{0,0,0},{1,1,1},
+        {(uint64_t)1<<60,(uint64_t)1<<40,(uint64_t)1<<40},
+        {1000000007ull,998244353ull,1},
+        {UINT64_MAX,1,1},{UINT64_MAX,UINT64_MAX,UINT64_MAX},
+    };
+    for (auto& c : cases) {
+        uint64_t got = gcd(c.a, c.b);
+        if (got != c.want) { std::printf("gcd(%llu,%llu)=%llu want %llu\n",
+            (unsigned long long)c.a,(unsigned long long)c.b,
+            (unsigned long long)got,(unsigned long long)c.want); return 1; }
+    }
+    for (uint64_t a = 0; a <= 255; ++a)
+        for (uint64_t b = 0; b <= 255; ++b) {
+            uint64_t got = gcd(a, b), want = std::gcd(a, b);
+            if (got != want) { std::printf("gcd(%llu,%llu)=%llu want %llu\n",
+                (unsigned long long)a,(unsigned long long)b,
+                (unsigned long long)got,(unsigned long long)want); return 1; }
+        }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Modulo is 20-40 cycles; Stein's algorithm uses only subtraction, comparison, and trailing-zero counts (one TZCNT/BSF each), which pipeline far better. Correctness rests on three identities: `gcd(2a, 2b) = 2*gcd(a, b)`; `gcd(2a, b) = gcd(a, b)` for odd `b`; and `gcd(a, b) = gcd(a - b, b)`. Removing the common factors of two up front and keeping both operands odd inside the loop guarantees each subtraction sheds at least one bit, so it terminates in O(bits) steps.
+
+## challenge: Saturating multiply (int32)
+tags: fast-math, overflow, integer-math
+track: hft
+difficulty: medium
+
+In fixed-point accumulation you often want a multiply that clamps to the representable range instead of wrapping — signed overflow is UB and a correctness disaster for prices. Implement `int32_t sat_mul(int32_t a, int32_t b)` returning `a * b` clamped to `[INT32_MIN, INT32_MAX]`, with no signed overflow anywhere.
+
+Constraints: full `int32` inputs. The result is clamped to the `int32` range.
+
+Example: `sat_mul(100, 100) == 10000`, `sat_mul(100000, 100000) == 2147483647`, `sat_mul(-100000, 100000) == -2147483648`, `sat_mul(INT32_MIN, -1) == 2147483647` (true value `2^31` overflows), `sat_mul(0, INT32_MIN) == 0`.
+
+hint: The product of two 32-bit ints always fits in 64 bits, so compute it wide first — no overflow there.
+hint: Then a single pair of comparisons against `INT32_MAX` / `INT32_MIN` decides whether to clamp.
+hint: Watch the asymmetric corner `INT32_MIN * -1 = 2^31`, one past `INT32_MAX` — the wide compare catches it, whereas a naive 32-bit multiply is UB.
+
+```cpp
+// starter
+#include <cstdint>
+int32_t sat_mul(int32_t a, int32_t b);
+```
+
+```cpp
+int32_t sat_mul(int32_t a, int32_t b) {
+    int64_t p = (int64_t)a * b;
+    if (p > INT32_MAX) return INT32_MAX;
+    if (p < INT32_MIN) return INT32_MIN;
+    return (int32_t)p;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { int32_t a, b, want; } cases[] = {
+        {100,100,10000},{0,INT32_MIN,0},{1,INT32_MAX,INT32_MAX},
+        {100000,100000,INT32_MAX},{-100000,100000,INT32_MIN},
+        {INT32_MIN,-1,INT32_MAX},{-1,INT32_MIN,INT32_MAX},
+        {INT32_MAX,INT32_MAX,INT32_MAX},{INT32_MIN,INT32_MIN,INT32_MAX},
+        {46340,46340,2147395600},{46341,46341,INT32_MAX},
+        {-46341,46341,INT32_MIN},
+    };
+    for (auto& c : cases) {
+        int32_t got = sat_mul(c.a, c.b);
+        if (got != c.want) { std::printf("sat_mul(%d,%d)=%d want %d\n",
+            (int)c.a,(int)c.b,(int)got,(int)c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The key realization is that `int32 * int32` is at most `2^62` in magnitude, so one `int64` multiply cannot overflow and gives the exact product; clamping is then two branches (often compiled to branch-free `cmov`). The naive `int32 r = a * b` is undefined on overflow and, even if it wrapped, would silently corrupt. The nasty corner is `INT32_MIN * -1 = +2^31`, exactly one above `INT32_MAX`, which the wide comparison saturates correctly.
+
+## challenge: Divide by a constant via reciprocal multiply
+tags: fast-math, integer-math, reciprocal
+track: hft
+difficulty: hard
+
+A `div` instruction is ~20-40 cycles; when the divisor is a compile-time constant, compilers replace it with a multiply by a fixed-point reciprocal plus a shift. Reproduce that by hand for the classic case: implement `uint32_t div3(uint32_t x)` returning `x / 3` for every 32-bit `x`, using only a multiply and a shift (no `/` or `%`).
+
+Constraints: `0 <= x <= 2^32 - 1`. Exactly one 64-bit multiply and one shift; no division or modulo.
+
+Example: `div3(0) == 0`, `div3(2) == 0`, `div3(3) == 1`, `div3(6) == 2`, `div3(3000000000) == 1000000000`, `div3(2^32 - 1) == 1431655765`.
+
+hint: `1/3` in binary is `0.01010101...`; approximate it as a fixed-point reciprocal `m / 2^s`, and the divide becomes a multiply then a shift.
+hint: Use the magic constant `m = ceil(2^33 / 3) = 0xAAAAAAAB` with shift `s = 33`; the round-up in the reciprocal keeps it exact for every `uint32`.
+hint: Do the multiply in `uint64` (`(uint64_t)x * 0xAAAAAAABull`) so the product's high bits survive, then `>> 33`.
+
+```cpp
+// starter
+#include <cstdint>
+uint32_t div3(uint32_t x);
+```
+
+```cpp
+uint32_t div3(uint32_t x) {
+    return (uint32_t)(((uint64_t)x * 0xAAAAAAABull) >> 33);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+static int check(uint64_t x) {
+    uint32_t got = div3((uint32_t)x), want = (uint32_t)x / 3u;
+    if (got != want) { std::printf("div3(%llu)=%u want %u\n",
+        (unsigned long long)x, got, want); return 1; }
+    return 0;
+}
+int main() {
+    uint64_t fixed[] = {0,1,2,3,6,9,3000000000ull,4294967295ull,2863311530ull,
+                        2863311531ull,1431655764ull,1431655765ull};
+    for (uint64_t x : fixed) if (check(x)) return 1;
+    for (uint64_t x = 0; x < 4000000ull; ++x) if (check(x)) return 1;
+    for (uint64_t x = 4290000000ull; x <= 4294967295ull; ++x) if (check(x)) return 1;
+    for (uint64_t x = 0; x <= 4294967295ull; x += 99991ull) if (check(x)) return 1;
+    std::puts("PASS");
+}
+```
+
+**Editorial:** General magic-number division. For a divisor `d`, precompute `m = ceil(2^(N+s) / d)` so that `floor(x*m / 2^(N+s)) == floor(x / d)` for all `N`-bit `x`; for `d = 3`, `N = 32`, the constant `m = 0xAAAAAAAB` (`= ceil(2^33 / 3)`) with shift `33` works across the entire range. The round-up in `m` compensates for the truncated reciprocal so it never underestimates. Cost is one multiply (~3-4 cycles) plus a shift versus a 20-40 cycle `div` — exactly what `-O2` emits for `x / 3`. To also get `x % 3`, compute `x - 3 * div3(x)`.
+
+## challenge: Align up to a power-of-two boundary
+tags: bit-tricks, alignment, power-of-two
+track: hft
+difficulty: easy
+
+Every custom allocator needs one primitive: round a size (or address) up to the next multiple of an alignment. Implement `align_up(n, a)` returning the smallest value `>= n` that is a multiple of `a`, where `a` is a power of two. Do it in O(1) with bit tricks — no loops, no division.
+
+Constraints: `a` is a power of two (`1, 2, 4, 8, ...`); the aligned result fits in `std::size_t`.
+
+Example: `align_up(1, 8) == 8`, `align_up(8, 8) == 8`, `align_up(13, 16) == 16`, `align_up(17, 16) == 32`, `align_up(0, 8) == 0`.
+
+hint: For a power-of-two `a`, `a - 1` is a mask of the low bits; a value is aligned exactly when those low bits are all zero.
+hint: Add `a - 1` first so anything not already aligned spills into the next boundary, then clear the low bits with `& ~(a - 1)`.
+hint: Avoid `%` and division — on the hot path the mask form `(n + a - 1) & ~(a - 1)` is a couple of instructions.
+
+```cpp
+// starter
+#include <cstddef>
+std::size_t align_up(std::size_t n, std::size_t a);
+```
+
+```cpp
+std::size_t align_up(std::size_t n, std::size_t a) {
+    return (n + (a - 1)) & ~(a - 1);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+//__USER__
+int main() {
+    struct { std::size_t n, a, want; } cases[] = {
+        {0, 8, 0}, {1, 8, 8}, {7, 8, 8}, {8, 8, 8}, {9, 8, 16},
+        {13, 16, 16}, {16, 16, 16}, {17, 16, 32},
+        {1, 1, 1}, {1000, 64, 1024}, {4096, 4096, 4096},
+    };
+    for (auto& c : cases) {
+        std::size_t got = align_up(c.n, c.a);
+        if (got != c.want) { std::printf("align_up(%zu,%zu)=%zu want %zu\n", c.n, c.a, got, c.want); return 1; }
+        if (got % c.a != 0) { std::puts("result not aligned"); return 1; }
+        if (got < c.n)      { std::puts("result smaller than input"); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** For a power-of-two `a`, the low `log2(a)` bits of any aligned value are zero, and `a - 1` is exactly the mask of those bits. Adding `a - 1` pushes any unaligned `n` up into the next boundary's range without overshooting past it; the subsequent `& ~(a - 1)` clears the low bits to land precisely on the boundary. Already-aligned inputs are unchanged because adding `a - 1` stays below the next multiple. This branchless, division-free form is the workhorse inside arena and stack allocators.
+
+## challenge: Pack a struct to minimize sizeof
+tags: struct-packing, sizeof, alignment
+track: hft
+difficulty: easy
+
+A struct's size depends on member *order*: the compiler inserts padding so each member sits on its natural alignment, and rounds the whole struct up to its largest member's alignment. Declared carelessly, this struct wastes bytes to padding. Reorder its members — largest alignment first — so `sizeof(Packed)` is as small as possible. Keep all five members with the same names and types: `double d`, `int i`, `short s`, `char a`, `char b`.
+
+Constraints: only reordering is allowed (no bitfields, no `#pragma pack`, no changing types). The minimum achievable size is 16 bytes on a typical 64-bit ABI.
+
+Example: a naive order like `char, double, char, int, short` balloons to 32 bytes; sorting members from widest to narrowest packs the same data into 16.
+
+hint: Total payload here is `8 + 4 + 2 + 1 + 1 = 16` bytes — the goal is a layout with zero interior padding.
+hint: Place members in non-increasing alignment order: the `double` (8) first, then `int` (4), then `short` (2), then the two `char`s.
+hint: The struct's own alignment equals its widest member (8 for the `double`); once the payload already totals a multiple of 8, no tail padding is added.
+
+```cpp
+// starter
+struct Packed {
+    // Reorder these five members to minimize sizeof(Packed).
+    char a;
+    double d;
+    char b;
+    int i;
+    short s;
+};
+```
+
+```cpp
+struct Packed {
+    double d;   // 8 bytes, widest alignment -> goes first
+    int i;      // 4
+    short s;    // 2
+    char a;     // 1
+    char b;     // 1
+};              // 8+4+2+1+1 = 16, no padding
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+//__USER__
+int main() {
+    static_assert(sizeof(Packed) == 16, "should pack into 16 bytes with no wasted padding");
+    static_assert(alignof(Packed) == 8, "the double forces 8-byte alignment");
+    Packed p{};
+    p.d = 3.5; p.i = 7; p.s = 9; p.a = 'x'; p.b = 'y';
+    if (p.d != 3.5 || p.i != 7 || p.s != 9 || p.a != 'x' || p.b != 'y') {
+        std::puts("member read/write broken"); return 1;
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Each member must land on an offset that is a multiple of its alignment, so a narrow member ahead of a wide one forces the compiler to insert padding to realign. Ordering members from widest to narrowest lets every field abut the previous one with no gaps, and because the running offset stays a multiple of the next member's alignment there is no interior padding. Here the payload sums to 16, already a multiple of the struct's 8-byte alignment, so no tail padding is needed either. The lesson for hot-path data: sort fields by alignment to shrink structs, fit more per cache line, and cut memory traffic.
+
+## challenge: Bump (arena) allocator
+tags: arena, bump-allocator, alignment
+track: hft
+difficulty: medium
+
+The fastest allocator is a pointer you bump forward. Implement `Arena` over a caller-supplied buffer: `allocate(n, align)` carves `n` bytes at the next `align`-aligned offset and returns the pointer (or `nullptr` if the buffer can't fit it), and `reset()` reclaims everything at once by rewinding the offset to zero. No per-object free — that is the whole point.
+
+Constraints: `align` is a power of two; do not read or write past the buffer; allocation is O(1). The returned pointer must satisfy `reinterpret_cast<uintptr_t>(p) % align == 0`.
+
+Example: over a 64-byte-aligned 256-byte buffer, `allocate(10, 16)` returns the base; a following `allocate(64, 32)` returns the next 32-aligned slot after those 10 bytes; a request larger than the remaining space returns `nullptr`; after `reset()` the next allocation reuses the base again.
+
+hint: Track a single `offset_` into the buffer; align the *current* address (base + offset) up to `align` before handing out `n` bytes.
+hint: Compute the aligned address with the mask trick `(addr + align - 1) & ~(align - 1)`, then check the resulting end offset against the buffer size *before* committing.
+hint: `reset()` is just `offset_ = 0` — there are no destructors to run and no per-block bookkeeping.
+
+```cpp
+// starter
+#include <cstddef>
+class Arena {
+public:
+    Arena(void* buf, std::size_t size);
+    void* allocate(std::size_t n, std::size_t align);
+    void reset();
+};
+```
+
+```cpp
+class Arena {
+    char* base_;
+    std::size_t size_;
+    std::size_t offset_ = 0;
+public:
+    Arena(void* buf, std::size_t size)
+        : base_(static_cast<char*>(buf)), size_(size) {}
+
+    void* allocate(std::size_t n, std::size_t align) {
+        std::uintptr_t cur     = reinterpret_cast<std::uintptr_t>(base_) + offset_;
+        std::uintptr_t aligned = (cur + (align - 1)) & ~(align - 1);
+        std::size_t new_offset =
+            static_cast<std::size_t>(aligned - reinterpret_cast<std::uintptr_t>(base_)) + n;
+        if (new_offset > size_) return nullptr;   // would overrun the buffer
+        offset_ = new_offset;
+        return reinterpret_cast<void*>(aligned);
+    }
+
+    void reset() { offset_ = 0; }
+};
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+#include <cstdint>
+//__USER__
+int main() {
+    alignas(64) unsigned char buffer[256];
+    Arena a(buffer, sizeof(buffer));
+
+    void* p1 = a.allocate(10, 16);
+    if (!p1 || reinterpret_cast<std::uintptr_t>(p1) % 16 != 0) { std::puts("p1 alignment"); return 1; }
+
+    void* p2 = a.allocate(1, 1);
+    if (!p2) { std::puts("p2 null"); return 1; }
+    if (reinterpret_cast<std::uintptr_t>(p2) < reinterpret_cast<std::uintptr_t>(p1) + 10) { std::puts("p2 overlaps p1"); return 1; }
+
+    void* p3 = a.allocate(64, 32);
+    if (!p3 || reinterpret_cast<std::uintptr_t>(p3) % 32 != 0) { std::puts("p3 alignment"); return 1; }
+
+    // No room left for a giant request.
+    if (a.allocate(1024, 8) != nullptr) { std::puts("should have exhausted"); return 1; }
+
+    // reset() reclaims everything; the next allocation reuses the base.
+    a.reset();
+    void* p4 = a.allocate(10, 16);
+    if (p4 != p1) { std::puts("reset should reuse from the start"); return 1; }
+
+    std::puts("PASS");
+}
+```
+
+**Editorial:** An arena keeps a single monotonically increasing offset. Each `allocate` aligns the current cursor up to the requested boundary (mask trick, since `align` is a power of two), checks that the resulting end stays within the buffer, and only then commits the new offset — so a failed allocation leaves state untouched and simply returns `nullptr`. There is no free list and no per-object metadata, which is why allocation is a handful of instructions and cache-friendly. The trade-off: you cannot free individual objects; you reclaim the whole region at once with `reset()`, ideal for per-tick or per-request scratch memory in a trading loop.
+
+## challenge: Fixed-size free-list pool allocator
+tags: freelist, pool, intrusive-list
+track: hft
+difficulty: medium
+
+When every object is the same size, a free-list pool gives O(1) alloc and free with zero fragmentation. Implement `Pool` over a caller-supplied buffer split into `count` blocks of `block_size` bytes. The trick: thread a singly linked "free list" through the free blocks themselves — store each block's `next` pointer in the block's own memory (intrusive), so the pool needs no side table. `alloc()` pops the head block (or `nullptr` when empty); `free(p)` pushes a block back onto the head.
+
+Constraints: `block_size >= sizeof(void*)` and the buffer is suitably aligned; `alloc`/`free` are O(1); `alloc()` returns `nullptr` only when every block is handed out. A freed block, re-allocated, must come back (LIFO).
+
+Example: with `block_size = 32, count = 4`, four `alloc()` calls hand out four distinct in-range blocks, the fifth returns `nullptr`; after `free(b)` the next `alloc()` returns exactly `b`.
+
+hint: Reinterpret each free block as a node holding a single `next` pointer — the free-list links live inside the free memory itself, costing no extra storage.
+hint: In the constructor, walk the blocks and push every one onto the list; `alloc` = pop head, `free` = push onto head. Both are a few pointer assignments.
+hint: `alloc` must return `nullptr` when the head is null; don't dereference an empty list.
+
+```cpp
+// starter
+#include <cstddef>
+class Pool {
+public:
+    Pool(void* buf, std::size_t block_size, std::size_t count);
+    void* alloc();          // nullptr when exhausted
+    void  free(void* p);    // return a block to the pool
+};
+```
+
+```cpp
+class Pool {
+    struct Node { Node* next; };
+    Node* head_ = nullptr;
+public:
+    Pool(void* buf, std::size_t block_size, std::size_t count) {
+        char* p = static_cast<char*>(buf);
+        for (std::size_t i = 0; i < count; ++i) {
+            Node* node = reinterpret_cast<Node*>(p + i * block_size);
+            node->next = head_;   // intrusive link stored in the block itself
+            head_ = node;
+        }
+    }
+    void* alloc() {
+        if (!head_) return nullptr;
+        Node* n = head_;
+        head_ = head_->next;
+        return n;
+    }
+    void free(void* p) {
+        Node* n = static_cast<Node*>(p);
+        n->next = head_;
+        head_ = n;
+    }
+};
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+#include <cstdint>
+//__USER__
+int main() {
+    constexpr std::size_t BS = 32, N = 4;
+    alignas(16) unsigned char buffer[BS * N];
+    Pool pool(buffer, BS, N);
+
+    void* blocks[N];
+    std::uintptr_t base = reinterpret_cast<std::uintptr_t>(buffer);
+    for (std::size_t i = 0; i < N; ++i) {
+        blocks[i] = pool.alloc();
+        if (!blocks[i]) { std::puts("alloc returned null too early"); return 1; }
+        std::uintptr_t addr = reinterpret_cast<std::uintptr_t>(blocks[i]);
+        if (addr < base || addr + BS > base + BS * N) { std::puts("block out of range"); return 1; }
+    }
+    // All blocks handed out.
+    if (pool.alloc() != nullptr) { std::puts("should be exhausted"); return 1; }
+
+    // Blocks are distinct.
+    for (std::size_t i = 0; i < N; ++i)
+        for (std::size_t j = i + 1; j < N; ++j)
+            if (blocks[i] == blocks[j]) { std::puts("duplicate block handed out"); return 1; }
+
+    // free then alloc returns the same block (LIFO).
+    pool.free(blocks[2]);
+    void* again = pool.alloc();
+    if (again != blocks[2]) { std::puts("free/alloc should recycle the block"); return 1; }
+    if (pool.alloc() != nullptr) { std::puts("should be exhausted again"); return 1; }
+
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Because every block is identical in size, the pool stores its bookkeeping *inside the free blocks*: each free block begins with a `next` pointer, forming an intrusive singly linked list. Allocation pops the head; deallocation pushes onto the head — both O(1) with no scanning and no external metadata, so there is zero fragmentation and excellent locality. The only requirements are that `block_size` is at least `sizeof(void*)` and the buffer is aligned for a pointer. This is the canonical order-router / message pool: fixed object size, allocate and free millions of times per second on the hot path.
+
+## challenge: LIFO stack allocator
+tags: stack-allocator, LIFO, arena
+track: hft
+difficulty: medium
+
+A stack allocator is an arena that *can* free — as long as you free in reverse order of allocation (last-in, first-out), exactly like a call stack. Implement `StackAllocator` over a caller-supplied buffer: `allocate(n)` bumps the top up by `n` bytes and returns the old top (or `nullptr` if it won't fit); `deallocate(p)` rewinds the top back down to `p`, releasing that allocation and everything above it; `used()` reports bytes currently in use.
+
+Constraints: `deallocate` must be called in LIFO order (pass the pointer returned by the matching `allocate`); operations are O(1). After freeing, the reclaimed space is handed out again by the next `allocate`.
+
+Example: allocate `a`, `b`, `c` of 32 bytes each (`used() == 96`); `deallocate(c)` drops `used()` to 64 and the next 32-byte `allocate` returns `c`'s old address; `deallocate(a)` rewinds all the way to `used() == 0`.
+
+hint: Keep a single `offset_` (the "top of stack"); `allocate` returns `base + offset_` and advances `offset_` by `n`.
+hint: `deallocate(p)` rewinds the top to `p`'s offset: `offset_ = (char*)p - base`. That frees `p` and anything allocated after it in one shot.
+hint: Reject an allocation that would push `offset_ + n` past the buffer size by returning `nullptr` and leaving the top unchanged.
+
+```cpp
+// starter
+#include <cstddef>
+class StackAllocator {
+public:
+    StackAllocator(void* buf, std::size_t size);
+    void* allocate(std::size_t n);   // bump the top up; nullptr if it won't fit
+    void  deallocate(void* p);       // rewind the top back to p (LIFO)
+    std::size_t used() const;
+};
+```
+
+```cpp
+class StackAllocator {
+    char* base_;
+    std::size_t size_;
+    std::size_t offset_ = 0;
+public:
+    StackAllocator(void* buf, std::size_t size)
+        : base_(static_cast<char*>(buf)), size_(size) {}
+    void* allocate(std::size_t n) {
+        if (offset_ + n > size_) return nullptr;
+        void* p = base_ + offset_;
+        offset_ += n;
+        return p;
+    }
+    void deallocate(void* p) {
+        offset_ = static_cast<std::size_t>(static_cast<char*>(p) - base_);
+    }
+    std::size_t used() const { return offset_; }
+};
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+#include <cstdint>
+//__USER__
+int main() {
+    alignas(16) unsigned char buffer[128];
+    StackAllocator sa(buffer, sizeof(buffer));
+    auto U = [](void* p) { return reinterpret_cast<std::uintptr_t>(p); };
+
+    void* a = sa.allocate(32);
+    void* b = sa.allocate(32);
+    void* c = sa.allocate(32);
+    if (!a || !b || !c) { std::puts("allocate returned null"); return 1; }
+    if (sa.used() != 96) { std::puts("used() should be 96"); return 1; }
+    if (!(U(a) < U(b) && U(b) < U(c))) { std::puts("allocations not increasing"); return 1; }
+
+    // No room for another 64 bytes.
+    if (sa.allocate(64) != nullptr) { std::puts("should have exhausted"); return 1; }
+
+    // LIFO free of c, then reuse its slot.
+    sa.deallocate(c);
+    if (sa.used() != 64) { std::puts("used() should be 64 after freeing c"); return 1; }
+    void* c2 = sa.allocate(32);
+    if (c2 != c) { std::puts("should reuse c's slot"); return 1; }
+
+    // Rewind all the way back to the base.
+    sa.deallocate(a);
+    if (sa.used() != 0) { std::puts("used() should be 0 after freeing a"); return 1; }
+    void* a2 = sa.allocate(8);
+    if (a2 != a) { std::puts("should reuse from the base"); return 1; }
+
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A stack allocator adds one capability to a bump arena: rewinding. Since the top only ever moves up on `allocate` and down on `deallocate`, freeing pointer `p` simply resets the top to `p`'s offset, which reclaims `p` and every allocation made after it. That is why deallocation must follow LIFO order — freeing out of order would leave the top inconsistent with live allocations. Like the arena it is O(1) with no per-block metadata, but the LIFO discipline lets you release nested scratch regions (e.g. temporaries within a single computation) without freeing the whole arena.
+
+## challenge: Power-of-two ring buffer
+tags: ring-buffer, power-of-two, spsc
+track: hft
+difficulty: medium
+
+Ring buffers are everywhere in low-latency code (event queues, market-data pipes). Give one a power-of-two capacity and index wrap-around becomes a single bitwise `&` instead of a `%` — no division on the hot path. Implement `RingBuffer<T, N>` with inline storage for `N` elements (`N` a power of two, enforced at compile time): `push(v)` appends unless full (returns `false`), `pop(out)` removes the oldest unless empty (returns `false`), `size()` reports the count. Use monotonically increasing head/tail counters masked by `N - 1` to index the storage.
+
+Constraints: `N` must be a power of two — reject anything else with a `static_assert`. No dynamic allocation; storage is a fixed `T[N]` member. FIFO order.
+
+Example: with `RingBuffer<int, 4>`, four pushes succeed and a fifth fails; four pops return the values in the order pushed; pushing and popping repeatedly wraps the indices past `N` while staying correct.
+
+hint: Keep two ever-increasing counters, `head_` (next to pop) and `tail_` (next to push); the live count is `tail_ - head_`, full is `count == N`, empty is `head_ == tail_`.
+hint: Because `N` is a power of two, the physical slot is `index & (N - 1)` — the mask replaces `index % N` with one AND instruction.
+hint: Guard `N` with `static_assert((N & (N - 1)) == 0, ...)` so a non-power-of-two capacity fails to compile.
+
+```cpp
+// starter
+#include <cstddef>
+template <typename T, std::size_t N>
+class RingBuffer {
+public:
+    bool push(const T& v);   // false if full
+    bool pop(T& out);        // false if empty
+    std::size_t size() const;
+};
+```
+
+```cpp
+template <typename T, std::size_t N>
+class RingBuffer {
+    static_assert(N >= 2 && (N & (N - 1)) == 0, "capacity must be a power of two");
+    alignas(64) T buf_[N];
+    std::size_t head_ = 0;   // next index to pop
+    std::size_t tail_ = 0;   // next index to push
+public:
+    bool push(const T& v) {
+        if (tail_ - head_ == N) return false;    // full
+        buf_[tail_ & (N - 1)] = v;
+        ++tail_;
+        return true;
+    }
+    bool pop(T& out) {
+        if (head_ == tail_) return false;         // empty
+        out = buf_[head_ & (N - 1)];
+        ++head_;
+        return true;
+    }
+    std::size_t size() const { return tail_ - head_; }
+};
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+//__USER__
+int main() {
+    RingBuffer<int, 4> rb;
+    if (rb.size() != 0) { std::puts("should start empty"); return 1; }
+
+    int tmp = -1;
+    if (rb.pop(tmp)) { std::puts("pop on empty should fail"); return 1; }
+
+    for (int i = 0; i < 4; ++i)
+        if (!rb.push(i * 10)) { std::puts("push within capacity should succeed"); return 1; }
+    if (rb.size() != 4) { std::puts("size should be 4"); return 1; }
+    if (rb.push(999)) { std::puts("push on full should fail"); return 1; }
+
+    // FIFO order.
+    for (int i = 0; i < 4; ++i) {
+        if (!rb.pop(tmp) || tmp != i * 10) { std::puts("wrong FIFO order"); return 1; }
+    }
+    if (rb.size() != 0) { std::puts("should be empty again"); return 1; }
+
+    // Wrap-around: counters climb past N, masking must keep indexing correct.
+    for (int round = 0; round < 3; ++round) {
+        for (int i = 0; i < 4; ++i) rb.push(round * 100 + i);
+        for (int i = 0; i < 4; ++i) {
+            rb.pop(tmp);
+            if (tmp != round * 100 + i) { std::puts("wrap-around broke ordering"); return 1; }
+        }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Storing `head_`/`tail_` as unbounded increasing counters makes the occupancy math trivial: `tail_ - head_` is the live count, so full and empty are distinguishable without wasting a slot or keeping a separate size flag. The power-of-two capacity is the key optimization — the physical slot is `index & (N - 1)`, a single AND, versus a costly `%` for arbitrary `N`. The `static_assert` makes a bad capacity a compile error rather than a silent correctness bug. `alignas(64)` on the storage keeps the buffer off shared cache lines. This exact structure underlies lock-free SPSC queues on the market-data hot path.
+
+## challenge: Typed object pool with placement new
+tags: object-pool, placement-new, construct-destroy
+track: hft
+difficulty: hard
+
+Raw byte allocators hand back untyped storage; a *typed* pool also runs constructors and destructors correctly. Implement `ObjectPool<T, N>`: `N` slots of raw, `T`-aligned storage plus an intrusive free list. `create(args...)` pops a slot and constructs a `T` in place with placement `new` (or returns `nullptr` when full); `destroy(p)` runs `p->~T()` exactly once and recycles the slot. Never construct into occupied storage and never leak a destructor call.
+
+Constraints: no heap allocation — storage is a fixed inline array of `union` slots; construction is perfectly forwarded; `create` returns `nullptr` only when all `N` slots are live. Freeing then re-creating must reuse the slot.
+
+Example: an `ObjectPool<Widget, 3>` constructs three `Widget`s (three ctor calls, three live); the fourth `create` returns `nullptr`; `destroy` on one runs exactly one destructor; a following `create` reuses that slot; when all are destroyed the live count is zero and destructors ran once each.
+
+hint: Make each slot a `union` of a `Slot* next` (free-list link) and `alignas(T) unsigned char storage[sizeof(T)]` — a free slot holds the link, a live slot holds the object, sharing the same bytes.
+hint: `create` = pop the free list, then `::new (slot->storage) T(std::forward<Args>(args)...)`; `destroy` = call `p->~T()`, then push the slot (recovered via `reinterpret_cast<Slot*>(p)`) back on the free list.
+hint: A `union` member's address equals the slot's address, so `reinterpret_cast<Slot*>(p)` recovers the owning slot from the object pointer.
+
+```cpp
+// starter
+#include <cstddef>
+#include <utility>
+#include <new>
+template <typename T, std::size_t N>
+class ObjectPool {
+public:
+    template <typename... Args> T* create(Args&&... args); // nullptr if full
+    void destroy(T* p);                                    // run ~T, recycle slot
+};
+```
+
+```cpp
+template <typename T, std::size_t N>
+class ObjectPool {
+    union Slot {
+        Slot* next;                              // link when free
+        alignas(T) unsigned char storage[sizeof(T)];  // the object when live
+    };
+    Slot slots_[N];
+    Slot* free_ = nullptr;
+public:
+    ObjectPool() {
+        for (std::size_t i = 0; i < N; ++i) {    // thread all slots onto the free list
+            slots_[i].next = free_;
+            free_ = &slots_[i];
+        }
+    }
+    template <typename... Args>
+    T* create(Args&&... args) {
+        if (!free_) return nullptr;
+        Slot* s = free_;
+        free_ = free_->next;
+        return ::new (static_cast<void*>(s->storage)) T(std::forward<Args>(args)...);
+    }
+    void destroy(T* p) {
+        if (!p) return;
+        p->~T();                                 // run the destructor exactly once
+        Slot* s = reinterpret_cast<Slot*>(p);    // object address == slot address
+        s->next = free_;
+        free_ = s;
+    }
+};
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+#include <utility>
+#include <new>
+
+struct Widget {
+    static int live, ctor, dtor;
+    int id;
+    explicit Widget(int i) : id(i) { ++live; ++ctor; }
+    ~Widget() { --live; ++dtor; }
+};
+int Widget::live = 0;
+int Widget::ctor = 0;
+int Widget::dtor = 0;
+//__USER__
+int main() {
+    {
+        ObjectPool<Widget, 3> pool;
+        Widget* a = pool.create(1);
+        Widget* b = pool.create(2);
+        Widget* c = pool.create(3);
+        if (!a || !b || !c) { std::puts("create returned null too early"); return 1; }
+        if (Widget::live != 3 || Widget::ctor != 3) { std::puts("wrong ctor/live count"); return 1; }
+        if (a->id != 1 || b->id != 2 || c->id != 3) { std::puts("wrong constructed values"); return 1; }
+
+        // Pool exhausted.
+        if (pool.create(4) != nullptr) { std::puts("should be full"); return 1; }
+
+        // destroy runs the destructor exactly once.
+        pool.destroy(b);
+        if (Widget::live != 2 || Widget::dtor != 1) { std::puts("wrong dtor/live count"); return 1; }
+
+        // The recycled slot is handed out again.
+        Widget* d = pool.create(5);
+        if (!d) { std::puts("should reuse a freed slot"); return 1; }
+        if (d != b) { std::puts("should reuse b's exact slot"); return 1; }
+        if (Widget::live != 3 || d->id != 5) { std::puts("reuse state wrong"); return 1; }
+
+        pool.destroy(a);
+        pool.destroy(c);
+        pool.destroy(d);
+        if (Widget::live != 0 || Widget::dtor != 4) { std::puts("final counts wrong"); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The `union` slot is the crux: a free slot uses its bytes as a `Slot*` free-list link, a live slot uses the same bytes as `T` storage — no per-slot flag, no wasted space. `create` pops a slot and uses placement `new` to run `T`'s constructor into that raw, correctly aligned storage (`alignas(T)` guarantees alignment; perfect forwarding preserves the arguments). `destroy` manually invokes `~T()` — because placement `new` was used, you must destruct explicitly and exactly once — then recovers the owning slot (a union member shares the slot's address) and pushes it back. The result is O(1) typed allocation with proper object lifetime and zero heap traffic: the hand-rolled cousin of a `std::pmr` monotonic/pool resource.
+
+## challenge: Small-buffer-optimization holder
+tags: small-buffer-optimization, placement-new, type-erasure
+track: hft
+difficulty: hard
+
+Heap allocation on the hot path is death by a thousand `malloc`s. A small-buffer-optimization (SBO) holder stores an object *inline* in a fixed aligned buffer — no heap — as long as it fits. Implement `SboHolder<Cap, Align>`: `emplace<T>(args...)` constructs a `T` in the inline buffer via placement `new` and returns a `T*`; `reset()` destroys the current object; `has_value()` reports occupancy; the destructor cleans up. Support holding *any* type that fits — including types whose destructor must run — by remembering how to destroy the current object.
+
+Constraints: storage is a fixed inline `alignas(Align) unsigned char[Cap]` — no dynamic allocation ever. Reject a `T` too large or too over-aligned at compile time with `static_assert`. `emplace` over an existing value destroys the old one first; the destructor must not leak. Verify the object truly lives inside the holder's own bytes.
+
+Example: `SboHolder<64> h; h.emplace<Msg>(3, 4)` constructs a `Msg` inside `h`; the object's address lies within `[&h, &h + sizeof(h))`; re-`emplace` destroys the previous `Msg` first; `reset()` and destruction run the destructor with no leak; the same holder can later hold a `long`.
+
+hint: Since the concrete type is not known at `reset` time, stash a destroy thunk — a `void (*)(void*)` set from a captureless lambda `[](void* q){ static_cast<T*>(q)->~T(); }` (which converts to a function pointer) during `emplace`.
+hint: Guard with `static_assert(sizeof(T) <= Cap)` and `static_assert(alignof(T) <= Align)` so an oversized or over-aligned type fails to compile.
+hint: `emplace` must `reset()` first (destroy any current object), and the destructor is just `reset()`; make the holder non-copyable to avoid double-destroy of shared bytes.
+
+```cpp
+// starter
+#include <cstddef>
+#include <utility>
+#include <new>
+template <std::size_t Cap, std::size_t Align = alignof(std::max_align_t)>
+class SboHolder {
+public:
+    template <typename T, typename... Args> T* emplace(Args&&... args);
+    void reset();
+    bool has_value() const;
+    ~SboHolder();
+};
+```
+
+```cpp
+template <std::size_t Cap, std::size_t Align = alignof(std::max_align_t)>
+class SboHolder {
+    alignas(Align) unsigned char storage_[Cap];
+    void (*destroy_)(void*) = nullptr;    // type-erased destructor for the current object
+public:
+    SboHolder() = default;
+    SboHolder(const SboHolder&) = delete;             // non-copyable: bytes are unique
+    SboHolder& operator=(const SboHolder&) = delete;
+    ~SboHolder() { reset(); }
+
+    template <typename T, typename... Args>
+    T* emplace(Args&&... args) {
+        static_assert(sizeof(T) <= Cap,   "type too large for inline storage");
+        static_assert(alignof(T) <= Align, "type over-aligned for inline storage");
+        reset();                                       // destroy any current object first
+        T* p = ::new (static_cast<void*>(storage_)) T(std::forward<Args>(args)...);
+        destroy_ = [](void* q) { static_cast<T*>(q)->~T(); };
+        return p;
+    }
+    void reset() {
+        if (destroy_) { destroy_(storage_); destroy_ = nullptr; }
+    }
+    bool has_value() const { return destroy_ != nullptr; }
+};
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+#include <new>
+
+struct Msg {
+    static int live, dtor;
+    int a, b;
+    Msg(int x, int y) : a(x), b(y) { ++live; }
+    ~Msg() { --live; ++dtor; }
+};
+int Msg::live = 0;
+int Msg::dtor = 0;
+//__USER__
+int main() {
+    {
+        SboHolder<64> h;
+        if (h.has_value()) { std::puts("should start empty"); return 1; }
+
+        Msg* m = h.emplace<Msg>(3, 4);
+        if (!m || !h.has_value()) { std::puts("emplace failed"); return 1; }
+        if (m->a != 3 || m->b != 4) { std::puts("wrong constructed value"); return 1; }
+        if (Msg::live != 1) { std::puts("live count wrong"); return 1; }
+
+        // The object really lives inside the holder's own bytes (no heap).
+        std::uintptr_t obj  = reinterpret_cast<std::uintptr_t>(m);
+        std::uintptr_t self = reinterpret_cast<std::uintptr_t>(&h);
+        if (!(obj >= self && obj + sizeof(Msg) <= self + sizeof(h))) { std::puts("object is not stored inline"); return 1; }
+
+        // Re-emplace destroys the previous object first.
+        h.emplace<Msg>(5, 6);
+        if (Msg::dtor != 1 || Msg::live != 1) { std::puts("re-emplace should destroy the old value"); return 1; }
+
+        // reset() runs the destructor and empties the holder.
+        h.reset();
+        if (h.has_value() || Msg::live != 0 || Msg::dtor != 2) { std::puts("reset should destroy and clear"); return 1; }
+
+        // The same holder can hold a completely different type.
+        SboHolder<64> h2;
+        long* v = h2.emplace<long>(42);
+        if (!v || *v != 42) { std::puts("should hold a long too"); return 1; }
+        h2.reset();
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** SBO trades a fixed byte budget for zero heap allocation: the object is placement-`new`d directly into an inline `alignas(Align) unsigned char[Cap]` buffer. The subtlety is destruction — at `reset` time the concrete type is gone, so `emplace` records a type-erased destroy thunk (`void(*)(void*)`), produced by a captureless lambda that decays to a function pointer, capturing the type without any allocation. `static_assert`s turn an oversized or over-aligned type into a compile error rather than a stack smash. The holder is non-copyable because two holders must never claim ownership of the same in-place object. This is the mechanism behind `std::function`'s small-object buffer and inline `any`/`variant`-style containers used to keep callbacks and messages off the heap in latency-critical code.
+
+## challenge: Branchless max
+tags: branchless, bit-tricks, low-level-optimization
+track: hft
+difficulty: easy
+
+A data-dependent branch that the CPU cannot predict costs ~15-20 cycles when it mispredicts and flushes the pipeline. Compute the maximum of two ints without a branch, using the two's-complement bit trick: `a ^ ((a ^ b) & -(a < b))`. Implement `int bmax(int a, int b)` returning the larger of the two. (The compiler will usually emit a `cmov` for `a < b ? a : b` — but interviewers want you to derive the mask by hand.)
+
+Constraints: `a` and `b` are any 32-bit `int`, including `INT_MIN` and `INT_MAX`. No overflow is allowed — you are only comparing and selecting, never adding.
+
+Example: `bmax(3, 5)` → `5`. Example: `bmax(-2, -9)` → `-2`. Example: `bmax(INT_MIN, INT_MAX)` → `INT_MAX`.
+
+hint: Turn the boolean `a < b` into an all-zero or all-ones bitmask with unary minus, then use it to select between the two inputs — no jump means nothing to mispredict.
+hint: `-(a < b)` is `0` (all bits clear) when `a >= b` and `-1` (all bits set) when `a < b`.
+hint: `a ^ ((a ^ b) & mask)` collapses to `a` when the mask is `0` and to `b` when it is all-ones; pick which one you keep so the result is the larger value.
+
+```cpp
+// starter
+int bmax(int a, int b);
+```
+
+```cpp
+int bmax(int a, int b) {
+    return a ^ ((a ^ b) & -(a < b));
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    struct { int a, b, want; } cases[] = {
+        {3, 5, 5}, {5, 3, 5}, {-2, -9, -2}, {7, 7, 7},
+        {0, -1, 0}, {INT_MIN, INT_MAX, INT_MAX}, {INT_MAX, 0, INT_MAX},
+        {INT_MIN, INT_MIN, INT_MIN}, {-100, -100, -100}, {INT_MIN, 0, 0},
+    };
+    for (auto& c : cases) {
+        int got = bmax(c.a, c.b);
+        if (got != c.want) { std::printf("bmax(%d,%d)=%d want %d\n", c.a, c.b, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `a < b` produces `0` or `1`; unary minus turns that into an all-zero or all-ones mask. `a ^ ((a ^ b) & mask)` equals `a` when the mask is `0` (so `a >= b`, and `a` is the max) and equals `a ^ (a ^ b) == b` when the mask is all-ones (so `a < b`, and `b` is the max). There is no conditional jump, so the branch predictor is never involved and there is no ~15-20-cycle flush on misprediction. In practice a modern compiler already lowers `a < b ? a : b` to a `cmov` at `-O2`; the mask form makes the data-flow explicit and is the answer expected in interviews. Constant O(1) work, no overflow because nothing is added.
+
+## challenge: Branchless sign of an int
+tags: branchless, bit-tricks, low-level-optimization
+track: hft
+difficulty: easy
+
+The sign function returns `-1` for negatives, `0` for zero, and `+1` for positives. Written with `if`s it is three data-dependent branches on the hot path; each unpredictable one can cost ~15-20 cycles when it mispredicts. Implement `int sign(int x)` with no branches by subtracting two boolean comparisons.
+
+Constraints: `x` is any 32-bit `int`, including `INT_MIN` and `INT_MAX`. Do not compute `-x` or `x` in a way that could overflow — comparisons against `0` are enough.
+
+Example: `sign(42)` → `1`. Example: `sign(-7)` → `-1`. Example: `sign(0)` → `0`. Example: `sign(INT_MIN)` → `-1`.
+
+hint: Two comparisons, each yielding `0` or `1`, can be combined so their difference lands in `{-1, 0, 1}` — no branch and no negation of `x` itself.
+hint: `(x > 0)` is `1` exactly for positives; `(x < 0)` is `1` exactly for negatives; they are never both `1`.
+hint: Subtract the "is-negative" flag from the "is-positive" flag: `(x > 0) - (x < 0)`.
+
+```cpp
+// starter
+int sign(int x);
+```
+
+```cpp
+int sign(int x) {
+    return (x > 0) - (x < 0);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    struct { int x, want; } cases[] = {
+        {42, 1}, {-7, -1}, {0, 0}, {1, 1}, {-1, -1},
+        {INT_MAX, 1}, {INT_MIN, -1}, {2147483646, 1}, {-2147483647, -1},
+    };
+    for (auto& c : cases) {
+        int got = sign(c.x);
+        if (got != c.want) { std::printf("sign(%d)=%d want %d\n", c.x, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `(x > 0)` and `(x < 0)` each evaluate to `0` or `1` and are mutually exclusive, so their difference is exactly `+1`, `-1`, or `0`. No value is ever negated, so `INT_MIN` is safe — the naive `x < 0 ? -1 : (x > 0 ? 1 : 0)` is correct too but introduces two branches that a random sign stream mispredicts about half the time, each flush costing ~15-20 cycles. The subtraction form has none: a compiler lowers each comparison to a `setcc` (or a shift-based idiom) and emits one subtract, so the whole function is a handful of dependent, jump-free instructions. O(1), no overflow.
+
+## challenge: Conditional negate
+tags: branchless, bit-tricks, low-level-optimization
+track: hft
+difficulty: easy
+
+You often need "negate this value only if a flag is set" — e.g. applying a sign bit decoded from a message. Written as `flag ? -x : x` it is a branch on runtime data, mispredicting for ~15-20 cycles when the flag pattern is irregular. Implement `int cneg(int x, int flag)` that returns `-x` when `flag` is nonzero and `x` when `flag` is `0`, with no branch and no undefined behaviour.
+
+Constraints: `x` is any 32-bit `int` including `INT_MIN`; `flag` is any int treated as a boolean. Negating `INT_MIN` is not representable, so `cneg(INT_MIN, 1)` must return `INT_MIN` (the two's-complement wraparound result) without triggering signed-overflow UB — do the arithmetic in `unsigned`.
+
+Example: `cneg(5, 1)` → `-5`. Example: `cneg(5, 0)` → `5`. Example: `cneg(-3, 1)` → `3`. Example: `cneg(INT_MIN, 1)` → `INT_MIN`.
+
+hint: Two's-complement negation is `~x + 1`, i.e. `(x ^ -1) + 1`; generalise the `-1` into a mask that is either all-ones (negate) or all-zeros (leave alone).
+hint: With mask `m` all-ones or all-zeros, `(x ^ m) - m` equals `-x` when `m == -1` and `x` when `m == 0`.
+hint: Build `m` from the flag in `unsigned` so the wrap on `INT_MIN` is well-defined: `unsigned m = -(unsigned)(flag != 0);`.
+
+```cpp
+// starter
+int cneg(int x, int flag);
+```
+
+```cpp
+int cneg(int x, int flag) {
+    unsigned m = -(unsigned)(flag != 0);   // 0x00000000 or 0xFFFFFFFF
+    return (int)(((unsigned)x ^ m) - m);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    struct { int x, flag, want; } cases[] = {
+        {5, 1, -5}, {5, 0, 5}, {-3, 1, 3}, {-3, 0, -3},
+        {0, 1, 0}, {0, 0, 0}, {INT_MAX, 1, -INT_MAX}, {INT_MIN, 1, INT_MIN},
+        {INT_MIN, 0, INT_MIN}, {7, 42, -7},
+    };
+    for (auto& c : cases) {
+        int got = cneg(c.x, c.flag);
+        if (got != c.want) { std::printf("cneg(%d,%d)=%d want %d\n", c.x, c.flag, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Two's-complement negation is `~x + 1`. Replace the constant `~` (i.e. XOR with `-1`) by a mask `m` that is all-ones when you want to negate and all-zeros otherwise: `(x ^ m) - m` gives `-x` for `m == 0xFFFFFFFF` and `x` for `m == 0`. Building `m` and doing the subtract in `unsigned` keeps everything well-defined — critically, `cneg(INT_MIN, 1)` wraps to `INT_MIN` instead of the UB that `-x` would invoke, and in C++20 the final narrowing conversion back to `int` is defined to wrap. There is no branch, so the irregular flag stream never triggers a ~15-20-cycle misprediction; the compiler emits an XOR, a subtract, and a mask setup instead of a conditional jump. O(1).
+
+## challenge: Branchless select (cond ? a : b)
+tags: branchless, bit-tricks, low-level-optimization
+track: hft
+difficulty: medium
+
+A ternary `cond ? a : b` on unpredictable `cond` is a branch, and on the hot path an irregular condition mispredicts for ~15-20 cycles each time. Implement `int bselect(int cond, int a, int b)` that returns `a` when `cond` is nonzero and `b` when `cond` is `0`, using a bitmask select instead of a branch. This is the primitive every other branchless trick is built on.
+
+Constraints: `a` and `b` are any 32-bit `int` including `INT_MIN`/`INT_MAX`; `cond` is any int treated as a boolean. No arithmetic on `a`/`b` beyond bitwise ops — so no overflow is possible.
+
+Example: `bselect(1, 10, 20)` → `10`. Example: `bselect(0, 10, 20)` → `20`. Example: `bselect(5, -1, INT_MIN)` → `-1` (any nonzero `cond` selects `a`).
+
+hint: Normalise `cond` to `0`/`1` with `cond != 0`, then turn it into an all-zero or all-ones mask so you can blend `a` and `b` bit for bit.
+hint: With `m = -(cond != 0)` (`0` or `-1`), `(a & m) | (b & ~m)` keeps `a` when `m` is all-ones and `b` when `m` is all-zeros.
+hint: The XOR form needs one fewer op: `b ^ ((a ^ b) & m)` — it is `b` when `m == 0` and `a` when `m == -1`.
+
+```cpp
+// starter
+int bselect(int cond, int a, int b);
+```
+
+```cpp
+int bselect(int cond, int a, int b) {
+    int m = -(cond != 0);            // 0 or -1 (all bits set)
+    return b ^ ((a ^ b) & m);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    struct { int cond, a, b, want; } cases[] = {
+        {1, 10, 20, 10}, {0, 10, 20, 20}, {5, -1, INT_MIN, -1},
+        {0, INT_MAX, INT_MIN, INT_MIN}, {1, INT_MIN, INT_MAX, INT_MIN},
+        {-3, 7, 8, 7}, {0, 0, -1, -1}, {1, 0, -1, 0},
+    };
+    for (auto& c : cases) {
+        int got = bselect(c.cond, c.a, c.b);
+        if (got != c.want) { std::printf("bselect(%d,%d,%d)=%d want %d\n", c.cond, c.a, c.b, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `cond != 0` collapses any truthy value to `1`; negating gives a mask `m` that is `0` or `-1` (all-ones). `b ^ ((a ^ b) & m)` reduces to `b` when `m == 0` and to `b ^ (a ^ b) == a` when `m == -1`, selecting without a branch. The equivalent `(a & m) | (b & ~m)` is the blend form. Because only bitwise operations touch `a` and `b`, there is no overflow even at `INT_MIN`. The payoff is on the hot path: an irregular `cond` would mispredict roughly half the time, each flush burning ~15-20 cycles, whereas the mask select is a fixed short chain of dependent instructions — exactly what a compiler produces as a `cmov` for `cond ? a : b`. O(1).
+
+## challenge: Branchless clamp to [lo, hi]
+tags: branchless, bit-tricks, low-level-optimization
+track: hft
+difficulty: medium
+
+Clamping a value into a range shows up everywhere — bounding an order price, saturating an index. The obvious `if (x < lo) x = lo; else if (x > hi) x = hi;` is two data-dependent branches, each risking a ~15-20-cycle misprediction. Implement `int clampi(int x, int lo, int hi)` returning `x` clamped to `[lo, hi]` using two branchless selects (a branchless `max` then a branchless `min`).
+
+Constraints: `lo <= hi`. All of `x`, `lo`, `hi` are any 32-bit `int` including `INT_MIN`/`INT_MAX`. Use only comparisons and bitwise selection — no additions, so no overflow.
+
+Example: `clampi(5, 0, 10)` → `5`. Example: `clampi(-3, 0, 10)` → `0`. Example: `clampi(99, 0, 10)` → `10`. Example: `clampi(INT_MAX, INT_MIN, 0)` → `0`.
+
+hint: `clamp(x, lo, hi) == min(max(x, lo), hi)`; build each of `max` and `min` from the mask trick so neither step branches.
+hint: `max(x, lo) = x ^ ((x ^ lo) & -(x < lo))` — it becomes `lo` when `x < lo` and `x` otherwise.
+hint: Feed that result into `min(m, hi) = hi ^ ((m ^ hi) & -(m < hi))` to cap it at `hi`.
+
+```cpp
+// starter
+int clampi(int x, int lo, int hi);
+```
+
+```cpp
+int clampi(int x, int lo, int hi) {
+    int m = x ^ ((x ^ lo) & -(x < lo));    // max(x, lo)
+    return hi ^ ((m ^ hi) & -(m < hi));    // min(m, hi)
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    struct { int x, lo, hi, want; } cases[] = {
+        {5, 0, 10, 5}, {-3, 0, 10, 0}, {99, 0, 10, 10}, {0, 0, 10, 0}, {10, 0, 10, 10},
+        {INT_MAX, INT_MIN, 0, 0}, {INT_MIN, 0, INT_MAX, 0}, {INT_MIN, INT_MIN, INT_MAX, INT_MIN},
+        {INT_MAX, INT_MIN, INT_MAX, INT_MAX}, {-7, -5, 5, -5},
+    };
+    for (auto& c : cases) {
+        int got = clampi(c.x, c.lo, c.hi);
+        if (got != c.want) { std::printf("clampi(%d,%d,%d)=%d want %d\n", c.x, c.lo, c.hi, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Clamping is a composition of `max` and `min`, and each is a masked select. `max(x, lo)` raises anything below `lo` up to `lo`; feeding the result into `min(·, hi)` caps anything above `hi`. Every step uses `-(cond)` to build an all-zeros/all-ones mask and an XOR to blend, so no conditional jump is emitted — the two `if`s that a naive clamp compiles to would each mispredict on irregular data for ~15-20 cycles. Only comparisons and bitwise ops touch the values, so even `INT_MIN`/`INT_MAX` inputs are safe. At `-O2` the compiler typically produces two `cmov`s for the same effect. O(1).
+
+## challenge: Branchless absolute difference |a - b|
+tags: branchless, bit-tricks, low-level-optimization
+track: hft
+difficulty: medium
+
+`|a - b|` is a distance you compute constantly (price ticks apart, book depth). The naive `a > b ? a - b : b - a` branches on the ordering, and `a - b` can overflow a signed int (e.g. `INT_MIN - INT_MAX`). Implement `unsigned absdiff(int a, int b)` returning `|a - b|` as an `unsigned`, branchlessly and with no signed-overflow UB.
+
+Constraints: `a`, `b` any 32-bit `int` including `INT_MIN`/`INT_MAX`. The true distance can be as large as `4294967295` (`|INT_MIN - INT_MAX|`), which fits exactly in `unsigned` but not in `int` — so compute in `unsigned`.
+
+Example: `absdiff(5, 3)` → `2`. Example: `absdiff(3, 5)` → `2`. Example: `absdiff(INT_MIN, INT_MAX)` → `4294967295`. Example: `absdiff(0, INT_MIN)` → `2147483648`.
+
+hint: Compute the raw wrapped difference `d = (unsigned)a - (unsigned)b` — it is either the answer or its two's-complement negation depending on which input is larger.
+hint: Build a mask `m` from `a < b` and conditionally negate `d`: `(d ^ m) - m` flips the sign only when needed, all in `unsigned` so nothing overflows.
+hint: `unsigned m = -(unsigned)(a < b);` is `0` when `a >= b` (keep `d`) and `0xFFFFFFFF` when `a < b` (negate `d`).
+
+```cpp
+// starter
+unsigned absdiff(int a, int b);
+```
+
+```cpp
+unsigned absdiff(int a, int b) {
+    unsigned d = (unsigned)a - (unsigned)b;   // wrapped difference, no UB
+    unsigned m = -(unsigned)(a < b);          // 0 or 0xFFFFFFFF
+    return (d ^ m) - m;                        // negate d iff a < b
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    struct { int a, b; unsigned want; } cases[] = {
+        {5, 3, 2}, {3, 5, 2}, {7, 7, 0}, {-4, 4, 8}, {4, -4, 8},
+        {INT_MIN, INT_MAX, 4294967295u}, {INT_MAX, INT_MIN, 4294967295u},
+        {0, INT_MIN, 2147483648u}, {INT_MIN, 0, 2147483648u}, {-100, -100, 0},
+    };
+    for (auto& c : cases) {
+        unsigned got = absdiff(c.a, c.b);
+        if (got != c.want) { std::printf("absdiff(%d,%d)=%u want %u\n", c.a, c.b, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Doing the subtraction in `unsigned` makes the wrap well-defined: `d = (unsigned)a - (unsigned)b` is the correct magnitude when `a >= b` and its two's-complement negation when `a < b`. The mask `m = -(a < b)` is `0` or all-ones, and `(d ^ m) - m` is the conditional-negate idiom — it leaves `d` alone when `m == 0` and returns `~d + 1 == -d` when `m` is all-ones. Nothing is ever done in signed arithmetic, so `INT_MIN`/`INT_MAX` inputs never invoke overflow UB, and the full `4294967295` result is representable because it lives in `unsigned`. No branch means no ~15-20-cycle misprediction on irregular ordering; the compiler emits a `setcc`/`cmov`-style select. O(1).
+
+## challenge: Branchless three-way compare
+tags: branchless, bit-tricks, low-level-optimization
+track: hft
+difficulty: medium
+
+A three-way comparator returns `-1` if `a < b`, `0` if `a == b`, `+1` if `a > b` — the primitive under `<=>`, `qsort` comparators, and order-matching. The textbook version is a nest of branches; on unpredictable inputs each mispredict costs ~15-20 cycles. Implement `int cmp3(int a, int b)` returning `-1/0/+1` with no branches and no overflow.
+
+Constraints: `a`, `b` any 32-bit `int` including `INT_MIN`/`INT_MAX`. Do not compute `a - b` (it overflows for far-apart inputs) — compare directly.
+
+Example: `cmp3(3, 5)` → `-1`. Example: `cmp3(5, 3)` → `1`. Example: `cmp3(7, 7)` → `0`. Example: `cmp3(INT_MIN, INT_MAX)` → `-1`.
+
+hint: Two independent comparisons, each `0`/`1`, can be subtracted so the result is exactly one of `-1`, `0`, `1` — and neither compares by subtracting the operands.
+hint: `(a > b)` is `1` only when `a` is greater; `(a < b)` is `1` only when `a` is smaller; they are never both `1`.
+hint: `(a > b) - (a < b)` gives `+1`, `-1`, or `0` directly.
+
+```cpp
+// starter
+int cmp3(int a, int b);
+```
+
+```cpp
+int cmp3(int a, int b) {
+    return (a > b) - (a < b);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    struct { int a, b, want; } cases[] = {
+        {3, 5, -1}, {5, 3, 1}, {7, 7, 0}, {-1, 1, -1}, {1, -1, 1},
+        {INT_MIN, INT_MAX, -1}, {INT_MAX, INT_MIN, 1}, {INT_MIN, INT_MIN, 0},
+        {INT_MAX, INT_MAX, 0}, {0, -1, 1},
+    };
+    for (auto& c : cases) {
+        int got = cmp3(c.a, c.b);
+        if (got != c.want) { std::printf("cmp3(%d,%d)=%d want %d\n", c.a, c.b, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The trap is `sign(a - b)`: the subtraction overflows for far-apart signed inputs (`INT_MIN - INT_MAX` is UB and wraps to a positive value, giving the wrong sign). Comparing directly avoids it — `(a > b)` and `(a < b)` each evaluate to `0` or `1`, are mutually exclusive, and their difference is exactly `+1`, `-1`, or `0`. No subtraction of operands means no overflow even at the extremes; no branch means the irregular comparison stream never triggers a ~15-20-cycle pipeline flush. A compiler lowers each comparison to a `setcc` and emits one subtract, so `cmp3` is a few jump-free dependent instructions. O(1).
+
+## challenge: Branchless compare-swap (sorting-network primitive)
+tags: branchless, bit-tricks, low-level-optimization
+track: hft
+difficulty: medium
+
+A compare-exchange orders two elements in place: after it runs, `a <= b`. It is the atom of sorting networks, which HFT code uses to sort tiny fixed-size sets (top-of-book levels) with zero data-dependent branches. The naive `if (a > b) std::swap(a, b)` branches on the data; on random inputs it mispredicts ~50% of the time at ~15-20 cycles each. Implement `void cswap(int& a, int& b)` that leaves the smaller in `a` and the larger in `b`, branchlessly.
+
+Constraints: `a`, `b` any 32-bit `int` including `INT_MIN`/`INT_MAX`. Use only comparison and bitwise selection — no additions, so no overflow. If already ordered, leave them unchanged.
+
+Example: `cswap` on `(5, 3)` → `a=3, b=5`. Example: `(3, 5)` → `a=3, b=5` (unchanged). Example: `(INT_MAX, INT_MIN)` → `a=INT_MIN, b=INT_MAX`.
+
+hint: Compute the min and the max with the same mask, then write them back — no swap, no branch.
+hint: Build the mask once: `int m = -(a < b);` (all-ones if already ordered, all-zeros if not).
+hint: `mn = b ^ ((a ^ b) & m)` is the smaller and `mx = a ^ ((a ^ b) & m)` is the larger; store `a = mn; b = mx;`.
+
+```cpp
+// starter
+void cswap(int& a, int& b);
+```
+
+```cpp
+void cswap(int& a, int& b) {
+    int m  = -(a < b);                 // -1 if a < b else 0
+    int d  = (a ^ b) & m;
+    int mn = b ^ d;                    // min(a, b)
+    int mx = a ^ d;                    // max(a, b)
+    a = mn;
+    b = mx;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+static int check(int a0, int b0, int wa, int wb) {
+    int a = a0, b = b0;
+    cswap(a, b);
+    if (a != wa || b != wb) { std::printf("cswap(%d,%d)=(%d,%d) want (%d,%d)\n", a0, b0, a, b, wa, wb); return 1; }
+    return 0;
+}
+int main() {
+    if (check(5, 3, 3, 5)) return 1;
+    if (check(3, 5, 3, 5)) return 1;
+    if (check(7, 7, 7, 7)) return 1;
+    if (check(INT_MAX, INT_MIN, INT_MIN, INT_MAX)) return 1;
+    if (check(INT_MIN, INT_MAX, INT_MIN, INT_MAX)) return 1;
+    if (check(-2, -9, -9, -2)) return 1;
+    if (check(0, INT_MIN, INT_MIN, 0)) return 1;
+    if (check(INT_MAX, 0, 0, INT_MAX)) return 1;
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Order-two-in-place is a min and a max sharing one mask. `m = -(a < b)` is all-ones when the pair is already sorted and all-zeros otherwise; `d = (a ^ b) & m` is `a ^ b` in the sorted case and `0` in the unsorted case. Then `b ^ d` yields the smaller and `a ^ d` the larger, and writing both back leaves `a <= b` unconditionally. No `swap`, no jump — the naive `if (a > b) swap` mispredicts on random data for ~15-20 cycles per miss, which is why sorting networks built from branchless compare-exchanges beat comparison sorts on tiny fixed inputs. Only comparisons and XOR/AND touch the values, so `INT_MIN`/`INT_MAX` are safe. Compilers emit a pair of `cmov`s. O(1).
+
+## challenge: Branchless is-in-range with the unsigned trick
+tags: branchless, bit-tricks, low-level-optimization
+track: hft
+difficulty: medium
+
+Testing `lo <= x && x <= hi` is two comparisons and, with `&&`, a short-circuit branch. On the hot path (validating an index, gating a price band) the branch mispredicts for ~15-20 cycles on irregular inputs. Implement `bool in_range(int x, int lo, int hi)` using the classic single-comparison unsigned trick, with no branch and no signed-overflow UB.
+
+Constraints: `lo <= hi`. All of `x`, `lo`, `hi` any 32-bit `int` including `INT_MIN`/`INT_MAX`. The offsets `x - lo` and `hi - lo` can exceed `INT_MAX`, so compute them in `unsigned`.
+
+Example: `in_range(5, 0, 10)` → `true`. Example: `in_range(-1, 0, 10)` → `false`. Example: `in_range(11, 0, 10)` → `false`. Example: `in_range(0, -5, 5)` → `true`.
+
+hint: Shift the window so it starts at zero: rebase `x` and `hi` by `lo`. Anything below `lo` wraps around to a huge unsigned value and falls outside in a single test.
+hint: In `unsigned`, `x < lo` makes `(unsigned)x - (unsigned)lo` wrap to a value larger than `(unsigned)hi - (unsigned)lo`, so one comparison covers both ends.
+hint: `return (unsigned)((unsigned)x - (unsigned)lo) <= (unsigned)((unsigned)hi - (unsigned)lo);`.
+
+```cpp
+// starter
+bool in_range(int x, int lo, int hi);
+```
+
+```cpp
+bool in_range(int x, int lo, int hi) {
+    return ((unsigned)x - (unsigned)lo) <= ((unsigned)hi - (unsigned)lo);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    struct { int x, lo, hi; bool want; } cases[] = {
+        {5, 0, 10, true}, {-1, 0, 10, false}, {11, 0, 10, false},
+        {0, 0, 10, true}, {10, 0, 10, true}, {0, -5, 5, true}, {-6, -5, 5, false},
+        {INT_MIN, INT_MIN, INT_MAX, true}, {INT_MAX, 0, INT_MAX, true},
+        {INT_MIN, 0, INT_MAX, false},
+    };
+    for (auto& c : cases) {
+        bool got = in_range(c.x, c.lo, c.hi);
+        if (got != c.want) { std::printf("in_range(%d,%d,%d)=%d want %d\n", c.x, c.lo, c.hi, (int)got, (int)c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Rebasing the window to zero collapses a two-sided test into one. In `unsigned`, `(unsigned)x - (unsigned)lo` is the offset from `lo`; if `x < lo` the subtraction wraps to a value near `UINT_MAX`, which is guaranteed greater than the width `(unsigned)hi - (unsigned)lo`, so the single `<=` rejects both the below-`lo` and above-`hi` cases at once. Doing it in `unsigned` also sidesteps signed-overflow UB when `hi - lo` or `x - lo` exceeds `INT_MAX` (e.g. the full `[INT_MIN, INT_MAX]` window). One comparison, no `&&` short-circuit, so no ~15-20-cycle misprediction on irregular data — and half the comparison work of the naive form. O(1).
+
+## challenge: Branchless saturating add
+tags: branchless, bit-tricks, low-level-optimization
+track: hft
+difficulty: hard
+
+Saturating add clamps `a + b` to `[INT_MIN, INT_MAX]` instead of overflowing — needed for fixed-point accumulators and counters that must not wrap. The tricky part is detecting signed overflow *without* triggering it (signed overflow is UB, so `a + b` is off-limits), and doing it with no branch so the ~15-20-cycle misprediction penalty never appears. Implement `int sat_add(int a, int b)`.
+
+Constraints: `a`, `b` any 32-bit `int` including `INT_MIN`/`INT_MAX`. Compute the sum and the overflow test entirely in `unsigned`; positive overflow saturates to `INT_MAX`, negative overflow to `INT_MIN`.
+
+Example: `sat_add(INT_MAX, 1)` → `INT_MAX`. Example: `sat_add(INT_MIN, -1)` → `INT_MIN`. Example: `sat_add(5, 3)` → `8`. Example: `sat_add(-5, 3)` → `-2`.
+
+hint: Overflow happens only when `a` and `b` share a sign but the wrapped `sum` has the opposite sign; encode "same input sign" and "sum sign flipped" as bit-31 tests and AND them.
+hint: The saturation limit is `INT_MAX` when `a >= 0` and `INT_MIN` when `a < 0`: `lim = (unsigned)INT_MAX + (ua >> 31)` gives `0x7FFFFFFF` or `0x80000000`.
+hint: Turn the overflow bit into an all-ones/all-zeros mask with an arithmetic right shift by 31, then branchlessly select between `sum` and `lim`.
+
+```cpp
+// starter
+int sat_add(int a, int b);
+```
+
+```cpp
+int sat_add(int a, int b) {
+    unsigned ua  = (unsigned)a;
+    unsigned ub  = (unsigned)b;
+    unsigned sum = ua + ub;                              // wraps, no UB
+    unsigned lim = (unsigned)INT_MAX + (ua >> 31);       // INT_MAX or INT_MIN
+    // overflow iff a,b same sign (~(ua^ub) sign bit) AND sum sign differs from a (ua^sum sign bit)
+    unsigned ovf = (unsigned)(((int)(~(ua ^ ub) & (ua ^ sum))) >> 31);
+    return (int)((sum & ~ovf) | (lim & ovf));
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    struct { int a, b, want; } cases[] = {
+        {INT_MAX, 1, INT_MAX}, {INT_MIN, -1, INT_MIN}, {5, 3, 8}, {-5, 3, -2},
+        {INT_MAX, INT_MAX, INT_MAX}, {INT_MIN, INT_MIN, INT_MIN},
+        {INT_MAX, INT_MIN, -1}, {2000000000, 2000000000, INT_MAX},
+        {-2000000000, -2000000000, INT_MIN}, {0, 0, 0}, {INT_MAX, 0, INT_MAX}, {INT_MIN, 0, INT_MIN},
+    };
+    for (auto& c : cases) {
+        int got = sat_add(c.a, c.b);
+        if (got != c.want) { std::printf("sat_add(%d,%d)=%d want %d\n", c.a, c.b, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Signed overflow is UB, so the whole computation lives in `unsigned`, where `sum = ua + ub` wraps deterministically. Overflow can only occur when the operands share a sign yet the result's sign flips: `~(ua ^ ub)` has bit 31 set exactly when `a` and `b` have the same sign, and `ua ^ sum` has bit 31 set exactly when the sum's sign differs from `a`'s — ANDing them isolates overflow in bit 31. An arithmetic right shift by 31 smears that bit into an all-ones/all-zeros mask `ovf`. The saturation target depends on direction: `(unsigned)INT_MAX + (ua >> 31)` is `0x7FFFFFFF` when `a >= 0` and `0x80000000` (`INT_MIN`) when `a < 0`. The final `(sum & ~ovf) | (lim & ovf)` is a branchless select. No conditional jump means the overflow path never costs a ~15-20-cycle misprediction, and C++20's defined signed-shift and unsigned-to-signed conversion keep it UB-free. O(1).
+
+## challenge: Branchless saturating subtract
+tags: branchless, bit-tricks, low-level-optimization
+track: hft
+difficulty: hard
+
+Saturating subtract clamps `a - b` to `[INT_MIN, INT_MAX]` instead of overflowing. As with saturating add, the challenge is detecting signed overflow without invoking it (so no signed `a - b`) and doing it branchlessly so the ~15-20-cycle misprediction penalty never appears. Implement `int sat_sub(int a, int b)`.
+
+Constraints: `a`, `b` any 32-bit `int` including `INT_MIN`/`INT_MAX`. Do the difference and the overflow test in `unsigned`. Positive overflow (e.g. `INT_MAX - (-1)`) saturates to `INT_MAX`; negative overflow (e.g. `INT_MIN - 1`) saturates to `INT_MIN`.
+
+Example: `sat_sub(INT_MAX, -1)` → `INT_MAX`. Example: `sat_sub(INT_MIN, 1)` → `INT_MIN`. Example: `sat_sub(5, 3)` → `2`. Example: `sat_sub(3, 5)` → `-2`.
+
+hint: Subtraction overflows only when `a` and `b` have *different* signs and the wrapped result's sign differs from `a`'s; note the sign-difference test is the opposite of the add case.
+hint: `(ua ^ ub)` has bit 31 set when the inputs differ in sign; `(ua ^ diff)` has bit 31 set when the result's sign differs from `a`; AND them for the overflow bit.
+hint: The limit is still `lim = (unsigned)INT_MAX + (ua >> 31)` (`INT_MAX` if `a >= 0`, else `INT_MIN`); arithmetic-shift the overflow bit to a mask and select.
+
+```cpp
+// starter
+int sat_sub(int a, int b);
+```
+
+```cpp
+int sat_sub(int a, int b) {
+    unsigned ua   = (unsigned)a;
+    unsigned ub   = (unsigned)b;
+    unsigned diff = ua - ub;                             // wraps, no UB
+    unsigned lim  = (unsigned)INT_MAX + (ua >> 31);      // INT_MAX or INT_MIN
+    // overflow iff a,b differ in sign (ua^ub sign bit) AND diff sign differs from a (ua^diff sign bit)
+    unsigned ovf  = (unsigned)(((int)((ua ^ ub) & (ua ^ diff))) >> 31);
+    return (int)((diff & ~ovf) | (lim & ovf));
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    struct { int a, b, want; } cases[] = {
+        {INT_MAX, -1, INT_MAX}, {INT_MIN, 1, INT_MIN}, {5, 3, 2}, {3, 5, -2},
+        {INT_MIN, INT_MAX, INT_MIN}, {INT_MAX, INT_MIN, INT_MAX},
+        {0, INT_MIN, INT_MAX}, {INT_MIN, INT_MIN, 0}, {INT_MAX, INT_MAX, 0},
+        {-2000000000, 2000000000, INT_MIN}, {2000000000, -2000000000, INT_MAX}, {0, 0, 0},
+    };
+    for (auto& c : cases) {
+        int got = sat_sub(c.a, c.b);
+        if (got != c.want) { std::printf("sat_sub(%d,%d)=%d want %d\n", c.a, c.b, got, c.want); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Because signed overflow is UB, the difference `diff = ua - ub` is taken in `unsigned`, where it wraps deterministically. Subtraction can overflow only when the operands differ in sign and the result's sign ends up differing from `a`'s — the mirror of the add rule. `ua ^ ub` has bit 31 set when the signs differ, `ua ^ diff` has bit 31 set when the result's sign flipped relative to `a`, and their AND isolates the overflow bit; an arithmetic right shift by 31 turns it into an all-ones/all-zeros mask. The saturation target `(unsigned)INT_MAX + (ua >> 31)` is `INT_MAX` for `a >= 0` and `INT_MIN` for `a < 0`, matching the direction of the overflow. `(diff & ~ovf) | (lim & ovf)` selects branchlessly, so an irregular overflow pattern never triggers a ~15-20-cycle pipeline flush, and every step is defined under C++20's two's-complement rules. O(1).
+
+## challenge: Branchless count of elements >= threshold
+tags: branchless, low-level-optimization, hot-loop
+track: hft
+difficulty: hard
+
+Counting how many array elements meet a threshold is a classic hot loop (how many quotes cross a price?). Written as `if (data[i] >= t) ++count;` the per-element `if` is data-dependent, and on random data it mispredicts ~50% of the time — ~15-20 cycles per miss, dwarfing the work. Implement `int count_ge(const int* data, int n, int t)` with no data-dependent branch in the loop body, so it stays predictable and vectorizes.
+
+Constraints: `n >= 0`; `data` has `n` elements; each element and `t` are any 32-bit `int` including `INT_MIN`/`INT_MAX`. Compare directly (no `data[i] - t`, which could overflow). The loop's own `i < n` bound is fine — it is perfectly predicted; only the per-element decision must be branchless.
+
+Example: `count_ge({1,5,3,8,2}, 5, 3)` → `3` (5, 3, 8). Example: with `t = INT_MIN` → `5` (all). Example: with `t = INT_MAX` and one `INT_MAX` present → count of those equal to `INT_MAX`.
+
+hint: A comparison already yields `0` or `1` — you do not need an `if` to turn "meets threshold" into a count contribution.
+hint: Accumulate the boolean directly: `count += (data[i] >= t);` — no jump, so nothing per element to mispredict.
+hint: Because each iteration is a compare producing `0`/`1` plus an add, the compiler can `setcc` it (and often SIMD-widen the reduction); the only branch left is the loop bound.
+
+```cpp
+// starter
+int count_ge(const int* data, int n, int t);
+```
+
+```cpp
+int count_ge(const int* data, int n, int t) {
+    int count = 0;
+    for (int i = 0; i < n; ++i) {
+        count += (data[i] >= t);       // 0 or 1, no data-dependent branch
+    }
+    return count;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <climits>
+//__USER__
+int main() {
+    int a[] = {1, 5, 3, 8, 2};
+    if (count_ge(a, 5, 3) != 3) { std::puts("case1"); return 1; }
+    if (count_ge(a, 5, INT_MIN) != 5) { std::puts("case2"); return 1; }
+    if (count_ge(a, 5, 9) != 0) { std::puts("case3"); return 1; }
+    if (count_ge(a, 0, 0) != 0) { std::puts("case4 empty"); return 1; }
+    int b[] = {INT_MIN, INT_MAX, 0, INT_MAX, -1};
+    if (count_ge(b, 5, INT_MAX) != 2) { std::puts("case5"); return 1; }
+    if (count_ge(b, 5, INT_MIN) != 5) { std::puts("case6"); return 1; }
+    if (count_ge(b, 5, 0) != 3) { std::puts("case7"); return 1; }   // INT_MAX,0,INT_MAX
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The comparison `data[i] >= t` is already a `0`/`1` value, so `count += (data[i] >= t)` folds the decision into arithmetic — there is no per-element conditional jump to mispredict. On random data the naive `if (...) ++count` mispredicts about half the time at ~15-20 cycles per miss, which can cost more than the loop's real work; the branchless form keeps the pipeline full and lets the compiler emit a `setcc`/`cmov` and even SIMD-widen the reduction (comparing and summing several lanes at once). Comparing directly rather than testing `data[i] - t >= 0` avoids signed-overflow UB for far-apart values. The remaining `i < n` branch is loop control and is predicted essentially perfectly. O(n) time, O(1) space.
+
 ## quiz: You pay a fixed price to roll one fair six-sided die and are paid its face value in dollars. What is the fair price?
 tags: expected-value, dice
 track: quant
