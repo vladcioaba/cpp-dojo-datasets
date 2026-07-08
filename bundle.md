@@ -29047,6 +29047,2955 @@ int main() {
 
 **Editorial:** The comparison `data[i] >= t` is already a `0`/`1` value, so `count += (data[i] >= t)` folds the decision into arithmetic — there is no per-element conditional jump to mispredict. On random data the naive `if (...) ++count` mispredicts about half the time at ~15-20 cycles per miss, which can cost more than the loop's real work; the branchless form keeps the pipeline full and lets the compiler emit a `setcc`/`cmov` and even SIMD-widen the reduction (comparing and summing several lanes at once). Comparing directly rather than testing `data[i] - t >= 0` avoids signed-overflow UB for far-apart values. The remaining `i < n` branch is loop control and is predicted essentially perfectly. O(n) time, O(1) space.
 
+## challenge: Two Sum
+tags: array, hash-table
+track: python
+lang: python
+difficulty: easy
+
+Given a list `nums` and an integer `target`, return the indices of the two numbers that add up to `target`. Exactly one solution exists; you may not use the same element twice.
+
+Constraints: `2 <= len(nums) <= 10^4`, each input has exactly one answer.
+
+Example: `nums = [2, 7, 11, 15], target = 9` → `[0, 1]` (because `2 + 7 == 9`).
+
+hint: Brute force is O(n²) — can a dict remember the numbers you've already seen?
+hint: For each `x`, you need `target - x`. Look it up in O(1).
+hint: Store `value -> index` as you scan; check for the complement before inserting.
+
+```python
+# starter
+def two_sum(nums, target):
+    ...
+```
+
+```python
+def two_sum(nums, target):
+    seen = {}
+    for i, x in enumerate(nums):
+        if target - x in seen:
+            return [seen[target - x], i]
+        seen[x] = i
+    return []
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert sorted(two_sum([2, 7, 11, 15], 9)) == [0, 1]
+    assert sorted(two_sum([3, 2, 4], 6)) == [1, 2]
+    assert sorted(two_sum([3, 3], 6)) == [0, 1]
+    assert sorted(two_sum([-1, -2, -3, -4, -5], -8)) == [2, 4]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** One pass with a dict mapping each value to its index. For each element check whether its complement `target - x` was already seen; if so you have the pair. O(n) time, O(n) space — versus the O(n²) nested-loop scan.
+
+## fact: Mutable default arguments are evaluated once
+tags: functions, gotcha
+track: python
+
+A default argument is evaluated a single time — when the `def` executes, not on each call. If the default is mutable (`[]`, `{}`, `set()`), every call that omits the argument shares the *same* object, so mutations leak across calls.
+
+The fix is a sentinel: default to `None` and build a fresh object inside the body.
+
+```python
+def bad(x, acc=[]):
+    acc.append(x)
+    return acc
+bad(1)            # [1]
+bad(2)            # [1, 2]  <-- same list!
+
+def good(x, acc=None):
+    acc = [] if acc is None else acc
+    acc.append(x)
+    return acc
+```
+
+## fact: list vs tuple — mutability and hashability
+tags: data-structures, core
+track: python
+
+`list` is mutable and variable-length; `tuple` is immutable and typically fixed-shape ("a record"). Because a tuple's contents can't be reassigned, a tuple of hashable items is itself hashable, so it can be a `dict` key or `set` member — a list never can. This mirrors string immutability: strings, like tuples, are hashable and safe to share.
+
+Note "immutable" means the *tuple* can't be rebound, not that a mutable element inside it is frozen.
+
+```python
+{(1, 2): "point"}          # fine — tuple key
+# {[1, 2]: "point"}        # TypeError: unhashable type: 'list'
+t = (1, [2, 3])
+t[1].append(4)             # allowed — the inner list is mutable
+```
+
+## fact: is checks identity, == checks equality
+tags: operators, gotcha
+track: python
+
+`==` asks "do these have the same value?" (calls `__eq__`). `is` asks "are these the exact same object in memory?" (compares `id()`). They coincide often enough to hide bugs. Use `is` only for singletons — `None`, `True`, `False` — never for value comparison.
+
+```python
+a = [1, 2]
+b = [1, 2]
+a == b     # True  — equal values
+a is b     # False — distinct objects
+x = None
+x is None  # correct idiom (not x == None)
+```
+
+## fact: Small integers and short strings are cached
+tags: internals, gotcha
+track: python
+
+CPython pre-creates and reuses the integer objects from -5 to 256, so `is` on values in that range is accidentally `True`. Outside it, equal ints are usually distinct objects. The compiler also interns string literals that look like identifiers and de-duplicates constants within one code object. None of this is guaranteed by the language — so never rely on `is` for numbers or strings.
+
+```python
+a = 256; b = int("256")
+a is b            # True  — cached
+c = 257; d = int("257")
+c is d            # False — not cached
+```
+
+## fact: The GIL serializes Python bytecode
+tags: concurrency, internals
+track: python
+
+CPython's Global Interpreter Lock lets only one thread execute Python bytecode at a time. Threads still help with I/O-bound work (the GIL is released during blocking calls), but they give no speedup for CPU-bound pure-Python work. For CPU parallelism use `multiprocessing`, a C extension that releases the GIL, or a free-threaded build. The GIL also does *not* make your code automatically thread-safe: `+=` on a shared counter is still a race.
+
+```python
+# CPU-bound: threads won't scale, processes will
+from multiprocessing import Pool
+with Pool() as p:
+    results = p.map(heavy_compute, work)   # true parallelism
+```
+
+## fact: Generators and iterators are lazy and one-shot
+tags: iterators, laziness
+track: python
+
+An *iterable* is anything you can loop over (has `__iter__`); an *iterator* is the cursor that yields items one at a time (has `__next__`, raises `StopIteration` when done). A generator function (uses `yield`) or a generator expression produces an iterator: values are computed on demand and never stored, so memory stays flat even over huge sequences. But an iterator is exhausted after one pass — iterate again and you get nothing.
+
+```python
+def squares(n):
+    for i in range(n):
+        yield i * i        # lazy: one value at a time
+g = squares(3)
+list(g)     # [0, 1, 4]
+list(g)     # []  — already exhausted
+```
+
+## fact: Comprehensions build collections in one expression
+tags: comprehensions, idioms
+track: python
+
+List, set, and dict comprehensions (and generator expressions) replace explicit append loops with a single readable expression, and run faster because the loop stays in C. Swap `[]` for `()` to get a lazy generator instead of a materialized list. Pair with `enumerate` (index + value) and `zip` (parallel iteration) for common patterns.
+
+```python
+[x * x for x in range(5) if x % 2]      # [1, 9]      list
+{c for c in "banana"}                    # {'a','b','n'} set
+{k: v for k, v in zip("ab", [1, 2])}     # {'a':1,'b':2} dict
+(x * x for x in range(5))                # lazy generator
+for i, c in enumerate("ab"): ...         # 0 'a', 1 'b'
+```
+
+## fact: *args and **kwargs capture variadic arguments
+tags: functions, core
+track: python
+
+In a signature, `*args` collects extra positional arguments into a tuple and `**kwargs` collects extra keyword arguments into a dict. At a call site the same `*`/`**` operators *unpack* an iterable/mapping into arguments. A bare `*` in a signature forces the parameters after it to be keyword-only.
+
+```python
+def f(*args, **kwargs):
+    return args, kwargs
+f(1, 2, x=3)              # ((1, 2), {'x': 3})
+
+nums = [1, 2, 3]
+print(*nums)              # unpack -> print(1, 2, 3)
+
+def g(a, *, verbose=False):   # verbose is keyword-only
+    ...
+```
+
+## fact: Decorators wrap a callable in another callable
+tags: decorators, functions
+track: python
+
+`@dec` above a function means `func = dec(func)` — the decorator receives the function and returns a replacement, usually a wrapper that adds behavior around the original call. Use `functools.wraps` to preserve the wrapped function's name and docstring. Decorators are how `@property`, `@staticmethod`, and `functools.lru_cache` are implemented.
+
+```python
+import functools
+def timed(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        # ... start timer ...
+        return fn(*args, **kwargs)
+    return wrapper
+
+@timed
+def work(): ...
+```
+
+## fact: Closures capture variables, not values (late binding)
+tags: closures, gotcha
+track: python
+
+A closure remembers the *variable*, not the value it had when the closure was created. If you build closures in a loop over a loop variable, they all see the variable's final value — a classic surprise. Bind the current value explicitly with a default argument to freeze it per iteration.
+
+```python
+fns = [lambda: i for i in range(3)]
+[f() for f in fns]                 # [2, 2, 2]  — all see final i
+
+fns = [lambda i=i: i for i in range(3)]
+[f() for f in fns]                 # [0, 1, 2]  — value frozen
+```
+
+## fact: __slots__ trades flexibility for memory
+tags: internals, performance
+track: python
+
+By default each instance carries a `__dict__` so you can attach arbitrary attributes. Declaring `__slots__` replaces that dict with fixed descriptor storage: instances use noticeably less memory and attribute access is a touch faster, but you can no longer set attributes that aren't listed (and there's no `__dict__` unless you add one).
+
+```python
+class Point:
+    __slots__ = ("x", "y")
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+p = Point(1, 2)
+p.z = 3        # AttributeError — 'z' not in __slots__
+```
+
+## fact: Dunder methods hook into language syntax
+tags: data-model, protocols
+track: python
+
+Double-underscore ("dunder") methods let your objects respond to built-in syntax and functions: `__init__` (construction), `__repr__`/`__str__` (display), `__eq__`/`__hash__` (equality/hashing), `__len__`, `__getitem__`, `__iter__`, `__call__`, `__enter__`/`__exit__`. Python's operators and builtins are defined in terms of these protocols — implement the dunder and the syntax just works.
+
+```python
+class Vec:
+    def __init__(self, x, y): self.x, self.y = x, y
+    def __add__(self, o):     return Vec(self.x + o.x, self.y + o.y)
+    def __repr__(self):       return f"Vec({self.x}, {self.y})"
+Vec(1, 2) + Vec(3, 4)          # Vec(4, 6)
+```
+
+## fact: Duck typing cares about behavior, not type
+tags: typing, philosophy
+track: python
+
+"If it walks like a duck and quacks like a duck, treat it as a duck." Python code generally doesn't check an object's class — it just calls the methods it needs and works with anything that supplies them. This is why a function that iterates works on lists, tuples, generators, files, and any custom object with `__iter__`. Prefer relying on a protocol over `isinstance` checks.
+
+```python
+def total(items):        # any iterable of numbers works
+    return sum(items)
+total([1, 2, 3])         # list
+total((1, 2, 3))         # tuple
+total(x for x in range(4))   # generator
+```
+
+## fact: EAFP over LBYL
+tags: idioms, exceptions
+track: python
+
+Pythonic style prefers EAFP — "Easier to Ask Forgiveness than Permission": attempt the operation and handle the exception if it fails. The alternative, LBYL ("Look Before You Leap"), guards with checks first, which both duplicates work and opens a race window (the state can change between the check and the use).
+
+```python
+# LBYL — has a check-then-act gap
+if key in d:
+    v = d[key]
+
+# EAFP — one atomic attempt
+try:
+    v = d[key]
+except KeyError:
+    v = default
+```
+
+## fact: Shallow copy duplicates one level; deep copy recurses
+tags: copying, gotcha
+track: python
+
+`list(x)`, `x[:]`, and `copy.copy` make a *shallow* copy: a new outer container whose elements are the *same* inner objects. Mutating a nested object shows up in both copies. `copy.deepcopy` recursively clones everything, so the copy is fully independent (at the cost of speed and shared-structure duplication).
+
+```python
+import copy
+a = [[1, 2], [3, 4]]
+b = copy.copy(a)         # shallow
+b[0].append(99)
+a                        # [[1, 2, 99], [3, 4]]  — leaked!
+
+c = copy.deepcopy(a)     # fully independent
+```
+
+## fact: collections has better containers than dict and list
+tags: collections, stdlib
+track: python
+
+`defaultdict(factory)` auto-creates missing values (no `KeyError`, no `setdefault` boilerplate). `Counter` tallies hashables and gives `.most_common()`. `deque` is a double-ended queue with O(1) appends/pops at *both* ends — use it as a queue or a bounded sliding window instead of `list.pop(0)`, which is O(n).
+
+```python
+from collections import defaultdict, Counter, deque
+g = defaultdict(list)
+g["a"].append(1)                  # no KeyError
+Counter("mississippi").most_common(1)   # [('i', 4)]  (i and s tie)
+dq = deque([1, 2], maxlen=3)
+dq.appendleft(0)                  # O(1) at the front
+```
+
+## fact: itertools composes lazy iterator building blocks
+tags: itertools, laziness
+track: python
+
+`itertools` provides memory-efficient iterators you compose like a pipeline: `count`, `cycle`, `repeat` (infinite), `chain` (concatenate), `islice` (slice a lazy stream), `groupby`, `accumulate` (running totals), and the combinatorics `product`/`permutations`/`combinations`. Nothing is materialized until you consume it, so you can slice into infinite sequences.
+
+```python
+import itertools
+list(itertools.islice(itertools.count(10, 5), 3))   # [10, 15, 20]
+list(itertools.chain([1, 2], [3, 4]))               # [1, 2, 3, 4]
+list(itertools.accumulate([1, 2, 3, 4]))            # [1, 3, 6, 10]
+```
+
+## fact: Context managers guarantee cleanup with `with`
+tags: context-managers, resources
+track: python
+
+A `with` block calls `__enter__` on entry and `__exit__` on exit — including on exceptions and early returns — so resources (files, locks, connections) are released deterministically. It is Python's answer to try/finally boilerplate. Write one via `__enter__`/`__exit__` on a class, or more simply with `@contextlib.contextmanager` around a generator that `yield`s once.
+
+```python
+from contextlib import contextmanager
+@contextmanager
+def opened(path):
+    f = open(path)
+    try:
+        yield f            # body runs here
+    finally:
+        f.close()          # always runs
+with opened("data.txt") as f:
+    ...
+```
+
+## fact: Slicing supports negative indices and a step
+tags: sequences, slicing
+track: python
+
+`seq[start:stop:step]` returns a new sequence; `start` is inclusive, `stop` exclusive, and any part may be omitted. Negative indices count from the end (`-1` is last). A negative step walks backwards, so `seq[::-1]` reverses. Out-of-range slice bounds are clamped silently (unlike indexing, which raises). Slicing a `str` or `tuple` yields a new immutable copy — the original is never mutated.
+
+```python
+s = "abcdef"
+s[1:4]      # 'bcd'
+s[-2:]      # 'ef'
+s[::-1]     # 'fedcba'
+s[::2]      # 'ace'
+```
+
+## fact: Truthiness — many values are "falsy"
+tags: booleans, gotcha
+track: python
+
+`if x:` calls `bool(x)`. Falsy values include `None`, `False`, numeric zero (`0`, `0.0`, `0j`), and every *empty* container (`""`, `[]`, `{}`, `()`, `set()`). Everything else is truthy — including the string `"0"`, `"False"`, and the list `[0]`. `and`/`or` are short-circuiting and return one of their *operands*, not a bool, which is handy for defaults.
+
+```python
+bool("0")            # True  — non-empty string
+bool([0])            # True  — non-empty list
+0 or "fallback"      # 'fallback'  (returns operand)
+"" and "x"           # ''          (short-circuits)
+```
+
+## fact: sorted takes a key and is stable
+tags: sorting, algorithms
+track: python
+
+`sorted(iterable, key=..., reverse=...)` returns a new list; `list.sort()` sorts in place. `key` maps each element to the value to compare (called once per element — the decorate-sort-undecorate pattern). Python's sort (Timsort) is *stable*: elements comparing equal keep their original relative order, so you can sort by successive keys to get multi-level ordering.
+
+```python
+sorted(["bb", "a", "ccc"], key=len)          # ['a', 'bb', 'ccc']
+data = [("b", 2), ("a", 2), ("c", 1)]
+sorted(data, key=lambda p: p[1])
+# [('c', 1), ('b', 2), ('a', 2)]  — 'b' before 'a' preserved
+```
+
+## fact: Sets give fast membership and algebra
+tags: sets, data-structures
+track: python
+
+A `set` is an unordered collection of unique hashables with O(1) average membership tests, versus O(n) for a list. Sets support mathematical operations: union `|`, intersection `&`, difference `-`, symmetric difference `^`. `frozenset` is the immutable, hashable variant (usable as a dict key or set member). Note `{}` is an empty *dict* — use `set()` for an empty set.
+
+```python
+a = {1, 2, 3}; b = {2, 3, 4}
+a & b        # {2, 3}     intersection
+a | b        # {1,2,3,4}  union
+a - b        # {1}        difference
+a ^ b        # {1, 4}     symmetric difference
+```
+
+## fact: try/except/else/finally each have a role
+tags: exceptions, control-flow
+track: python
+
+`try` guards code; `except` handles specific exceptions (catch narrow types, not bare `except:`); `else` runs only if *no* exception fired (put the "success" code there so it isn't accidentally guarded); `finally` always runs for cleanup, even on `return` or re-raise. Exceptions are for exceptional flow, not routine branching, but they are cheap when not raised.
+
+```python
+try:
+    v = risky()
+except ValueError as e:
+    handle(e)
+else:
+    use(v)             # only if no exception
+finally:
+    cleanup()          # always
+```
+
+## fact: dataclasses generate boilerplate from annotations
+tags: dataclasses, stdlib
+track: python
+
+`@dataclass` reads the class's annotated fields and auto-generates `__init__`, `__repr__`, and `__eq__` (and ordering/`__hash__` with flags). It removes the tedious `self.x = x` and value-equality boilerplate. Mutable defaults must use `field(default_factory=list)` — a plain `= []` raises `ValueError` at class creation, guarding the mutable-default trap for you.
+
+```python
+from dataclasses import dataclass, field
+@dataclass
+class Cart:
+    owner: str
+    items: list = field(default_factory=list)   # not = []
+Cart("me") == Cart("me")     # True — value equality
+```
+
+## fact: Type hints are annotations, not runtime enforcement
+tags: typing, gotcha
+track: python
+
+Type hints (`x: int`, `-> str`) are stored in `__annotations__` and used by static checkers (mypy, pyright), IDEs, and tools like dataclasses/pydantic. CPython itself does **not** check them at runtime — passing the "wrong" type runs normally until something actually breaks. They document intent; they don't make Python statically typed.
+
+```python
+def add(a: int, b: int) -> int:
+    return a + b
+add("x", "y")          # 'xy'  — hints ignored at runtime
+add.__annotations__    # {'a': int, 'b': int, 'return': int}
+```
+
+## fact: functools.lru_cache memoizes by arguments
+tags: functools, performance
+track: python
+
+`@lru_cache(maxsize=N)` (or `@cache` for unbounded) stores results keyed by the call arguments, turning repeated or overlapping calls into O(1) lookups — it collapses exponential naive recursion (like Fibonacci) to linear. Requirements: arguments must be hashable, and the function should be pure (same args → same result), since stale side effects won't be recomputed. Inspect hits/misses via `.cache_info()`.
+
+```python
+from functools import lru_cache
+@lru_cache(maxsize=None)
+def fib(n):
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+fib(100)               # instant — memoized
+fib.cache_info()       # CacheInfo(hits=98, ...)
+```
+
+## challenge: Contains Duplicate
+tags: array, hash-table
+track: python
+lang: python
+difficulty: easy
+
+Given a list `nums`, return `True` if any value appears at least twice, and `False` if every element is distinct.
+
+Constraints: `0 <= len(nums) <= 10^5`, values may be negative.
+
+Example: `nums = [1, 2, 3, 1]` → `True` (the `1` repeats). `nums = [1, 2, 3, 4]` → `False`.
+
+hint: Sorting works in O(n log n) — but a set can spot a repeat in a single pass.
+hint: A `set` remembers what you've already seen and answers membership in O(1).
+hint: Scan left to right; if the current value is already in the set, return early.
+
+```python
+# starter
+def contains_duplicate(nums):
+    ...
+```
+
+```python
+def contains_duplicate(nums):
+    seen = set()
+    for x in nums:
+        if x in seen:
+            return True
+        seen.add(x)
+    return False
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert contains_duplicate([1, 2, 3, 1]) is True
+    assert contains_duplicate([1, 2, 3, 4]) is False
+    assert contains_duplicate([1, 1, 1, 3, 3, 4, 3, 2, 4, 2]) is True
+    assert contains_duplicate([]) is False
+    assert contains_duplicate([7]) is False
+    assert contains_duplicate([0, 0]) is True
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Walk the list once, keeping a set of values already seen. The moment you meet a value that is already in the set you have a duplicate, so return `True`; otherwise add it and continue. Returning `False` after the loop means all elements were unique. O(n) time, O(n) space — better than the O(n log n) sort-and-compare-neighbors alternative.
+
+## challenge: Valid Anagram
+tags: string, hash-table
+track: python
+lang: python
+difficulty: easy
+
+Given two strings `s` and `t`, return `True` if `t` is an anagram of `s` — that is, `t` uses exactly the same letters as `s` with the same multiplicities, just possibly reordered.
+
+Constraints: `0 <= len(s), len(t) <= 5 * 10^4`, strings consist of lowercase letters.
+
+Example: `s = "anagram", t = "nagaram"` → `True`. `s = "rat", t = "car"` → `False`.
+
+hint: Anagrams must be the same length and use each character the same number of times.
+hint: A character-count comparison decides it — `collections.Counter` builds one for you.
+hint: Bail out early if the lengths differ, then compare the two frequency maps.
+
+```python
+# starter
+def is_anagram(s, t):
+    ...
+```
+
+```python
+def is_anagram(s, t):
+    from collections import Counter
+    if len(s) != len(t):
+        return False
+    return Counter(s) == Counter(t)
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert is_anagram("anagram", "nagaram") is True
+    assert is_anagram("rat", "car") is False
+    assert is_anagram("a", "ab") is False
+    assert is_anagram("", "") is True
+    assert is_anagram("ab", "ba") is True
+    assert is_anagram("aacc", "ccac") is False
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Two strings are anagrams exactly when they have identical character frequencies. Different lengths can never match, so short-circuit on that first. Otherwise build a `Counter` (a dict of char → count) for each and compare them for equality. O(n) time, O(k) space where k is the alphabet size — faster than sorting both strings, which is O(n log n).
+
+## challenge: Valid Palindrome
+tags: string, two-pointers
+track: python
+lang: python
+difficulty: easy
+
+Given a string `s`, return `True` if it reads the same forward and backward after you remove all non-alphanumeric characters and lowercase the rest.
+
+Constraints: `0 <= len(s) <= 2 * 10^5`, `s` may contain letters, digits, spaces, and punctuation.
+
+Example: `s = "A man, a plan, a canal: Panama"` → `True`. `s = "race a car"` → `False`.
+
+hint: Only letters and digits count; case does not matter.
+hint: Two pointers walking inward from both ends avoid building a cleaned copy.
+hint: Skip any non-alphanumeric character on either side, then compare the two ends lowercased.
+
+```python
+# starter
+def is_palindrome(s):
+    ...
+```
+
+```python
+def is_palindrome(s):
+    i, j = 0, len(s) - 1
+    while i < j:
+        while i < j and not s[i].isalnum():
+            i += 1
+        while i < j and not s[j].isalnum():
+            j -= 1
+        if s[i].lower() != s[j].lower():
+            return False
+        i += 1
+        j -= 1
+    return True
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert is_palindrome("A man, a plan, a canal: Panama") is True
+    assert is_palindrome("race a car") is False
+    assert is_palindrome("") is True
+    assert is_palindrome(" ") is True
+    assert is_palindrome("0P") is False
+    assert is_palindrome("Was it a car or a cat I saw?") is True
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Keep two indices, one at each end. Advance them past any character that is not alphanumeric, then compare the two characters case-insensitively; a mismatch means it is not a palindrome. Move both inward and repeat until they cross. This runs in O(n) time and O(1) extra space, avoiding the O(n) memory of first filtering the string into a new list and reversing it.
+
+## challenge: Valid Parentheses
+tags: stack, string
+track: python
+lang: python
+difficulty: easy
+
+Given a string `s` containing only the characters `()[]{}`, return `True` if every opening bracket is closed by the matching type in the correct order.
+
+Constraints: `0 <= len(s) <= 10^4`, `s` consists only of the six bracket characters.
+
+Example: `s = "()[]{}"` → `True`. `s = "([)]"` → `False` (closes `(` with `]`).
+
+hint: The most recently opened bracket must be the first one closed — that is last-in-first-out.
+hint: A stack of unmatched openers is the natural fit here.
+hint: Push openers; on a closer, the top of the stack must be its matching opener or it is invalid.
+
+```python
+# starter
+def is_valid(s):
+    ...
+```
+
+```python
+def is_valid(s):
+    pairs = {')': '(', ']': '[', '}': '{'}
+    stack = []
+    for c in s:
+        if c in pairs:
+            if not stack or stack.pop() != pairs[c]:
+                return False
+        else:
+            stack.append(c)
+    return not stack
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert is_valid("()") is True
+    assert is_valid("()[]{}") is True
+    assert is_valid("(]") is False
+    assert is_valid("([)]") is False
+    assert is_valid("{[]}") is True
+    assert is_valid("") is True
+    assert is_valid("(") is False
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Push every opening bracket onto a stack. When you hit a closing bracket, the correct match must be sitting on top of the stack — pop it and check it equals the expected opener; if the stack is empty or the top is wrong, the string is invalid. After scanning, a truly balanced string leaves the stack empty. O(n) time, O(n) space.
+
+## challenge: Best Time to Buy and Sell Stock
+tags: array, dynamic-programming
+track: python
+lang: python
+difficulty: medium
+
+Given a list `prices` where `prices[i]` is the price of a stock on day `i`, choose one day to buy and a later day to sell to maximize profit. Return the maximum profit, or `0` if no profitable trade exists.
+
+Constraints: `0 <= len(prices) <= 10^5`, `0 <= prices[i] <= 10^4`. You must buy before you sell.
+
+Example: `prices = [7, 1, 5, 3, 6, 4]` → `5` (buy at 1, sell at 6). `prices = [7, 6, 4, 3, 1]` → `0`.
+
+hint: For each selling day, the best buy is the cheapest price seen so far.
+hint: Track the running minimum price in a single left-to-right pass.
+hint: At each day, update the best profit as `price - min_so_far`, then update the minimum.
+
+```python
+# starter
+def max_profit(prices):
+    ...
+```
+
+```python
+def max_profit(prices):
+    min_price = float('inf')
+    best = 0
+    for p in prices:
+        if p < min_price:
+            min_price = p
+        elif p - min_price > best:
+            best = p - min_price
+    return best
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert max_profit([7, 1, 5, 3, 6, 4]) == 5
+    assert max_profit([7, 6, 4, 3, 1]) == 0
+    assert max_profit([1, 2, 3, 4, 5]) == 4
+    assert max_profit([]) == 0
+    assert max_profit([3]) == 0
+    assert max_profit([2, 4, 1]) == 2
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** As you scan the days, remember the lowest price seen up to the current day — that is the best price you could have bought at for any sell on today. The answer is the maximum of `today_price - min_so_far` across all days, never letting profit drop below `0`. One pass, O(n) time and O(1) space, versus checking every buy/sell pair in O(n²).
+
+## challenge: Group Anagrams
+tags: hash-table, string, sorting
+track: python
+lang: python
+difficulty: medium
+
+Given a list of strings `strs`, group together all strings that are anagrams of one another. Return the groups as a list of lists in any order; the strings within each group may also be in any order.
+
+Constraints: `0 <= len(strs) <= 10^4`, strings consist of lowercase letters and may be empty.
+
+Example: `strs = ["eat", "tea", "tan", "ate", "nat", "bat"]` → `[["bat"], ["nat", "tan"], ["ate", "eat", "tea"]]` (order not significant).
+
+hint: Anagrams share a canonical form — something identical for every member of a group.
+hint: Sorting a word's letters, or its 26-length letter-count, makes a stable dictionary key.
+hint: Bucket each word under its canonical key in a dict, then return the buckets' values.
+
+```python
+# starter
+def group_anagrams(strs):
+    ...
+```
+
+```python
+def group_anagrams(strs):
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for s in strs:
+        key = tuple(sorted(s))
+        groups[key].append(s)
+    return list(groups.values())
+```
+
+```python
+# harness
+#__USER__
+def _canon(groups):
+    return sorted(sorted(g) for g in groups)
+
+def _check():
+    assert _canon(group_anagrams(["eat", "tea", "tan", "ate", "nat", "bat"])) == \
+        _canon([["bat"], ["nat", "tan"], ["ate", "eat", "tea"]])
+    assert _canon(group_anagrams([""])) == [[""]]
+    assert _canon(group_anagrams(["a"])) == [["a"]]
+    assert _canon(group_anagrams([])) == []
+    assert _canon(group_anagrams(["abc", "bca", "cab", "xyz"])) == \
+        _canon([["abc", "bca", "cab"], ["xyz"]])
+    assert _canon(group_anagrams(["ddddddddddg", "dgggggggggg"])) == \
+        _canon([["ddddddddddg"], ["dgggggggggg"]])
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Every anagram of a word shares the same sorted letters, so `tuple(sorted(word))` is a canonical key that all members of a group map to. Use a `defaultdict(list)` to append each word under its key, then return the dictionary's values. Sorting each word costs O(k log k), giving O(n · k log k) total for n words of length k; an O(n · k) variant keys on a 26-slot count tuple instead.
+
+## challenge: Top K Frequent Elements
+tags: hash-table, bucket-sort, heap
+track: python
+lang: python
+difficulty: medium
+
+Given a list `nums` and an integer `k`, return the `k` elements that appear most frequently. The answer is guaranteed to be unique; you may return it in any order.
+
+Constraints: `1 <= len(nums) <= 10^5`, `1 <= k <= number of distinct values in nums`.
+
+Example: `nums = [1, 1, 1, 2, 2, 3], k = 2` → `[1, 2]` (order not significant). `nums = [1], k = 1` → `[1]`.
+
+hint: First you need each value's frequency; a counter gives that in one pass.
+hint: A frequency can be at most `len(nums)`, so it can index a bucket array directly.
+hint: Place each value in a bucket by its count, then read buckets from highest count down, collecting until you have `k`.
+
+```python
+# starter
+def top_k_frequent(nums, k):
+    ...
+```
+
+```python
+def top_k_frequent(nums, k):
+    from collections import Counter
+    count = Counter(nums)
+    buckets = [[] for _ in range(len(nums) + 1)]
+    for num, freq in count.items():
+        buckets[freq].append(num)
+    result = []
+    for freq in range(len(buckets) - 1, 0, -1):
+        for num in buckets[freq]:
+            result.append(num)
+            if len(result) == k:
+                return result
+    return result
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert sorted(top_k_frequent([1, 1, 1, 2, 2, 3], 2)) == [1, 2]
+    assert sorted(top_k_frequent([1], 1)) == [1]
+    assert sorted(top_k_frequent([1, 2], 2)) == [1, 2]
+    assert sorted(top_k_frequent([4, 4, 4, 5, 5, 6], 2)) == [4, 5]
+    assert sorted(top_k_frequent([-1, -1, -2, -2, -2, 3], 1)) == [-2]
+    assert sorted(top_k_frequent([5, 5, 5, 5], 1)) == [5]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Count occurrences with a `Counter`, then bucket-sort by frequency: index `buckets[f]` holds every value that occurs exactly `f` times. Since no frequency exceeds `len(nums)`, walking the buckets from the highest index downward yields values in descending frequency order; collect them until you have `k`. O(n) time and O(n) space — a heap-based approach is O(n log k) instead.
+
+## challenge: Product of Array Except Self
+tags: array, prefix-product
+track: python
+lang: python
+difficulty: medium
+
+Given a list `nums`, return a list `res` where `res[i]` is the product of every element except `nums[i]`. Solve it without using division.
+
+Constraints: `1 <= len(nums) <= 10^5`, the full answer fits in a 32-bit integer. Runtime should be O(n).
+
+Example: `nums = [1, 2, 3, 4]` → `[24, 12, 8, 6]`. `nums = [-1, 1, 0, -3, 3]` → `[0, 0, 9, 0, 0]`.
+
+hint: Each answer is (product of everything to the left) times (product of everything to the right).
+hint: Two sweeps — one left-to-right for prefixes, one right-to-left for suffixes.
+hint: Fill the output with prefix products first, then multiply in the suffix products on the way back.
+
+```python
+# starter
+def product_except_self(nums):
+    ...
+```
+
+```python
+def product_except_self(nums):
+    n = len(nums)
+    res = [1] * n
+    prefix = 1
+    for i in range(n):
+        res[i] = prefix
+        prefix *= nums[i]
+    suffix = 1
+    for i in range(n - 1, -1, -1):
+        res[i] *= suffix
+        suffix *= nums[i]
+    return res
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert product_except_self([1, 2, 3, 4]) == [24, 12, 8, 6]
+    assert product_except_self([-1, 1, 0, -3, 3]) == [0, 0, 9, 0, 0]
+    assert product_except_self([2, 3]) == [3, 2]
+    assert product_except_self([5]) == [1]
+    assert product_except_self([0, 0]) == [0, 0]
+    assert product_except_self([1, 1, 1]) == [1, 1, 1]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** The product excluding index `i` is the product of all elements before `i` times the product of all elements after `i`. First pass left-to-right writes the running prefix product into `res[i]` (before multiplying `nums[i]` in). Second pass right-to-left multiplies each `res[i]` by the running suffix product. This handles zeros naturally and uses only the output array, giving O(n) time and O(1) extra space.
+
+## challenge: Two Sum II - Input Array Is Sorted
+tags: array, two-pointers, binary-search
+track: python
+lang: python
+difficulty: medium
+
+Given a list `numbers` sorted in non-decreasing order and an integer `target`, find the two elements that add up to `target` and return their 1-based indices `[i, j]` with `i < j`. Exactly one solution exists, and you must use O(1) extra space.
+
+Constraints: `2 <= len(numbers) <= 3 * 10^4`, `numbers` is sorted ascending, exactly one answer.
+
+Example: `numbers = [2, 7, 11, 15], target = 9` → `[1, 2]`. `numbers = [2, 3, 4], target = 6` → `[1, 3]`.
+
+hint: The array is sorted — exploit that instead of hashing.
+hint: One pointer at the start, one at the end; their sum tells you which way to move.
+hint: If the pair's sum is too small advance the left pointer; if too big retreat the right one.
+
+```python
+# starter
+def two_sum_sorted(numbers, target):
+    ...
+```
+
+```python
+def two_sum_sorted(numbers, target):
+    i, j = 0, len(numbers) - 1
+    while i < j:
+        s = numbers[i] + numbers[j]
+        if s == target:
+            return [i + 1, j + 1]
+        elif s < target:
+            i += 1
+        else:
+            j -= 1
+    return []
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert two_sum_sorted([2, 7, 11, 15], 9) == [1, 2]
+    assert two_sum_sorted([2, 3, 4], 6) == [1, 3]
+    assert two_sum_sorted([-1, 0], -1) == [1, 2]
+    assert two_sum_sorted([1, 2, 3, 4, 4, 9, 56, 90], 8) == [4, 5]
+    assert two_sum_sorted([5, 25, 75], 100) == [2, 3]
+    assert two_sum_sorted([1, 2, 3, 4], 100) == []
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Because the array is sorted, put one pointer at each end. Their sum is monotonic in the pointers: if it is below the target the only way to increase it is to move the left pointer right; if above, move the right pointer left. When the sum matches, return the 1-based indices. O(n) time and O(1) space, beating a hash map's O(n) memory.
+
+## challenge: Container With Most Water
+tags: array, two-pointers, greedy
+track: python
+lang: python
+difficulty: medium
+
+Given a list `height` where each value is the height of a vertical line at that index, pick two lines that together with the x-axis form a container holding the most water. Return that maximum area. The area between lines `i` and `j` is `min(height[i], height[j]) * (j - i)`.
+
+Constraints: `2 <= len(height) <= 10^5`, `0 <= height[i] <= 10^4`.
+
+Example: `height = [1, 8, 6, 2, 5, 4, 8, 3, 7]` → `49`. `height = [1, 1]` → `1`.
+
+hint: The widest container uses the two ends; narrowing loses width, so it must gain height to help.
+hint: Two pointers at the ends, moving inward, examine only promising containers.
+hint: Always move the pointer at the shorter line — keeping it can never beat the current area.
+
+```python
+# starter
+def max_area(height):
+    ...
+```
+
+```python
+def max_area(height):
+    i, j = 0, len(height) - 1
+    best = 0
+    while i < j:
+        h = min(height[i], height[j])
+        best = max(best, h * (j - i))
+        if height[i] < height[j]:
+            i += 1
+        else:
+            j -= 1
+    return best
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert max_area([1, 8, 6, 2, 5, 4, 8, 3, 7]) == 49
+    assert max_area([1, 1]) == 1
+    assert max_area([4, 3, 2, 1, 4]) == 16
+    assert max_area([1, 2, 1]) == 2
+    assert max_area([2, 3, 4, 5, 18, 17, 6]) == 17
+    assert max_area([1, 2, 4, 3]) == 4
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Start with the widest possible container (both ends) and shrink inward. The area is bounded by the shorter of the two lines, so moving the taller line inward can only reduce width without lifting that bound — the potential gain lives behind the shorter line. Thus always advance the pointer at the shorter side, tracking the best area seen. O(n) time, O(1) space, versus O(n²) brute force over all pairs.
+
+## challenge: Daily Temperatures
+tags: stack, array, monotonic-stack
+track: python
+lang: python
+difficulty: medium
+
+Given a list `temperatures`, return a list `answer` where `answer[i]` is the number of days you must wait after day `i` for a warmer temperature. If no warmer day ever comes, `answer[i]` is `0`.
+
+Constraints: `1 <= len(temperatures) <= 10^5`, `30 <= temperatures[i] <= 100`.
+
+Example: `temperatures = [73, 74, 75, 71, 69, 72, 76, 73]` → `[1, 1, 4, 2, 1, 1, 0, 0]`. `temperatures = [30, 40, 50, 60]` → `[1, 1, 1, 0]`.
+
+hint: For each day you want the next day to its right that is strictly warmer.
+hint: A stack of "days still waiting for a warmer day" lets you resolve several at once.
+hint: Keep the stack's temperatures decreasing; when today is warmer, pop and fill in the gaps.
+
+```python
+# starter
+def daily_temperatures(temperatures):
+    ...
+```
+
+```python
+def daily_temperatures(temperatures):
+    res = [0] * len(temperatures)
+    stack = []  # indices of days awaiting a warmer day
+    for i, t in enumerate(temperatures):
+        while stack and temperatures[stack[-1]] < t:
+            j = stack.pop()
+            res[j] = i - j
+        stack.append(i)
+    return res
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert daily_temperatures([73, 74, 75, 71, 69, 72, 76, 73]) == [1, 1, 4, 2, 1, 1, 0, 0]
+    assert daily_temperatures([30, 40, 50, 60]) == [1, 1, 1, 0]
+    assert daily_temperatures([30, 60, 90]) == [1, 1, 0]
+    assert daily_temperatures([90, 80, 70]) == [0, 0, 0]
+    assert daily_temperatures([50]) == [0]
+    assert daily_temperatures([]) == []
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Keep a stack of indices whose warmer day has not been found yet, with their temperatures decreasing from bottom to top. When the current day is warmer than the temperature at the top of the stack, that waiting day's answer is the index distance — pop it and record `i - j`, repeating while the top stays cooler. Each index is pushed and popped once, so O(n) time and O(n) space, versus an O(n²) scan-ahead.
+
+## challenge: 3Sum
+tags: array, two-pointers, sorting
+track: python
+lang: python
+difficulty: hard
+
+Given a list `nums`, return all unique triplets `[a, b, c]` drawn from distinct indices such that `a + b + c == 0`. The result must not contain duplicate triplets. Order of the triplets and of values within a triplet does not matter.
+
+Constraints: `0 <= len(nums) <= 3000`, `-10^5 <= nums[i] <= 10^5`.
+
+Example: `nums = [-1, 0, 1, 2, -1, -4]` → `[[-1, -1, 2], [-1, 0, 1]]` (order not significant). `nums = [0, 1, 1]` → `[]`.
+
+hint: Sorting first lets you skip duplicates and use a directional two-pointer scan.
+hint: Fix one element, then two-sum the remaining suffix toward its negation.
+hint: After recording a triplet, advance past equal values on both sides to avoid duplicates.
+
+```python
+# starter
+def three_sum(nums):
+    ...
+```
+
+```python
+def three_sum(nums):
+    nums.sort()
+    res = []
+    n = len(nums)
+    for i in range(n - 2):
+        if i > 0 and nums[i] == nums[i - 1]:
+            continue
+        if nums[i] > 0:
+            break
+        lo, hi = i + 1, n - 1
+        while lo < hi:
+            s = nums[i] + nums[lo] + nums[hi]
+            if s < 0:
+                lo += 1
+            elif s > 0:
+                hi -= 1
+            else:
+                res.append([nums[i], nums[lo], nums[hi]])
+                lo += 1
+                hi -= 1
+                while lo < hi and nums[lo] == nums[lo - 1]:
+                    lo += 1
+                while lo < hi and nums[hi] == nums[hi + 1]:
+                    hi -= 1
+    return res
+```
+
+```python
+# harness
+#__USER__
+def _canon(triplets):
+    return sorted(sorted(t) for t in triplets)
+
+def _check():
+    assert _canon(three_sum([-1, 0, 1, 2, -1, -4])) == _canon([[-1, -1, 2], [-1, 0, 1]])
+    assert _canon(three_sum([0, 1, 1])) == []
+    assert _canon(three_sum([0, 0, 0])) == [[0, 0, 0]]
+    assert _canon(three_sum([])) == []
+    assert _canon(three_sum([-2, 0, 1, 1, 2])) == _canon([[-2, 0, 2], [-2, 1, 1]])
+    assert _canon(three_sum([-4, -2, -2, -2, 0, 1, 2, 2, 2, 3, 3, 4, 4, 6, 6])) == \
+        _canon([[-4, -2, 6], [-4, 0, 4], [-4, 1, 3], [-4, 2, 2], [-2, -2, 4], [-2, 0, 2]])
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Sort the array, then fix each value `nums[i]` and search its suffix with two pointers for a pair summing to `-nums[i]`. Moving the left pointer up increases the sum, the right pointer down decreases it, so you converge in linear time per fix. Skip equal values at the fixed index and after each hit to suppress duplicate triplets; once `nums[i] > 0` no triple can sum to zero, so stop early. O(n²) time and O(1) extra space beyond the output.
+
+## challenge: Longest Substring Without Repeating Characters
+tags: string, sliding-window, hash-table
+track: python
+lang: python
+difficulty: hard
+
+Given a string `s`, return the length of the longest contiguous substring that contains no repeated character.
+
+Constraints: `0 <= len(s) <= 5 * 10^4`, `s` may contain letters, digits, symbols, and spaces.
+
+Example: `s = "abcabcbb"` → `3` (the substring `"abc"`). `s = "pwwkew"` → `3` (the substring `"wke"`).
+
+hint: Maintain a window that always holds distinct characters and slide it right.
+hint: Remember the last index where each character appeared.
+hint: On a repeat inside the window, jump the window's left edge just past the previous occurrence.
+
+```python
+# starter
+def length_of_longest_substring(s):
+    ...
+```
+
+```python
+def length_of_longest_substring(s):
+    last = {}
+    start = 0
+    best = 0
+    for i, c in enumerate(s):
+        if c in last and last[c] >= start:
+            start = last[c] + 1
+        last[c] = i
+        best = max(best, i - start + 1)
+    return best
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert length_of_longest_substring("abcabcbb") == 3
+    assert length_of_longest_substring("bbbbb") == 1
+    assert length_of_longest_substring("pwwkew") == 3
+    assert length_of_longest_substring("") == 0
+    assert length_of_longest_substring(" ") == 1
+    assert length_of_longest_substring("dvdf") == 3
+    assert length_of_longest_substring("abba") == 2
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Slide a window `[start, i]` across the string while recording each character's most recent index in a dict. When the current character was seen at a position at or after `start`, that repeat is inside the window, so move `start` to just past the previous occurrence. The window is always duplicate-free, and its largest width is the answer. Each character is visited once: O(n) time, O(min(n, alphabet)) space. The `last[c] >= start` guard is what correctly handles cases like `"abba"`.
+
+## challenge: Longest Consecutive Sequence
+tags: array, hash-table, union-find
+track: python
+lang: python
+difficulty: hard
+
+Given an unsorted list `nums`, return the length of the longest run of consecutive integers (values differing by 1), regardless of their positions in the list. Your algorithm must run in O(n) time.
+
+Constraints: `0 <= len(nums) <= 10^5`, values may repeat and may be negative.
+
+Example: `nums = [100, 4, 200, 1, 3, 2]` → `4` (the run `1, 2, 3, 4`). `nums = [0, 3, 7, 2, 5, 8, 4, 6, 0, 1]` → `9`.
+
+hint: Sorting is O(n log n) — a set gives O(1) membership so you can grow runs directly.
+hint: Only start counting a run from a value that has no predecessor present.
+hint: For each such start, walk upward `value + 1, value + 2, ...` while the set contains them.
+
+```python
+# starter
+def longest_consecutive(nums):
+    ...
+```
+
+```python
+def longest_consecutive(nums):
+    num_set = set(nums)
+    best = 0
+    for n in num_set:
+        if n - 1 not in num_set:
+            length = 1
+            while n + length in num_set:
+                length += 1
+            best = max(best, length)
+    return best
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert longest_consecutive([100, 4, 200, 1, 3, 2]) == 4
+    assert longest_consecutive([0, 3, 7, 2, 5, 8, 4, 6, 0, 1]) == 9
+    assert longest_consecutive([]) == 0
+    assert longest_consecutive([1]) == 1
+    assert longest_consecutive([1, 2, 0, 1]) == 3
+    assert longest_consecutive([9, 1, 4, 7, 3, -1, 0, 5, 8, -1, 6]) == 7
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Load all values into a set for O(1) lookups. A number begins a consecutive run only if `n - 1` is absent, so from each such start you walk upward `n + 1, n + 2, ...` counting how far the run extends. Because every value is only ever walked as part of exactly one run, the total work is O(n) despite the nested loop, using O(n) space — beating the O(n log n) sort-based approach.
+
+## challenge: Invert Binary Tree
+tags: tree, dfs, recursion, binary-tree
+track: python
+lang: python
+difficulty: easy
+
+Given the `root` of a binary tree, invert the tree (swap every node's left and right child) and return its root.
+
+Constraints: `0 <= number of nodes <= 100`, `-100 <= Node.val <= 100`.
+
+Example: `root = [4, 2, 7, 1, 3, 6, 9]` → `[4, 7, 2, 9, 6, 3, 1]` (the tree is mirrored left-to-right).
+
+hint: Inverting a tree means mirroring it: at every node, swap its two subtrees.
+hint: Recurse first or swap first — either works, as long as every node is visited once.
+hint: The base case is the empty subtree (`None`); return it unchanged.
+
+```python
+# starter
+def invert_tree(root):
+    ...
+```
+
+```python
+def invert_tree(root):
+    if root is None:
+        return None
+    root.left, root.right = invert_tree(root.right), invert_tree(root.left)
+    return root
+```
+
+```python
+# harness
+#__USER__
+from collections import deque
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+def _build(vals):
+    if not vals:
+        return None
+    root = TreeNode(vals[0])
+    q = deque([root])
+    i = 1
+    while q and i < len(vals):
+        node = q.popleft()
+        if i < len(vals) and vals[i] is not None:
+            node.left = TreeNode(vals[i]); q.append(node.left)
+        i += 1
+        if i < len(vals) and vals[i] is not None:
+            node.right = TreeNode(vals[i]); q.append(node.right)
+        i += 1
+    return root
+
+def _ser(root):
+    out = []
+    q = deque([root])
+    while q:
+        node = q.popleft()
+        if node:
+            out.append(node.val); q.append(node.left); q.append(node.right)
+        else:
+            out.append(None)
+    while out and out[-1] is None:
+        out.pop()
+    return out
+
+def _check():
+    assert _ser(invert_tree(_build([4, 2, 7, 1, 3, 6, 9]))) == [4, 7, 2, 9, 6, 3, 1]
+    assert _ser(invert_tree(_build([2, 1, 3]))) == [2, 3, 1]
+    assert _ser(invert_tree(_build([]))) == []
+    assert _ser(invert_tree(_build([1]))) == [1]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Invert by swapping each node's children and recursing into both subtrees. The base case returns `None` for an empty subtree. Every node is touched once, so it is O(n) time and O(h) space for the recursion stack, where `h` is the tree height.
+
+## challenge: Maximum Depth of Binary Tree
+tags: tree, dfs, bfs, binary-tree
+track: python
+lang: python
+difficulty: easy
+
+Given the `root` of a binary tree, return its maximum depth — the number of nodes along the longest path from the root down to the farthest leaf.
+
+Constraints: `0 <= number of nodes <= 10^4`, `-100 <= Node.val <= 100`.
+
+Example: `root = [3, 9, 20, None, None, 15, 7]` → `3` (the path `3 → 20 → 15` has three nodes).
+
+hint: The depth of a tree is 1 plus the depth of its deeper subtree.
+hint: An empty tree has depth 0 — that is your base case.
+hint: `depth(node) = 1 + max(depth(left), depth(right))`.
+
+```python
+# starter
+def max_depth(root):
+    ...
+```
+
+```python
+def max_depth(root):
+    if root is None:
+        return 0
+    return 1 + max(max_depth(root.left), max_depth(root.right))
+```
+
+```python
+# harness
+#__USER__
+from collections import deque
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+def _build(vals):
+    if not vals:
+        return None
+    root = TreeNode(vals[0])
+    q = deque([root])
+    i = 1
+    while q and i < len(vals):
+        node = q.popleft()
+        if i < len(vals) and vals[i] is not None:
+            node.left = TreeNode(vals[i]); q.append(node.left)
+        i += 1
+        if i < len(vals) and vals[i] is not None:
+            node.right = TreeNode(vals[i]); q.append(node.right)
+        i += 1
+    return root
+
+def _check():
+    assert max_depth(_build([3, 9, 20, None, None, 15, 7])) == 3
+    assert max_depth(_build([1, None, 2])) == 2
+    assert max_depth(_build([])) == 0
+    assert max_depth(_build([1])) == 1
+    assert max_depth(_build([1, 2, 3, 4, None, None, 5])) == 3
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** A post-order recursion: the depth at any node is one more than the maximum depth of its two children, with the empty subtree contributing 0. Each node is visited once for O(n) time and O(h) recursion-stack space.
+
+## challenge: Climbing Stairs
+tags: dynamic-programming, math, memoization
+track: python
+lang: python
+difficulty: easy
+
+You are climbing a staircase with `n` steps. Each move you may climb either 1 or 2 steps. Return the number of distinct ways to reach the top.
+
+Constraints: `1 <= n <= 45`.
+
+Example: `n = 3` → `3` (the ways are `1+1+1`, `1+2`, and `2+1`).
+
+hint: The number of ways to reach step `n` is the sum of the ways to reach `n-1` and `n-2`.
+hint: That recurrence is exactly the Fibonacci sequence.
+hint: Keep only the last two values instead of a full table — O(1) space.
+
+```python
+# starter
+def climb_stairs(n):
+    ...
+```
+
+```python
+def climb_stairs(n):
+    a, b = 1, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert climb_stairs(1) == 1
+    assert climb_stairs(2) == 2
+    assert climb_stairs(3) == 3
+    assert climb_stairs(5) == 8
+    assert climb_stairs(45) == 1836311903
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** To reach step `n`, your last move came from step `n-1` (a single step) or `n-2` (a double step), so `ways(n) = ways(n-1) + ways(n-2)`. That is the Fibonacci recurrence; rolling two variables forward gives O(n) time and O(1) space.
+
+## challenge: Binary Tree Level Order Traversal
+tags: tree, bfs, binary-tree
+track: python
+lang: python
+difficulty: medium
+
+Given the `root` of a binary tree, return its level-order traversal: a list of levels, where each level is the list of node values at that depth (top to bottom).
+
+Constraints: `0 <= number of nodes <= 2000`, `-1000 <= Node.val <= 1000`.
+
+Example: `root = [3, 9, 20, None, None, 15, 7]` → `[[3], [9, 20], [15, 7]]`.
+
+hint: Process the tree one depth at a time with a queue (breadth-first search).
+hint: Before draining the queue, record its current length — that is the size of the current level.
+hint: Pop exactly that many nodes, collect their values, and enqueue their children for the next level.
+
+```python
+# starter
+def level_order(root):
+    ...
+```
+
+```python
+def level_order(root):
+    from collections import deque
+    if root is None:
+        return []
+    res = []
+    q = deque([root])
+    while q:
+        level = []
+        for _ in range(len(q)):
+            node = q.popleft()
+            level.append(node.val)
+            if node.left:
+                q.append(node.left)
+            if node.right:
+                q.append(node.right)
+        res.append(level)
+    return res
+```
+
+```python
+# harness
+#__USER__
+from collections import deque
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+def _build(vals):
+    if not vals:
+        return None
+    root = TreeNode(vals[0])
+    q = deque([root])
+    i = 1
+    while q and i < len(vals):
+        node = q.popleft()
+        if i < len(vals) and vals[i] is not None:
+            node.left = TreeNode(vals[i]); q.append(node.left)
+        i += 1
+        if i < len(vals) and vals[i] is not None:
+            node.right = TreeNode(vals[i]); q.append(node.right)
+        i += 1
+    return root
+
+def _canon(levels):
+    return [sorted(l) for l in levels]
+
+def _check():
+    assert _canon(level_order(_build([3, 9, 20, None, None, 15, 7]))) == _canon([[3], [9, 20], [15, 7]])
+    assert _canon(level_order(_build([1]))) == _canon([[1]])
+    assert _canon(level_order(_build([]))) == _canon([])
+    assert _canon(level_order(_build([1, 2, 3, 4, 5, 6, 7]))) == _canon([[1], [2, 3], [4, 5, 6, 7]])
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Breadth-first search with a queue. At the start of each outer iteration the queue holds exactly one level; snapshot its length, pop that many nodes into the current level list, and enqueue their children. O(n) time and O(n) space. The checker sorts within each level so any left/right ordering of equal-value siblings still validates.
+
+## challenge: Validate Binary Search Tree
+tags: tree, dfs, binary-search-tree
+track: python
+lang: python
+difficulty: medium
+
+Given the `root` of a binary tree, determine whether it is a valid binary search tree (BST). In a valid BST every node's value is strictly greater than all values in its left subtree and strictly less than all values in its right subtree.
+
+Constraints: `0 <= number of nodes <= 10^4`, `-2^31 <= Node.val <= 2^31 - 1`.
+
+Example: `root = [5, 1, 4, None, None, 3, 6]` → `False` (the node `3` sits in the right subtree of `5` but is smaller than `5`).
+
+hint: It is not enough to compare a node only with its immediate children.
+hint: Carry down an open interval `(lo, hi)` of allowed values for each node.
+hint: A left child tightens the upper bound to the parent's value; a right child tightens the lower bound.
+
+```python
+# starter
+def is_valid_bst(root):
+    ...
+```
+
+```python
+def is_valid_bst(root):
+    def dfs(node, lo, hi):
+        if node is None:
+            return True
+        if not (lo < node.val < hi):
+            return False
+        return dfs(node.left, lo, node.val) and dfs(node.right, node.val, hi)
+    return dfs(root, float('-inf'), float('inf'))
+```
+
+```python
+# harness
+#__USER__
+from collections import deque
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+def _build(vals):
+    if not vals:
+        return None
+    root = TreeNode(vals[0])
+    q = deque([root])
+    i = 1
+    while q and i < len(vals):
+        node = q.popleft()
+        if i < len(vals) and vals[i] is not None:
+            node.left = TreeNode(vals[i]); q.append(node.left)
+        i += 1
+        if i < len(vals) and vals[i] is not None:
+            node.right = TreeNode(vals[i]); q.append(node.right)
+        i += 1
+    return root
+
+def _check():
+    assert is_valid_bst(_build([2, 1, 3])) is True
+    assert is_valid_bst(_build([5, 1, 4, None, None, 3, 6])) is False
+    assert is_valid_bst(_build([])) is True
+    assert is_valid_bst(_build([1])) is True
+    assert is_valid_bst(_build([10, 5, 15, None, None, 6, 20])) is False
+    assert is_valid_bst(_build([5, 3, 8, 1, 4, 7, 9])) is True
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Recurse with a valid open interval `(lo, hi)` that each node's value must fall inside. Going left shrinks `hi` to the parent value; going right raises `lo`. This catches violations that a naive parent-vs-child check misses (a deep descendant breaking an ancestor's bound). O(n) time, O(h) stack space.
+
+## challenge: Number of Islands
+tags: graph, dfs, bfs, matrix, union-find
+track: python
+lang: python
+difficulty: medium
+
+Given a 2D grid of `'1'` (land) and `'0'` (water) characters, return the number of islands. An island is a maximal group of land cells connected horizontally or vertically. The grid's outside is water.
+
+Constraints: `1 <= rows, cols <= 300`, each cell is `'0'` or `'1'`.
+
+Example: the grid `[['1','1','0'], ['1','0','0'], ['0','0','1']]` → `2`.
+
+hint: Scan every cell; each time you meet an unseen `'1'`, you have found a new island.
+hint: From that cell, flood-fill (DFS or BFS) all four-directionally connected land, marking it visited.
+hint: Marking visited cells as `'0'` in place avoids needing a separate visited set.
+
+```python
+# starter
+def num_islands(grid):
+    ...
+```
+
+```python
+def num_islands(grid):
+    if not grid or not grid[0]:
+        return 0
+    rows, cols = len(grid), len(grid[0])
+    count = 0
+    def sink(r, c):
+        if r < 0 or c < 0 or r >= rows or c >= cols or grid[r][c] != '1':
+            return
+        grid[r][c] = '0'
+        sink(r + 1, c)
+        sink(r - 1, c)
+        sink(r, c + 1)
+        sink(r, c - 1)
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c] == '1':
+                count += 1
+                sink(r, c)
+    return count
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    g1 = [
+        ['1', '1', '1', '1', '0'],
+        ['1', '1', '0', '1', '0'],
+        ['1', '1', '0', '0', '0'],
+        ['0', '0', '0', '0', '0'],
+    ]
+    assert num_islands(g1) == 1
+    g2 = [
+        ['1', '1', '0', '0', '0'],
+        ['1', '1', '0', '0', '0'],
+        ['0', '0', '1', '0', '0'],
+        ['0', '0', '0', '1', '1'],
+    ]
+    assert num_islands(g2) == 3
+    assert num_islands([['0']]) == 0
+    assert num_islands([['1']]) == 1
+    assert num_islands([['1', '0', '1', '0', '1']]) == 3
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Treat land cells as nodes connected to their four neighbours. Walk the grid once; each unvisited `'1'` starts a new island, and a flood fill sinks the whole connected component (rewriting cells to `'0'`) so it is not counted again. O(rows·cols) time; recursion depth is bounded by the number of land cells.
+
+## challenge: Course Schedule
+tags: graph, topological-sort, dfs, bfs
+track: python
+lang: python
+difficulty: medium
+
+There are `num_courses` courses labelled `0` to `num_courses - 1`. Each pair `[a, b]` in `prerequisites` means you must take course `b` before course `a`. Return `True` if you can finish every course, `False` otherwise.
+
+Constraints: `1 <= num_courses <= 2000`, `0 <= len(prerequisites) <= 5000`, all prerequisite pairs are distinct.
+
+Example: `num_courses = 2, prerequisites = [[1, 0]]` → `True`. With `[[1, 0], [0, 1]]` → `False` (the two courses depend on each other).
+
+hint: You can finish all courses exactly when the prerequisite graph has no cycle.
+hint: Kahn's algorithm: repeatedly remove a course whose remaining in-degree is 0.
+hint: If you manage to remove all `num_courses` nodes this way, there was no cycle.
+
+```python
+# starter
+def can_finish(num_courses, prerequisites):
+    ...
+```
+
+```python
+def can_finish(num_courses, prerequisites):
+    from collections import deque
+    graph = [[] for _ in range(num_courses)]
+    indeg = [0] * num_courses
+    for a, b in prerequisites:
+        graph[b].append(a)
+        indeg[a] += 1
+    q = deque(i for i in range(num_courses) if indeg[i] == 0)
+    removed = 0
+    while q:
+        node = q.popleft()
+        removed += 1
+        for nxt in graph[node]:
+            indeg[nxt] -= 1
+            if indeg[nxt] == 0:
+                q.append(nxt)
+    return removed == num_courses
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert can_finish(2, [[1, 0]]) is True
+    assert can_finish(2, [[1, 0], [0, 1]]) is False
+    assert can_finish(1, []) is True
+    assert can_finish(4, [[1, 0], [2, 1], [3, 2]]) is True
+    assert can_finish(3, [[0, 1], [1, 2], [2, 0]]) is False
+    assert can_finish(5, [[1, 0], [2, 0], [3, 1], [3, 2], [4, 3]]) is True
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Model courses as a directed graph where an edge `b → a` means "b unlocks a". A valid schedule exists iff the graph is a DAG. Kahn's topological sort peels off zero-in-degree nodes; if every node is peeled, there is no cycle. O(V + E) time and space.
+
+## challenge: House Robber
+tags: dynamic-programming, array
+track: python
+lang: python
+difficulty: medium
+
+Given a list `nums` of non-negative integers representing the money in each house along a street, return the maximum amount you can rob without ever robbing two adjacent houses.
+
+Constraints: `0 <= len(nums) <= 100`, `0 <= nums[i] <= 400`.
+
+Example: `nums = [2, 7, 9, 3, 1]` → `12` (rob houses `2 + 9 + 1`).
+
+hint: At each house you either skip it or rob it and skip its neighbour.
+hint: `best(i) = max(best(i-1), best(i-2) + nums[i])`.
+hint: Only the previous two answers matter, so track two rolling values.
+
+```python
+# starter
+def rob(nums):
+    ...
+```
+
+```python
+def rob(nums):
+    prev, cur = 0, 0
+    for x in nums:
+        prev, cur = cur, max(cur, prev + x)
+    return cur
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert rob([1, 2, 3, 1]) == 4
+    assert rob([2, 7, 9, 3, 1]) == 12
+    assert rob([]) == 0
+    assert rob([5]) == 5
+    assert rob([2, 1, 1, 2]) == 4
+    assert rob([200, 3, 140, 20, 10]) == 350
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Classic linear DP. Let `cur` be the best take through the current house and `prev` the best through the house before it. Robbing the current house adds `nums[i]` to `prev` (its non-adjacent predecessor); skipping keeps `cur`. Two rolling variables give O(n) time and O(1) space.
+
+## challenge: Coin Change
+tags: dynamic-programming, bfs
+track: python
+lang: python
+difficulty: medium
+
+Given a list of `coins` of distinct denominations and an integer `amount`, return the fewest coins needed to make up that amount. You may use each denomination any number of times. If the amount cannot be made, return `-1`.
+
+Constraints: `1 <= len(coins) <= 12`, `1 <= coins[i] <= 2^31 - 1`, `0 <= amount <= 10^4`.
+
+Example: `coins = [1, 2, 5], amount = 11` → `3` (`5 + 5 + 1`).
+
+hint: Build up the answer for every sub-amount from `0` to `amount`.
+hint: `dp[a] = 1 + min(dp[a - c])` over every coin `c` that fits in `a`.
+hint: Seed `dp[0] = 0` and treat any amount that stays unreachable as `-1`.
+
+```python
+# starter
+def coin_change(coins, amount):
+    ...
+```
+
+```python
+def coin_change(coins, amount):
+    INF = amount + 1
+    dp = [0] + [INF] * amount
+    for a in range(1, amount + 1):
+        for c in coins:
+            if c <= a:
+                dp[a] = min(dp[a], dp[a - c] + 1)
+    return dp[amount] if dp[amount] <= amount else -1
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert coin_change([1, 2, 5], 11) == 3
+    assert coin_change([2], 3) == -1
+    assert coin_change([1], 0) == 0
+    assert coin_change([1, 2, 5], 100) == 20
+    assert coin_change([2, 5, 10, 1], 27) == 4
+    assert coin_change([186, 419, 83, 408], 6249) == 20
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Bottom-up DP over amounts. `dp[a]` is the fewest coins summing to `a`; for each amount try every coin that fits and take `1 + dp[a - c]`. Initialise `dp[0] = 0` and a sentinel `amount + 1` for unreachable amounts, which maps to `-1` at the end. O(amount · len(coins)) time, O(amount) space.
+
+## challenge: Kth Largest Element in an Array
+tags: heap, sorting, quickselect, divide-and-conquer
+track: python
+lang: python
+difficulty: medium
+
+Given a list `nums` and an integer `k`, return the `k`-th largest element in the array. This is the element that would sit at position `k` from the end if the array were sorted, not necessarily a distinct value.
+
+Constraints: `1 <= k <= len(nums) <= 10^5`, `-10^4 <= nums[i] <= 10^4`.
+
+Example: `nums = [3, 2, 1, 5, 6, 4], k = 2` → `5`.
+
+hint: Sorting works but does more than you need — you only care about the top `k`.
+hint: Keep a min-heap of the `k` largest values seen so far.
+hint: When the heap exceeds size `k`, pop the smallest; its root is then the answer.
+
+```python
+# starter
+def find_kth_largest(nums, k):
+    ...
+```
+
+```python
+def find_kth_largest(nums, k):
+    import heapq
+    heap = []
+    for x in nums:
+        heapq.heappush(heap, x)
+        if len(heap) > k:
+            heapq.heappop(heap)
+    return heap[0]
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert find_kth_largest([3, 2, 1, 5, 6, 4], 2) == 5
+    assert find_kth_largest([3, 2, 3, 1, 2, 4, 5, 5, 6], 4) == 4
+    assert find_kth_largest([1], 1) == 1
+    assert find_kth_largest([7, 6, 5, 4, 3, 2, 1], 5) == 3
+    assert find_kth_largest([2, 1], 2) == 1
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Maintain a size-`k` min-heap of the largest elements seen. Each push is O(log k), and whenever the heap grows past `k` you evict its smallest root, so the heap always holds the top `k`. After the scan the root is the `k`-th largest. O(n log k) time, O(k) space — cheaper than a full O(n log n) sort.
+
+## challenge: Word Break
+tags: dynamic-programming, trie, memoization, string
+track: python
+lang: python
+difficulty: hard
+
+Given a string `s` and a list of words `word_dict`, return `True` if `s` can be segmented into a space-separated sequence of one or more dictionary words. Each dictionary word may be reused any number of times.
+
+Constraints: `1 <= len(s) <= 300`, `1 <= len(word_dict) <= 1000`, `1 <= len(word) <= 20`, all strings are lowercase letters.
+
+Example: `s = "applepenapple", word_dict = ["apple", "pen"]` → `True` (`apple + pen + apple`).
+
+hint: Let `dp[i]` mean "the prefix `s[:i]` can be segmented".
+hint: `dp[i]` is true if some `j < i` has `dp[j]` true and `s[j:i]` is a dictionary word.
+hint: Put the dictionary in a set for O(1) membership checks, and seed `dp[0] = True`.
+
+```python
+# starter
+def word_break(s, word_dict):
+    ...
+```
+
+```python
+def word_break(s, word_dict):
+    words = set(word_dict)
+    n = len(s)
+    dp = [False] * (n + 1)
+    dp[0] = True
+    for i in range(1, n + 1):
+        for j in range(i):
+            if dp[j] and s[j:i] in words:
+                dp[i] = True
+                break
+    return dp[n]
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert word_break("leetcode", ["leet", "code"]) is True
+    assert word_break("applepenapple", ["apple", "pen"]) is True
+    assert word_break("catsandog", ["cats", "dog", "sand", "and", "cat"]) is False
+    assert word_break("a", ["a"]) is True
+    assert word_break("aaaaaaa", ["aaaa", "aaa"]) is True
+    assert word_break("cars", ["car", "ca", "rs"]) is True
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Prefix DP. `dp[i]` records whether `s[:i]` splits into dictionary words. Extend by checking every cut point `j`: if `s[:j]` is already segmentable and the suffix `s[j:i]` is a word, then `s[:i]` is too. A set gives O(1) lookups. O(n^2) cut points times the substring length gives roughly O(n^2 · L) time, O(n) space.
+
+## challenge: Combination Sum
+tags: backtracking, array, recursion
+track: python
+lang: python
+difficulty: hard
+
+Given a list of distinct positive integers `candidates` and a target integer `target`, return all unique combinations of candidates that sum to `target`. Each candidate may be chosen an unlimited number of times. Two combinations are the same if they use the same multiset of numbers, regardless of order.
+
+Constraints: `1 <= len(candidates) <= 30`, `2 <= candidates[i] <= 40`, `1 <= target <= 40`.
+
+Example: `candidates = [2, 3, 6, 7], target = 7` → `[[2, 2, 3], [7]]`.
+
+hint: Explore choices with backtracking, building one combination on a shared path list.
+hint: To avoid permutation duplicates, only pick candidates at or after the current index.
+hint: Because reuse is allowed, recurse with the same index; sort candidates so you can prune once one overshoots.
+
+```python
+# starter
+def combination_sum(candidates, target):
+    ...
+```
+
+```python
+def combination_sum(candidates, target):
+    res = []
+    candidates = sorted(candidates)
+    def bt(start, remain, path):
+        if remain == 0:
+            res.append(path[:])
+            return
+        for i in range(start, len(candidates)):
+            c = candidates[i]
+            if c > remain:
+                break
+            path.append(c)
+            bt(i, remain - c, path)
+            path.pop()
+    bt(0, target, [])
+    return res
+```
+
+```python
+# harness
+#__USER__
+def _canon(combos):
+    return sorted(sorted(c) for c in combos)
+
+def _check():
+    assert _canon(combination_sum([2, 3, 6, 7], 7)) == _canon([[2, 2, 3], [7]])
+    assert _canon(combination_sum([2, 3, 5], 8)) == _canon([[2, 2, 2, 2], [2, 3, 3], [3, 5]])
+    assert _canon(combination_sum([2], 1)) == _canon([])
+    assert _canon(combination_sum([2], 4)) == _canon([[2, 2]])
+    assert _canon(combination_sum([3, 5, 8], 11)) == _canon([[3, 8], [3, 3, 5]])
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Depth-first backtracking. Passing a `start` index forbids revisiting earlier candidates, which collapses order-only duplicates; recursing with the same index `i` lets a candidate repeat. Sorting enables an early `break` once a candidate exceeds the remaining target. The checker canonicalises by sorting each combination and the list of combinations, so any output order validates.
+
+## challenge: Search in Rotated Sorted Array
+tags: binary-search, array
+track: python
+lang: python
+difficulty: hard
+
+An ascending sorted array of distinct integers has been rotated at an unknown pivot (for example `[0,1,2,4,5,6,7]` might become `[4,5,6,7,0,1,2]`). Given such an array `nums` and a `target`, return the index of `target`, or `-1` if it is absent. Run in O(log n).
+
+Constraints: `1 <= len(nums) <= 5000`, `-10^4 <= nums[i], target <= 10^4`, all values distinct.
+
+Example: `nums = [4, 5, 6, 7, 0, 1, 2], target = 0` → `4`.
+
+hint: Standard binary search breaks because the array is not fully sorted — but half of it always is.
+hint: At each step, one side of `mid` is sorted; check which by comparing `nums[lo]` with `nums[mid]`.
+hint: If the target lies within the sorted side's range, search there; otherwise search the other side.
+
+```python
+# starter
+def search(nums, target):
+    ...
+```
+
+```python
+def search(nums, target):
+    lo, hi = 0, len(nums) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if nums[mid] == target:
+            return mid
+        if nums[lo] <= nums[mid]:
+            if nums[lo] <= target < nums[mid]:
+                hi = mid - 1
+            else:
+                lo = mid + 1
+        else:
+            if nums[mid] < target <= nums[hi]:
+                lo = mid + 1
+            else:
+                hi = mid - 1
+    return -1
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert search([4, 5, 6, 7, 0, 1, 2], 0) == 4
+    assert search([4, 5, 6, 7, 0, 1, 2], 3) == -1
+    assert search([1], 0) == -1
+    assert search([1], 1) == 0
+    assert search([5, 1, 3], 5) == 0
+    assert search([6, 7, 8, 1, 2, 3, 4, 5], 8) == 2
+    assert search([3, 4, 5, 6, 7, 8, 9, 1, 2], 2) == 8
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Modified binary search. Because the rotation splits the array into two sorted runs, at every `mid` at least one of `[lo, mid]` or `[mid, hi]` is fully sorted — identifiable by comparing `nums[lo]` and `nums[mid]`. If the target falls inside the sorted half's value range, recurse there; otherwise go the other way. O(log n) time, O(1) space.
+
+## challenge: Koko Eating Bananas
+tags: binary-search, array
+track: python
+lang: python
+difficulty: hard
+
+Koko has `len(piles)` piles of bananas and `h` hours before the guards return. At a chosen integer eating speed `k` (bananas per hour) she eats from one pile each hour; if a pile has fewer than `k` bananas left she finishes it and waits out the hour. Return the minimum `k` that lets her eat every banana within `h` hours.
+
+Constraints: `1 <= len(piles) <= 10^4`, `len(piles) <= h <= 10^9`, `1 <= piles[i] <= 10^9`.
+
+Example: `piles = [3, 6, 7, 11], h = 8` → `4`.
+
+hint: The answer lies between `1` and `max(piles)` — binary search that range.
+hint: For a candidate speed `k`, a pile of `p` bananas takes `ceil(p / k)` hours.
+hint: Faster speeds never need more hours, so the feasibility test is monotonic — perfect for binary search.
+
+```python
+# starter
+def min_eating_speed(piles, h):
+    ...
+```
+
+```python
+def min_eating_speed(piles, h):
+    lo, hi = 1, max(piles)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        hours = sum((p + mid - 1) // mid for p in piles)
+        if hours <= h:
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert min_eating_speed([3, 6, 7, 11], 8) == 4
+    assert min_eating_speed([30, 11, 23, 4, 20], 5) == 30
+    assert min_eating_speed([30, 11, 23, 4, 20], 6) == 23
+    assert min_eating_speed([312884470], 968709470) == 1
+    assert min_eating_speed([1000000000], 2) == 500000000
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Binary search on the answer. Hours needed at speed `k` is `sum(ceil(p / k))`, which only decreases as `k` grows — a monotonic predicate. Search speeds in `[1, max(piles)]`, keeping the smallest `k` whose total hours fit within `h`. Each feasibility check is O(n), for O(n · log(max(piles))) time and O(1) space.
+
+## challenge: Flatten a Nested List
+tags: comprehension, nested-list
+track: python
+lang: python
+difficulty: easy
+
+Given a list of lists `nested`, return a single flat list containing every element, flattening exactly one level of nesting (left to right).
+
+Constraints: elements may be of any type; sublists may be empty; the input may be empty.
+
+Example: `nested = [[1, 2], [3], [4, 5]]` → `[1, 2, 3, 4, 5]`.
+
+hint: A list comprehension can carry two `for` clauses — an outer one and an inner one.
+hint: The clause order reads like nested loops: `for sub in nested` then `for x in sub`.
+hint: `[x for sub in nested for x in sub]` — no manual `append`, no `extend`.
+
+```python
+# starter
+def flatten(nested):
+    ...
+```
+
+```python
+def flatten(nested):
+    return [x for sub in nested for x in sub]
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert flatten([[1, 2], [3], [4, 5]]) == [1, 2, 3, 4, 5]
+    assert flatten([]) == []
+    assert flatten([[]]) == []
+    assert flatten([[7]]) == [7]
+    assert flatten([[], [1], [2, 3]]) == [1, 2, 3]
+    assert flatten([[1, 1], [1]]) == [1, 1, 1]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** A nested list comprehension with two `for` clauses flattens one level in a single expression. The clauses read top-to-bottom exactly like nested `for` loops (`for sub in nested` outer, `for x in sub` inner), but build the result list directly — no accumulator variable and no `.append`/`.extend` bookkeeping to get wrong.
+
+## challenge: Chunk a List
+tags: slicing, comprehension
+track: python
+lang: python
+difficulty: easy
+
+Split a list `lst` into consecutive chunks of at most `n` elements each, preserving order. The final chunk may be shorter if the list doesn't divide evenly.
+
+Constraints: `n >= 1`; `lst` may be empty.
+
+Example: `lst = [1, 2, 3, 4, 5], n = 2` → `[[1, 2], [3, 4], [5]]`.
+
+hint: You don't need to iterate element by element — think in slices `lst[i:i+n]`.
+hint: `range(start, stop, step)` can stride by `n` at a time.
+hint: `[lst[i:i+n] for i in range(0, len(lst), n)]`.
+
+```python
+# starter
+def chunk(lst, n):
+    ...
+```
+
+```python
+def chunk(lst, n):
+    return [lst[i:i+n] for i in range(0, len(lst), n)]
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert chunk([1, 2, 3, 4, 5], 2) == [[1, 2], [3, 4], [5]]
+    assert chunk([], 3) == []
+    assert chunk([1], 3) == [[1]]
+    assert chunk([1, 2, 3, 4], 2) == [[1, 2], [3, 4]]
+    assert chunk([1, 2, 3], 1) == [[1], [2], [3]]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Striding `range(0, len(lst), n)` yields every chunk's start index; slicing `lst[i:i+n]` grabs the window and safely clamps at the end, so the short final chunk needs no special case. Slicing beats a manual index-and-append loop: fewer off-by-one opportunities and no mutable accumulator to manage.
+
+## challenge: Transpose a Matrix
+tags: zip, unpacking
+track: python
+lang: python
+difficulty: easy
+
+Given a rectangular matrix as a list of equal-length rows, return its transpose (rows become columns).
+
+Constraints: all rows have the same length; the matrix may be empty.
+
+Example: `[[1, 2, 3], [4, 5, 6]]` → `[[1, 4], [2, 5], [3, 6]]`.
+
+hint: `zip` pairs up the i-th element of each of its arguments.
+hint: Unpack the rows into separate arguments with `zip(*matrix)`.
+hint: `zip` yields tuples — wrap each in `list(...)` to get lists back.
+
+```python
+# starter
+def transpose(matrix):
+    ...
+```
+
+```python
+def transpose(matrix):
+    return [list(row) for row in zip(*matrix)]
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert transpose([[1, 2, 3], [4, 5, 6]]) == [[1, 4], [2, 5], [3, 6]]
+    assert transpose([[1]]) == [[1]]
+    assert transpose([[1, 2], [3, 4]]) == [[1, 3], [2, 4]]
+    assert transpose([[1], [2], [3]]) == [[1, 2, 3]]
+    assert transpose([]) == []
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** `zip(*matrix)` unpacks the rows into positional arguments, and `zip` then reads one element from each row per step — precisely a column. It replaces a double `for i in range... for j in range...` index dance with one expression, and correctly produces `[]` for an empty matrix.
+
+## challenge: Dedupe Preserving Order
+tags: dict, ordering
+track: python
+lang: python
+difficulty: easy
+
+Remove duplicate values from `lst`, keeping only the first occurrence of each and preserving the original relative order.
+
+Constraints: elements are hashable; `lst` may be empty.
+
+Example: `[1, 2, 2, 3, 1]` → `[1, 2, 3]`.
+
+hint: A `set` removes duplicates but loses order — you need something ordered.
+hint: Since Python 3.7, a plain `dict` preserves insertion order.
+hint: `dict.fromkeys(lst)` builds a dict whose keys are the deduped items.
+
+```python
+# starter
+def dedupe(lst):
+    ...
+```
+
+```python
+def dedupe(lst):
+    return list(dict.fromkeys(lst))
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert dedupe([1, 2, 2, 3, 1]) == [1, 2, 3]
+    assert dedupe([]) == []
+    assert dedupe([1]) == [1]
+    assert dedupe([1, 1, 1]) == [1]
+    assert dedupe(['a', 'b', 'a', 'c']) == ['a', 'b', 'c']
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** `dict.fromkeys(lst)` uses the items as keys, so duplicates collapse automatically while insertion order is preserved (guaranteed since Python 3.7). Converting the keys back to a list gives an order-preserving dedupe in one line — unlike `set(lst)`, which is unordered, and unlike a manual `seen`-set loop.
+
+## challenge: Group Anagrams
+tags: defaultdict, sorting-key
+track: python
+lang: python
+difficulty: medium
+
+Given a list of `words`, group together the words that are anagrams of one another. Return a list of groups; within each group keep the words in their original order.
+
+Constraints: words contain lowercase letters; the list may be empty.
+
+Example: `["eat", "tea", "tan", "ate", "nat", "bat"]` → groups `["eat", "tea", "ate"]`, `["tan", "nat"]`, `["bat"]`.
+
+hint: Two words are anagrams iff their sorted letters match — that sorted string is a natural group key.
+hint: `''.join(sorted(word))` turns both `"tea"` and `"eat"` into `"aet"`.
+hint: `collections.defaultdict(list)` lets you `append` to a group without first checking whether the key exists.
+
+```python
+# starter
+def anagram_groups(words):
+    ...
+```
+
+```python
+from collections import defaultdict
+
+def anagram_groups(words):
+    groups = defaultdict(list)
+    for word in words:
+        groups[''.join(sorted(word))].append(word)
+    return list(groups.values())
+```
+
+```python
+# harness
+#__USER__
+def _norm(groups):
+    return sorted(sorted(g) for g in groups)
+
+def _check():
+    assert _norm(anagram_groups(["eat", "tea", "tan", "ate", "nat", "bat"])) == \
+        [["ate", "eat", "tea"], ["bat"], ["nat", "tan"]]
+    assert anagram_groups([]) == []
+    assert anagram_groups(["abc"]) == [["abc"]]
+    assert anagram_groups(["a", "a"]) == [["a", "a"]]
+    assert _norm(anagram_groups(["ab", "ba", "cd"])) == [["ab", "ba"], ["cd"]]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** The sorted-letter string is a canonical key shared by all anagrams, so grouping is just bucketing by that key. `defaultdict(list)` auto-creates an empty list on first access, so `groups[key].append(word)` works without an `if key not in groups` guard — the classic idiom for building lists-in-a-dict.
+
+## challenge: Top-K Most Common
+tags: counter, collections
+track: python
+lang: python
+difficulty: medium
+
+Return the `k` most frequently occurring elements of `items`, ordered from most to least common. If `k` exceeds the number of distinct elements, return them all.
+
+Constraints: elements are hashable; ties keep first-seen order; `items` may be empty.
+
+Example: `items = [1, 1, 1, 2, 2, 3], k = 2` → `[1, 2]`.
+
+hint: `collections.Counter` tallies frequencies in one pass.
+hint: `Counter(items).most_common(k)` returns `(element, count)` pairs already sorted by count.
+hint: You only want the elements — unpack and discard the count with `for item, _ in ...`.
+
+```python
+# starter
+def most_common_k(items, k):
+    ...
+```
+
+```python
+from collections import Counter
+
+def most_common_k(items, k):
+    return [item for item, _ in Counter(items).most_common(k)]
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert most_common_k([1, 1, 1, 2, 2, 3], 2) == [1, 2]
+    assert most_common_k([], 3) == []
+    assert most_common_k([5], 1) == [5]
+    assert most_common_k(['a', 'a', 'b', 'b', 'b'], 1) == ['b']
+    assert most_common_k([1, 2], 5) == [1, 2]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** `Counter` builds the frequency table in a single pass, and `.most_common(k)` returns the top-k `(element, count)` pairs already sorted by descending count (ties broken by insertion order). A comprehension strips off the counts. Doing this by hand means a manual dict tally plus a sort with a custom key — `Counter` packages both.
+
+## challenge: Running Sum
+tags: itertools, accumulate
+track: python
+lang: python
+difficulty: medium
+
+Return the running (cumulative) sum of `nums`: element `i` of the result is the sum of `nums[0..i]` inclusive.
+
+Constraints: numbers may be negative; `nums` may be empty.
+
+Example: `[1, 2, 3, 4]` → `[1, 3, 6, 10]`.
+
+hint: Each output equals the previous output plus the current input — a running fold.
+hint: `itertools.accumulate` does exactly this fold, defaulting to addition.
+hint: It returns an iterator — wrap it in `list(...)`.
+
+```python
+# starter
+def running_sum(nums):
+    ...
+```
+
+```python
+from itertools import accumulate
+
+def running_sum(nums):
+    return list(accumulate(nums))
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert running_sum([1, 2, 3, 4]) == [1, 3, 6, 10]
+    assert running_sum([]) == []
+    assert running_sum([5]) == [5]
+    assert running_sum([1, -1, 1, -1]) == [1, 0, 1, 0]
+    assert running_sum([0, 0, 0]) == [0, 0, 0]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** `itertools.accumulate` yields the partial reductions of a sequence, defaulting to `operator.add`, so the cumulative sum is a direct call. It streams lazily (one addition per step, O(n)) and handles empty input cleanly, versus maintaining a `total` variable and appending inside a loop.
+
+## challenge: Invert a Dict
+tags: defaultdict, dict
+track: python
+lang: python
+difficulty: medium
+
+Invert a dictionary so each original value maps to the list of keys that had it. Because values need not be unique, every value maps to a list of keys.
+
+Constraints: values are hashable; the dict may be empty. Key order within each list follows the iteration order of the input.
+
+Example: `{'a': 1, 'b': 2, 'c': 1}` → `{1: ['a', 'c'], 2: ['b']}`.
+
+hint: Each value becomes a key whose bucket collects one-or-more original keys.
+hint: `collections.defaultdict(list)` gives you an empty list to append to on first touch.
+hint: Iterate `for key, value in d.items()` and do `result[value].append(key)`.
+
+```python
+# starter
+def invert(d):
+    ...
+```
+
+```python
+from collections import defaultdict
+
+def invert(d):
+    result = defaultdict(list)
+    for key, value in d.items():
+        result[value].append(key)
+    return dict(result)
+```
+
+```python
+# harness
+#__USER__
+def _norm(d):
+    return {k: sorted(v) for k, v in d.items()}
+
+def _check():
+    assert _norm(invert({'a': 1, 'b': 2, 'c': 1})) == {1: ['a', 'c'], 2: ['b']}
+    assert invert({}) == {}
+    assert invert({'x': 5}) == {5: ['x']}
+    assert _norm(invert({'a': 1, 'b': 1})) == {1: ['a', 'b']}
+    assert _norm(invert({'a': 1, 'b': 2, 'c': 3})) == {1: ['a'], 2: ['b'], 3: ['c']}
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Because several keys can share a value, the inverse maps each value to a list. `defaultdict(list)` removes the "create the bucket if missing" branch, so the loop body is a single `result[value].append(key)`. Converting back with `dict(result)` returns an ordinary dict. This is the canonical one-to-many inversion idiom.
+
+## challenge: Sliding Windows
+tags: zip, unpacking
+track: python
+lang: python
+difficulty: medium
+
+Return all consecutive windows of length `n` over `lst`, as a list of tuples. Windows overlap and slide one position at a time. If `lst` is shorter than `n`, there are no windows.
+
+Constraints: `n >= 1`; `lst` may be empty.
+
+Example: `lst = [1, 2, 3, 4], n = 2` → `[(1, 2), (2, 3), (3, 4)]`.
+
+hint: Window `i` is `lst[i], lst[i+1], ..., lst[i+n-1]` — the same list shifted by 0, 1, ..., n-1.
+hint: `zip` stops at its shortest argument, which trims the ragged tail automatically.
+hint: `zip(*(lst[i:] for i in range(n)))` zips `n` progressively-shifted slices.
+
+```python
+# starter
+def windows(lst, n):
+    ...
+```
+
+```python
+def windows(lst, n):
+    return list(zip(*(lst[i:] for i in range(n))))
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert windows([1, 2, 3, 4], 2) == [(1, 2), (2, 3), (3, 4)]
+    assert windows([1, 2, 3, 4], 3) == [(1, 2, 3), (2, 3, 4)]
+    assert windows([], 2) == []
+    assert windows([1], 2) == []
+    assert windows([1, 2, 3], 1) == [(1,), (2,), (3,)]
+    assert windows([1, 2], 2) == [(1, 2)]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Shifting the list by `0..n-1` and zipping the shifted copies lines up each window as one tuple; because `zip` halts at the shortest slice, the ragged tail is dropped and a too-short list yields no windows — no bounds arithmetic. This is the classic `zip`-of-offset-slices windowing trick.
+
+## challenge: Sort by Computed Key
+tags: sorting-key, lambda
+track: python
+lang: python
+difficulty: medium
+
+Sort a list of 2D points (given as `(x, y)` tuples) by their squared distance from the origin, ascending. Points that are equally distant keep their original relative order.
+
+Constraints: coordinates are integers (may be negative); the list may be empty.
+
+Example: `[(3, 4), (1, 1), (0, 2)]` → `[(1, 1), (0, 2), (3, 4)]` (distances² are 2, 4, 25).
+
+hint: Don't reorder by hand — pass `sorted` a `key` function that maps each point to its sort value.
+hint: Squared distance `x*x + y*y` avoids a `sqrt` and orders identically.
+hint: `sorted(points, key=lambda p: p[0]**2 + p[1]**2)`.
+
+```python
+# starter
+def sort_by_distance(points):
+    ...
+```
+
+```python
+def sort_by_distance(points):
+    return sorted(points, key=lambda p: p[0]**2 + p[1]**2)
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert sort_by_distance([(3, 4), (1, 1), (0, 2)]) == [(1, 1), (0, 2), (3, 4)]
+    assert sort_by_distance([]) == []
+    assert sort_by_distance([(5, 5)]) == [(5, 5)]
+    assert sort_by_distance([(1, 0), (0, 1)]) == [(1, 0), (0, 1)]
+    assert sort_by_distance([(-3, -4), (1, 1)]) == [(1, 1), (-3, -4)]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** A `key` function is computed once per element and cached, so `sorted` orders by squared distance without you touching comparisons. Squaring instead of `sqrt` keeps the ordering and stays in integer math. Because Python's sort is stable, equidistant points keep input order for free — far cleaner than a comparator that recomputes distance on every compare.
+
+## challenge: Memoize with lru_cache
+tags: functools, memoization
+track: python
+lang: python
+difficulty: hard
+
+Implement `fib(n)` returning the n-th Fibonacci number (`fib(0)=0`, `fib(1)=1`) using the naive recursion `fib(n) = fib(n-1) + fib(n-2)` — but make it fast by caching results so each argument is computed at most once.
+
+Constraints: `n >= 0`. The graded solution must expose cache statistics (i.e. the memoized function's `cache_info()` / `cache_clear()`).
+
+Example: `fib(10)` → `55`; recomputing `fib(10)` afterward is a pure cache hit.
+
+hint: The naive recursion recomputes the same subproblems exponentially — memoization collapses that to linear.
+hint: `functools.lru_cache` transparently caches a function's return value keyed by its arguments.
+hint: Decorate the recursive function: `@lru_cache(maxsize=None)` above `def fib(n): ...`.
+
+```python
+# starter
+def fib(n):
+    ...
+```
+
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=None)
+def fib(n):
+    if n < 2:
+        return n
+    return fib(n - 1) + fib(n - 2)
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert fib(0) == 0
+    assert fib(1) == 1
+    assert fib(10) == 55
+    assert fib(30) == 832040
+    fib.cache_clear()
+    assert fib(25) == 75025
+    stats = fib.cache_info()
+    # overlapping subproblems are reused, so there must be cache hits
+    assert stats.hits > 0
+    # each distinct argument 0..25 is computed exactly once
+    assert stats.misses == 26
+    # a repeat call adds only hits, no new misses
+    misses_before = fib.cache_info().misses
+    assert fib(25) == 75025
+    assert fib.cache_info().misses == misses_before
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** `functools.lru_cache` wraps the function in a memoizing cache keyed on its arguments, turning the exponential naive recursion into linear time — each of `fib(0)..fib(n)` is computed once and every other reference is a hit. `maxsize=None` gives an unbounded cache (no eviction), and the wrapper exposes `cache_info()`/`cache_clear()` for introspection. One decorator replaces a hand-rolled memo dict and its lookup/store boilerplate.
+
+## challenge: Natural Sort Order
+tags: sorting-key, regex
+track: python
+lang: python
+difficulty: hard
+
+Sort a list of strings in *natural* order, where embedded runs of digits compare by numeric value rather than lexicographically — so `"file2"` sorts before `"file10"` (a plain string sort would put `"file10"` first).
+
+Constraints: strings mix letters and digit runs; the list may be empty.
+
+Example: `["file10", "file2", "file1"]` → `["file1", "file2", "file10"]`.
+
+hint: Split each string into alternating text and number chunks: `re.split(r'(\d+)', s)`.
+hint: Convert the digit chunks to `int` so they compare numerically, leaving text chunks as strings.
+hint: Use that mixed list as the `key`: `sorted` then compares the lists element-by-element.
+
+```python
+# starter
+def natural_sort(strings):
+    ...
+```
+
+```python
+import re
+
+def natural_sort(strings):
+    def key(s):
+        return [int(part) if part.isdigit() else part
+                for part in re.split(r'(\d+)', s)]
+    return sorted(strings, key=key)
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert natural_sort(["file10", "file2", "file1"]) == ["file1", "file2", "file10"]
+    assert natural_sort([]) == []
+    assert natural_sort(["a"]) == ["a"]
+    assert natural_sort(["img12", "img2", "img1"]) == ["img1", "img2", "img12"]
+    assert natural_sort(["x2", "x2", "x1"]) == ["x1", "x2", "x2"]
+    assert natural_sort(["b", "a", "c"]) == ["a", "b", "c"]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** `re.split(r'(\d+)', s)` breaks each string into alternating text and digit chunks (the capturing group keeps the digits). Casting the digit chunks to `int` makes the `key` a list that compares text lexicographically but numbers numerically, so `sorted` yields human-friendly "natural" order. Python's element-wise list comparison does the rest — no custom comparator needed. (Chunk positions alternate str/int by construction, so like compares with like.)
+
+## quiz: What does this print?
+tags: functions, gotcha
+track: python
+
+```python
+def f(x, acc=[]):
+    acc.append(x)
+    return acc
+print(f(1), f(2))
+```
+
+- [ ] `[1] [1, 2]`
+- [x] `[1, 2] [1, 2]`
+- [ ] `[1] [2]`
+- [ ] `[1, 2] [1]`
+
+> The default list is created once and shared across calls, so `f(1)` and `f(2)` mutate the same object. Both arguments to `print` are evaluated *before* printing, and both are references to that one list — which by then holds `[1, 2]`. Hence the same value twice.
+
+## quiz: What does this print?
+tags: internals, gotcha
+track: python
+
+```python
+a = 256
+b = int("256")
+c = 257
+d = int("257")
+print(a is b)
+print(c is d)
+```
+
+- [ ] `True` then `True`
+- [x] `True` then `False`
+- [ ] `False` then `False`
+- [ ] `False` then `True`
+
+> CPython caches the integers -5 through 256, so `256` and `int("256")` are the *same* cached object and `is` is `True`. `257` is outside the cache, so `int("257")` builds a fresh object each time and `is` is `False`. Value equality (`==`) would be `True` for both — never use `is` to compare numbers.
+
+## quiz: What does this print?
+tags: internals, strings
+track: python
+
+```python
+a = "hi"
+b = "".join(["h", "i"])
+print(a == b, a is b)
+```
+
+- [ ] `True True`
+- [x] `True False`
+- [ ] `False False`
+- [ ] `False True`
+
+> The two strings are equal in value (`==` is `True`), but `b` is built at runtime by `join`, producing a distinct object, so `a is b` is `False`. Only the literal `a` is interned. Equal strings are *not* guaranteed to be the same object — `is` on strings is unreliable.
+
+## quiz: What does this print?
+tags: closures, gotcha
+track: python
+
+```python
+funcs = [lambda: i for i in range(3)]
+print([f() for f in funcs])
+```
+
+- [ ] `[0, 1, 2]`
+- [x] `[2, 2, 2]`
+- [ ] `[0, 0, 0]`
+- [ ] raises `NameError`
+
+> Each lambda closes over the *variable* `i`, not its value at creation time. By the time the lambdas are called, the loop has finished and `i` is `2`, so all three return `2`. To capture per-iteration values, bind a default: `lambda i=i: i`.
+
+## quiz: What does this print?
+tags: iterators, laziness
+track: python
+
+```python
+g = (x * x for x in range(3))
+print(list(g))
+print(list(g))
+```
+
+- [ ] `[0, 1, 4]` then `[0, 1, 4]`
+- [x] `[0, 1, 4]` then `[]`
+- [ ] `[0, 1, 4]` then raises `StopIteration`
+- [ ] `[]` then `[]`
+
+> A generator is a one-shot iterator. The first `list(g)` consumes it fully; the second finds it already exhausted and yields `[]` (it does not restart or raise). To iterate twice, rebuild the generator or materialize it into a list first.
+
+## quiz: What does this print?
+tags: lists, aliasing
+track: python
+
+```python
+m = [[]] * 3
+m[0].append(1)
+print(m)
+```
+
+- [ ] `[[1], [], []]`
+- [x] `[[1], [1], [1]]`
+- [ ] `[[1]]`
+- [ ] raises `IndexError`
+
+> `[[]] * 3` replicates the *same* inner list reference three times, not three independent lists. Appending through `m[0]` mutates that shared list, so the change shows in all three slots. Use `[[] for _ in range(3)]` to get distinct lists.
+
+## quiz: What does this print?
+tags: copying, gotcha
+track: python
+
+```python
+import copy
+a = [[1, 2], [3, 4]]
+b = copy.copy(a)
+b[0].append(99)
+print(a)
+```
+
+- [ ] `[[1, 2], [3, 4]]`
+- [x] `[[1, 2, 99], [3, 4]]`
+- [ ] `[[1, 2, 99], [3, 4, 99]]`
+- [ ] raises `TypeError`
+
+> `copy.copy` is a shallow copy: `b` is a new outer list but its elements are the *same* inner lists as `a`. Mutating `b[0]` mutates the object `a[0]` also points to, so the append is visible through `a`. `copy.deepcopy` would keep them independent.
+
+## quiz: What does this print?
+tags: dict, ordering
+track: python
+
+```python
+d = {}
+d['b'] = 1
+d['a'] = 2
+d['c'] = 3
+print(list(d))
+```
+
+- [ ] `['a', 'b', 'c']`
+- [x] `['b', 'a', 'c']`
+- [ ] order is arbitrary and unpredictable
+- [ ] `['c', 'a', 'b']`
+
+> Since Python 3.7, `dict` preserves *insertion* order as a language guarantee — it does not sort keys. Iterating (or `list(d)`) yields keys in the order they were first added: `b`, `a`, `c`.
+
+## quiz: What does this print?
+tags: lists, mutation
+track: python
+
+```python
+a = [1, 2, 3]
+b = a
+a += [4]
+print(b)
+```
+
+- [ ] `[1, 2, 3]`
+- [x] `[1, 2, 3, 4]`
+- [ ] raises `TypeError`
+- [ ] `[4, 1, 2, 3]`
+
+> For lists, `a += [4]` calls `__iadd__`, which extends the list *in place* — it does not rebind `a`. Since `b` aliases the same list object, `b` sees the appended `4`. (Contrast `a = a + [4]`, which builds a new list and rebinds only `a`, leaving `b` unchanged.)
+
+## quiz: What does this print?
+tags: booleans, truthiness
+track: python
+
+```python
+vals = [0, 0.0, "", "0", [], [0], None]
+print([bool(v) for v in vals])
+```
+
+- [ ] `[False, False, False, False, False, False, False]`
+- [x] `[False, False, False, True, False, True, False]`
+- [ ] `[False, False, False, True, False, False, False]`
+- [ ] `[False, False, True, True, False, True, False]`
+
+> Falsy: `0`, `0.0`, empty string `""`, empty list `[]`, and `None`. Truthy: the string `"0"` (non-empty) and the list `[0]` (non-empty, its content doesn't matter). Emptiness — not the contained value — decides container truthiness.
+
+## quiz: What does this print?
+tags: sorting, stability
+track: python
+
+```python
+data = [("b", 2), ("a", 2), ("c", 1)]
+print(sorted(data, key=lambda p: p[1]))
+```
+
+- [ ] `[('c', 1), ('a', 2), ('b', 2)]`
+- [x] `[('c', 1), ('b', 2), ('a', 2)]`
+- [ ] `[('a', 2), ('b', 2), ('c', 1)]`
+- [ ] `[('b', 2), ('a', 2), ('c', 1)]`
+
+> Sorting only by `p[1]` puts the `1` first, then the two `2`s. Python's sort is *stable*, so among equal keys the original order is preserved: `("b", 2)` came before `("a", 2)` in the input, so it stays before it. The first tuple element is never used to break the tie.
+
+## quiz: What does this print?
+tags: comprehensions, scope
+track: python
+
+```python
+x = "outer"
+squares = [x for x in range(3)]
+print(x)
+```
+
+- [ ] `2`
+- [x] `outer`
+- [ ] raises `NameError`
+- [ ] `[0, 1, 2]`
+
+> In Python 3 a comprehension has its own scope, so its loop variable `x` does not leak into the enclosing namespace. The outer `x` is untouched and still `"outer"`. (In Python 2, list comprehensions *did* leak and this would print `2`.)
+
+## quiz: What happens here?
+tags: sum, exceptions
+track: python
+
+```python
+print(sum(["a", "b", "c"]))
+```
+
+- [ ] `'abc'`
+- [ ] `'cba'`
+- [x] raises `TypeError`
+- [ ] `0`
+
+> `sum` starts from `0` (an int) and adds each element, so the first step is `0 + "a"` — `int + str` — which raises `TypeError`. Even the string-friendly `sum(seq, "")` is explicitly blocked. To concatenate strings use `"".join(["a", "b", "c"])`.
+
+## quiz: What does this print?
+tags: operators, comparison
+track: python
+
+```python
+x = 10
+print(0 < x < 5)
+```
+
+- [ ] `True`
+- [x] `False`
+- [ ] raises `SyntaxError`
+- [ ] `10`
+
+> `0 < x < 5` is a *chained* comparison, equivalent to `(0 < x) and (x < 5)`, with `x` evaluated once. That is `True and False`, so `False`. It does **not** mean `(0 < x) < 5`, which would be `True < 5` → `1 < 5` → `True`.
+
+## quiz: What happens when this class is defined?
+tags: dataclasses, gotcha
+track: python
+
+```python
+from dataclasses import dataclass
+@dataclass
+class Cart:
+    items: list = []
+```
+
+- [ ] Defines fine; all `Cart` instances share one list
+- [x] Raises `ValueError` at class-definition time
+- [ ] Defines fine; each `Cart` gets a fresh list
+- [ ] Raises `TypeError` only when you first construct a `Cart`
+
+> `@dataclass` detects the mutable default `[]` and refuses it — raising `ValueError: mutable default ... is not allowed: use default_factory` while the class body is being processed (before any instance exists). The fix is `items: list = field(default_factory=list)`.
+
+## quiz: What does this print?
+tags: bytes, strings
+track: python
+
+```python
+data = b"hello"
+print(data[0], type(data[0]).__name__)
+```
+
+- [ ] `b'h' bytes`
+- [x] `104 int`
+- [ ] `h str`
+- [ ] `104 bytes`
+
+> Indexing a `bytes` object yields an *integer* (the byte value), not a length-1 bytes or a str — `data[0]` is `104`, the ASCII code for `'h'`. To get a single-byte bytes object you'd slice: `data[0:1]` → `b'h'`. This str-vs-bytes asymmetry trips people up: `"hello"[0]` is `'h'`, but `b"hello"[0]` is `104`.
+
+## quiz: What does this print?
+tags: booleans, short-circuit
+track: python
+
+```python
+print(0 or [] or "fallback")
+print("" and "x")
+```
+
+- [ ] `True` then `False`
+- [x] `fallback` then an empty line
+- [ ] `[]` then `x`
+- [ ] `fallback` then `x`
+
+> `and`/`or` return one of their *operands*, not a bool. `or` returns the first truthy operand: `0` and `[]` are falsy, so it yields `"fallback"`. `and` returns the first falsy operand (short-circuiting): `""` is falsy, so it yields `""`, which prints as a blank line.
+
+## quiz: What does this print?
+tags: tuples, syntax
+track: python
+
+```python
+x = (1)
+y = (1,)
+print(type(x).__name__, type(y).__name__)
+```
+
+- [ ] `tuple tuple`
+- [x] `int tuple`
+- [ ] `tuple int`
+- [ ] `int int`
+
+> Parentheses only group — they do not make a tuple. `(1)` is just the integer `1`. It is the *comma* that builds a tuple, so `(1,)` is a one-element tuple. (Even `1,` without parentheses is a tuple.)
+
+## quiz: What does this print?
+tags: slicing, sequences
+track: python
+
+```python
+s = "abcdef"
+print(s[::-1], s[-2:], s[1:-1])
+```
+
+- [ ] `abcdef fe abcde`
+- [x] `fedcba ef bcde`
+- [ ] `fedcba ef bcdef`
+- [ ] `fedbca ef bcde`
+
+> `s[::-1]` steps backward over the whole string → `'fedcba'`. `s[-2:]` starts two from the end → `'ef'`. `s[1:-1]` drops the first and last characters (stop is exclusive) → `'bcde'`.
+
+## quiz: What does this print?
+tags: booleans, int-subclass
+track: python
+
+```python
+print(True + True)
+print(["zero", "one", "two"][True])
+```
+
+- [ ] raises `TypeError`
+- [x] `2` then `one`
+- [ ] `True` then `zero`
+- [ ] `2` then `zero`
+
+> `bool` is a subclass of `int`, with `True == 1` and `False == 0`. So `True + True` is `2`, and indexing with `True` is indexing with `1`, giving the element `"one"`.
+
 ## quiz: You pay a fixed price to roll one fair six-sided die and are paid its face value in dollars. What is the fair price?
 tags: expected-value, dice
 track: quant

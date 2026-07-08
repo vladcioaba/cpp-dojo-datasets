@@ -1,5 +1,5 @@
 {
- "count": 593,
+ "count": 636,
  "cards": [
   {
    "topic": "cpp-core",
@@ -4512,6 +4512,350 @@
    "track": "hft",
    "level": "hard",
    "title": "Branchless count of elements >= threshold"
+  },
+  {
+   "topic": "python",
+   "file": "python/01_two-sum_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Two Sum"
+  },
+  {
+   "topic": "python",
+   "file": "python/facts.md",
+   "type": "fact",
+   "track": "python",
+   "level": "concept",
+   "title": "Mutable default arguments are evaluated once"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_01_contains-duplicate_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Contains Duplicate"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_02_valid-anagram_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Valid Anagram"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_03_valid-palindrome_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Valid Palindrome"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_04_valid-parentheses_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Valid Parentheses"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_05_best-time-to-buy-and-sell-stock_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Best Time to Buy and Sell Stock"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_06_group-anagrams_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Group Anagrams"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_07_top-k-frequent-elements_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Top K Frequent Elements"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_08_product-of-array-except-self_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Product of Array Except Self"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_09_two-sum-ii_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Two Sum II - Input Array Is Sorted"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_10_container-with-most-water_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Container With Most Water"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_11_daily-temperatures_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Daily Temperatures"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_12_3sum_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "3Sum"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_13_longest-substring-without-repeating-characters_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Longest Substring Without Repeating Characters"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyd_14_longest-consecutive-sequence_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Longest Consecutive Sequence"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_01_invert-binary-tree_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Invert Binary Tree"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_02_maximum-depth-of-binary-tree_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Maximum Depth of Binary Tree"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_03_climbing-stairs_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Climbing Stairs"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_04_binary-tree-level-order-traversal_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Binary Tree Level Order Traversal"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_05_validate-binary-search-tree_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Validate Binary Search Tree"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_06_number-of-islands_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Number of Islands"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_07_course-schedule_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Course Schedule"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_08_house-robber_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "House Robber"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_09_coin-change_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Coin Change"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_10_kth-largest-element_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Kth Largest Element in an Array"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_11_word-break_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Word Break"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_12_combination-sum_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Combination Sum"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_13_search-in-rotated-sorted-array_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Search in Rotated Sorted Array"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyg_14_koko-eating-bananas_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Koko Eating Bananas"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_01_flatten-nested-list_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Flatten a Nested List"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_02_chunk-list_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Chunk a List"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_03_transpose-matrix_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Transpose a Matrix"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_04_dedupe-preserve-order_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Dedupe Preserving Order"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_05_anagram-groups_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Group Anagrams"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_06_most-common-k_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Top-K Most Common"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_07_cumulative-sum_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Running Sum"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_08_invert-dict_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Invert a Dict"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_09_sliding-windows_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Sliding Windows"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_10_sort-by-key_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Sort by Computed Key"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_11_memoize-lru-cache_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Memoize with lru_cache"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyi_12_natural-sort_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Natural Sort Order"
+  },
+  {
+   "topic": "python",
+   "file": "python/quizzes.md",
+   "type": "quiz",
+   "track": "python",
+   "level": "concept",
+   "title": "What does this print?"
   },
   {
    "topic": "quant",
