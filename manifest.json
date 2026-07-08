@@ -1,5 +1,5 @@
 {
- "count": 237,
+ "count": 385,
  "cards": [
   {
    "topic": "cpp-core",
@@ -888,6 +888,1190 @@
    "track": "faang",
    "level": "hard",
    "title": "Median of Two Sorted Arrays"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_01_single-number_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Single Number"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_02_majority-element_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Majority Element"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_03_move-zeroes_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Move Zeroes"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_04_plus-one_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Plus One"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_05_valid-sudoku_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Valid Sudoku"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_06_longest-consecutive-sequence_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Longest Consecutive Sequence"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_07_subarray-sum-equals-k_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Subarray Sum Equals K"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_08_find-the-duplicate-number_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Find the Duplicate Number"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_09_contiguous-array_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Contiguous Array"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_10_first-missing-positive_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "First Missing Positive"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_11_substring-with-concatenation-of-all-words_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Substring with Concatenation of All Words"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ah_12_max-points-on-a-line_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Max Points on a Line"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_01_binary-search_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Binary Search"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_02_search-insert-position_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Search Insert Position"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_03_first-bad-version_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "First Bad Version"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_04_sqrtx_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Sqrt(x)"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_05_find-peak-element_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Find Peak Element"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_06_search-a-2d-matrix_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Search a 2D Matrix"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_07_find-minimum-in-rotated-sorted-array_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Find Minimum in Rotated Sorted Array"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_08_find-first-and-last-position_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Find First and Last Position of Element in Sorted Array"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_09_single-element-in-a-sorted-array_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Single Element in a Sorted Array"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_10_split-array-largest-sum_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Split Array Largest Sum"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_11_capacity-to-ship-packages_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Capacity To Ship Packages Within D Days"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bs_12_find-k-closest-elements_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Find K Closest Elements"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_01_letter-combinations-of-a-phone-number_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Letter Combinations of a Phone Number"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_02_generate-parentheses_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Generate Parentheses"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_03_combinations_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Combinations"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_04_combination-sum-ii_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Combination Sum II"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_05_subsets-ii_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Subsets II"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_06_permutations-ii_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Permutations II"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_07_palindrome-partitioning_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Palindrome Partitioning"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_08_restore-ip-addresses_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Restore IP Addresses"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_09_beautiful-arrangement_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Beautiful Arrangement"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_10_n-queens_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "N-Queens II"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_11_word-break-ii_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Word Break II"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/bt_12_sudoku-solver_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Sudoku Solver"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_01_min-cost-climbing-stairs_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Min Cost Climbing Stairs"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_02_unique-paths_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Unique Paths"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_03_perfect-squares_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Perfect Squares"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_04_word-break_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Word Break"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_05_decode-ways_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Decode Ways"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_06_jump-game-ii_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Jump Game II"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_07_partition-equal-subset-sum_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Partition Equal Subset Sum"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_08_longest-increasing-subsequence_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Longest Increasing Subsequence"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_09_maximum-product-subarray_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Maximum Product Subarray"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_10_coin-change-ii_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Coin Change II"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_11_edit-distance_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Edit Distance"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_12_best-time-to-buy-and-sell-stock-with-cooldown_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Best Time to Buy and Sell Stock with Cooldown"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_13_maximal-square_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Maximal Square"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/dp_14_target-sum_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Target Sum"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_01_flood-fill_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Flood Fill"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_02_max-area-of-island_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Max Area of Island"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_03_number-of-provinces_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Number of Provinces"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_04_number-of-connected-components_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Number of Connected Components in an Undirected Graph"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_05_graph-valid-tree_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Graph Valid Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_06_redundant-connection_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Redundant Connection"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_07_clone-graph_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Clone Graph"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_08_surrounded-regions_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Surrounded Regions"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_09_course-schedule-ii_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Course Schedule II"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_10_pacific-atlantic-water-flow_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Pacific Atlantic Water Flow"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_11_word-ladder_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Word Ladder"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/gr_12_shortest-path-in-binary-matrix_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Shortest Path in Binary Matrix"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_01_last-stone-weight_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Last Stone Weight"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_02_assign-cookies_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Assign Cookies"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_03_maximum-units-on-a-truck_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Maximum Units on a Truck"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_04_k-closest-points-to-origin_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "K Closest Points to Origin"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_05_task-scheduler_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Task Scheduler"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_06_reorganize-string_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Reorganize String"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_07_gas-station_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Gas Station"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_08_hand-of-straights_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Hand of Straights"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_09_partition-labels_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Partition Labels"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_10_find-median-from-data-stream_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Find Median from Data Stream"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_11_minimum-number-of-refueling-stops_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Minimum Number of Refueling Stops"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/hg_12_single-threaded-cpu_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Single-Threaded CPU"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_01_insert-interval_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Insert Interval"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_02_non-overlapping-intervals_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Non-overlapping Intervals"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_03_meeting-rooms_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Meeting Rooms"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_04_meeting-rooms-ii_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Meeting Rooms II"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_05_minimum-number-of-arrows-to-burst-balloons_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Minimum Number of Arrows to Burst Balloons"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_06_single-number_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Single Number"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_07_number-of-1-bits_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Number of 1 Bits"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_08_counting-bits_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Counting Bits"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_09_missing-number_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Missing Number"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_10_sum-of-two-integers_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Sum of Two Integers"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_11_pow-x-n_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Pow(x, n)"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_12_happy-number_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Happy Number"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_13_multiply-strings_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Multiply Strings"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ib_14_spiral-matrix_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Spiral Matrix"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_01_middle-of-the-linked-list_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Middle of the Linked List"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_02_remove-duplicates-from-sorted-list_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Remove Duplicates from Sorted List"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_03_remove-linked-list-elements_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Remove Linked List Elements"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_04_remove-nth-node-from-end-of-list_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Remove Nth Node From End of List"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_05_add-two-numbers_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Add Two Numbers"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_06_odd-even-linked-list_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Odd Even Linked List"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_07_swap-nodes-in-pairs_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Swap Nodes in Pairs"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_08_rotate-list_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Rotate List"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_09_partition-list_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Partition List"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_10_reorder-list_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Reorder List"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_11_palindrome-linked-list_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Palindrome Linked List"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/ll_12_copy-list-with-random-pointer_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Copy List with Random Pointer"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_01_min-stack_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Min Stack"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_02_implement-queue-using-stacks_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Implement Queue using Stacks"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_03_baseball-game_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Baseball Game"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_04_remove-all-adjacent-duplicates-in-string_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Remove All Adjacent Duplicates In String"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_05_next-greater-element-i_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Next Greater Element I"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_06_generate-parentheses_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Generate Parentheses"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_07_asteroid-collision_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Asteroid Collision"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_08_simplify-path_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Simplify Path"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_09_online-stock-span_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Online Stock Span"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_10_decode-string_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Decode String"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_11_car-fleet_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Car Fleet"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/st_12_sum-of-subarray-minimums_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Sum of Subarray Minimums"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_01_maximum-average-subarray_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Maximum Average Subarray I"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_02_maximum-vowels-substring_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Maximum Number of Vowels in a Substring of Given Length"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_03_max-consecutive-ones-iii_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Max Consecutive Ones III"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_04_minimum-size-subarray-sum_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Minimum Size Subarray Sum"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_05_fruit-into-baskets_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Fruit Into Baskets"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_06_find-all-anagrams_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Find All Anagrams in a String"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_07_permutation-in-string_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Permutation in String"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_08_longest-subarray-after-deleting-one_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Longest Subarray of 1's After Deleting One Element"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_09_grumpy-bookstore-owner_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Grumpy Bookstore Owner"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_10_longest-repeating-character-replacement_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Longest Repeating Character Replacement"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_11_count-number-of-nice-subarrays_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Count Number of Nice Subarrays"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/sw_12_minimum-window-substring_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Minimum Window Substring"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_01_remove-duplicates-from-sorted-array_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Remove Duplicates from Sorted Array"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_02_squares-of-a-sorted-array_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Squares of a Sorted Array"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_03_reverse-string_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Reverse String"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_04_remove-element_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Remove Element"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_05_sort-colors_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Sort Colors"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_06_boats-to-save-people_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Boats to Save People"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_07_rotate-array_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Rotate Array"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_08_valid-palindrome-ii_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Valid Palindrome II"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_09_two-sum-less-than-k_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Two Sum Less Than K"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_10_4sum_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "4Sum"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_11_backspace-string-compare_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Backspace String Compare"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tp_12_partition-labels_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Partition Labels"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_01_binary-tree-inorder-traversal_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Binary Tree Inorder Traversal"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_02_symmetric-tree_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Symmetric Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_03_path-sum_easy.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "easy",
+   "title": "Path Sum"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_04_average-of-levels-in-binary-tree_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Average of Levels in Binary Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_05_balanced-binary-tree_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Balanced Binary Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_06_subtree-of-another-tree_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Subtree of Another Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_07_binary-tree-right-side-view_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Binary Tree Right Side View"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_08_count-good-nodes-in-binary-tree_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Count Good Nodes in Binary Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_09_lowest-common-ancestor-of-a-binary-search-tree_medium.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "medium",
+   "title": "Lowest Common Ancestor of a Binary Search Tree"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_10_kth-smallest-element-in-a-bst_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Kth Smallest Element in a BST"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_11_construct-binary-tree-from-preorder-and-inorder_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Construct Binary Tree from Preorder and Inorder Traversal"
+  },
+  {
+   "topic": "faang",
+   "file": "faang/tr_12_flatten-binary-tree-to-linked-list_hard.md",
+   "type": "challenge",
+   "track": "faang",
+   "level": "hard",
+   "title": "Flatten Binary Tree to Linked List"
   },
   {
    "topic": "fpga",

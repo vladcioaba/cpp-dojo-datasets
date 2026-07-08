@@ -10,6 +10,7 @@ Constraints: `0 <= n <= 10^4` nodes, `-100 <= Node.val <= 100`.
 Example: `[3,9,20,null,null,15,7]` -> `3`. Example: empty -> `0`. Example: `[1]` -> `1`.
 
 hint: The depth of a tree is one more than the depth of its deeper subtree.
+hint: A post-order DFS recursion is the cleanest tool here; a BFS level count works too.
 hint: Recurse into both children and return `1 + max(leftDepth, rightDepth)`; an empty subtree contributes depth `0`.
 
 ```cpp

@@ -10,6 +10,7 @@ Constraints: `0 <= n <= 100` nodes in each tree, `-10^4 <= Node.val <= 10^4`.
 Example: `p = [1,2,3], q = [1,2,3]` -> `true`. Example: `p = [1,2], q = [1,null,2]` -> `false` (same values, different shape). Example: `p = [1,2,1], q = [1,1,2]` -> `false`. Example: both empty -> `true`.
 
 hint: Two trees match only if their roots match and, recursively, their left subtrees and their right subtrees each match.
+hint: A single lockstep DFS over both trees at once is all you need.
 hint: Compare the two nodes in lockstep: both null is a match, exactly one null is a mismatch, otherwise compare values then recurse on both children.
 
 ```cpp
