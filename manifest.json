@@ -1,5 +1,5 @@
 {
- "count": 662,
+ "count": 688,
  "cards": [
   {
    "topic": "cpp-core",
@@ -4371,6 +4371,86 @@
   },
   {
    "topic": "hft",
+   "file": "hft/ll2_01_cache-line-aligned-slot_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "One slot, one cache line"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_02_false-sharing-padded-counters_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "False-sharing-free counter array"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_03_aos-to-soa-transform_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "AoS to SoA for the hot loop"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_04_branchless-minmax-scan_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Branchless min/max scan"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_05_ilp-four-accumulator-sum_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Sum with four independent accumulators"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_06_branchfree-clamp-loop_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Branch-free clamp over an array"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_07_mask-select-64_easy.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "easy",
+   "title": "Branchless select with an all-ones mask"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_08_threshold-partition_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Partition, then the branch is free"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_09_message-length-table_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Message length: table, not switch"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_10_pow2-ceil-floor_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Round to powers of two, both ways"
+  },
+  {
+   "topic": "hft",
    "file": "hft/math_01_integer-log2-floor_easy.md",
    "type": "challenge",
    "track": "hft",
@@ -5040,6 +5120,134 @@
    "track": "python",
    "level": "hard",
    "title": "Natural Sort Order"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_01_merge-two-sorted-lists_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Merge Two Sorted Lists"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_02_squares-of-a-sorted-array_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Squares of a Sorted Array"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_03_roman-to-integer_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Roman to Integer"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_04_min-cost-climbing-stairs_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Min Cost Climbing Stairs"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_05_rotate-array_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Rotate Array"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_06_string-compression_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "String Compression"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_07_longest-palindromic-substring_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Longest Palindromic Substring"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_08_spiral-matrix_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Spiral Matrix"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_09_rotting-oranges_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Rotting Oranges"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_10_merge-intervals_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Merge Intervals"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_11_jump-game_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Jump Game"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_12_k-closest-points_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "K Closest Points to Origin"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_13_non-overlapping-intervals_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Non-overlapping Intervals"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_14_longest-increasing-subsequence_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Longest Increasing Subsequence"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_15_partition-equal-subset-sum_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Partition Equal Subset Sum"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyw2_16_pacific-atlantic-water-flow_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Pacific Atlantic Water Flow"
   },
   {
    "topic": "python",

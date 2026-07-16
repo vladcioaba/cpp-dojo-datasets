@@ -28630,6 +28630,711 @@ int main() {
 
 **Editorial:** A freelist is a Treiber stack in disguise, and the interesting design decision is storing *indices* rather than pointers. The `next` links live in a side array `next_[]` indexed by slot number, and `head_` is a plain `int`, so `alloc`/`free` are the same load-check-CAS loops as the pointer stack but operate on small integers. Two payoffs: allocation is O(1) with zero `malloc`, and — because an `int` index is not a reusable heap address — you dodge the worst of the pointer stack's **ABA problem** and its reclamation hazard (there is no node to free; the storage is the pool itself, which outlives every operation). ABA can still bite in principle if a slot is popped, pushed, and re-popped between one thread's load and CAS, so production allocators fold a version tag into a double-width `head_` (a packed `{index, tag}` swapped with a 64-bit or `cmpxchg16b` CAS); this single-threaded version doesn't need it. Minimal-correct ordering: `alloc`'s successful CAS is `acquire` so a reused slot's contents (written by the previous owner before it called `free`) are visible, and `free`'s CAS is `release` to publish them — a release/acquire pair through `head_`. The failing legs are `relaxed`. `alloc` returning `-1` on an empty list is the graceful "pool exhausted" signal a fixed-size design must always provide.
 
+## challenge: One slot, one cache line
+tags: cache, alignment, layout
+track: hft
+difficulty: easy
+
+Define a market-data slot struct `MdSlot` that occupies exactly one 64-byte cache line and is 64-byte aligned, with fields in this exact order: `uint64_t seq`, `int64_t price`, `int32_t qty`, `uint32_t flags`. The compiler must place `seq` at offset 0, `price` at 8, `qty` at 16, `flags` at 20, with the rest of the line as tail padding. In an array of slots each element then starts on a fresh line, so a core reading slot `i` never drags slot `i+1`'s bytes into its cache — and a writer to slot `i+1` never invalidates the reader's line.
+
+Constraints: `sizeof(MdSlot) == 64`, `alignof(MdSlot) == 64`, offsets exactly 0/8/16/20. No bit-fields; no manual `char pad[...]` member required.
+
+Example: with `MdSlot slots[4];`, `&slots[1]` is exactly 64 bytes past `&slots[0]` and every element address is a multiple of 64.
+
+hint: `alignas(64)` on the struct raises its alignment requirement, and `sizeof` is always a multiple of `alignof` — so the tail padding to 64 bytes comes for free.
+hint: Order members largest-first (8, 8, 4, 4 bytes) so natural alignment yields offsets 0, 8, 16, 20 with no interior gaps.
+hint: You never need to spell out the padding bytes: `struct alignas(64) MdSlot { ... };` forces `sizeof(MdSlot)` up to 64 by itself.
+
+```cpp
+// starter
+#include <cstdint>
+// Define MdSlot here: uint64_t seq, int64_t price, int32_t qty, uint32_t flags.
+// It must occupy exactly one 64-byte cache line and be 64-byte aligned.
+```
+
+```cpp
+struct alignas(64) MdSlot {
+    uint64_t seq;     // offset 0
+    int64_t  price;   // offset 8
+    int32_t  qty;     // offset 16
+    uint32_t flags;   // offset 20
+    // bytes 24..63 are tail padding, supplied by alignas(64)
+};
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+#include <cstddef>
+//__USER__
+static_assert(sizeof(MdSlot) == 64, "must occupy exactly one cache line");
+static_assert(alignof(MdSlot) == 64, "must be cache-line aligned");
+static_assert(offsetof(MdSlot, seq) == 0, "seq at offset 0");
+static_assert(offsetof(MdSlot, price) == 8, "price at offset 8");
+static_assert(offsetof(MdSlot, qty) == 16, "qty at offset 16");
+static_assert(offsetof(MdSlot, flags) == 20, "flags at offset 20");
+int main() {
+    static MdSlot slots[4] = {};
+    for (int i = 0; i < 4; ++i) {
+        if (reinterpret_cast<uintptr_t>(&slots[i]) % 64 != 0) {
+            std::printf("slot %d is not 64-byte aligned\n", i); return 1;
+        }
+    }
+    if (reinterpret_cast<uintptr_t>(&slots[1]) - reinterpret_cast<uintptr_t>(&slots[0]) != 64) {
+        std::puts("array stride is not 64 bytes"); return 1;
+    }
+    slots[2].seq = 7; slots[2].price = -12345; slots[2].qty = 100; slots[2].flags = 3;
+    if (slots[2].seq != 7 || slots[2].price != -12345 || slots[2].qty != 100 || slots[2].flags != 3) {
+        std::puts("field round-trip failed"); return 1;
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The cache line (64 bytes on x86 and most ARM servers) is the unit of transfer and of coherence: when any byte in a line is written, every other core's copy of that whole line is invalidated. If two slots straddle one line, a writer updating slot 1 stalls a reader of slot 0 even though they touch disjoint data. `alignas(64)` fixes this structurally: it raises the struct's alignment to 64, and because the language guarantees `sizeof` is a multiple of `alignof` (arrays must tile), the compiler pads the struct to exactly 64 bytes — every array element owns a whole line. Ordering members largest-first (two 8-byte, then two 4-byte fields) packs them at offsets 0/8/16/20 with zero interior padding, keeping all the payload in the first 24 bytes so a single load of the line's start captures everything. `static_assert` + `offsetof` turn these layout assumptions into compile-time contracts — in a trading system you assert layout at build time, not discover it in a latency histogram.
+
+## challenge: False-sharing-free counter array
+tags: cache, false-sharing, layout
+track: hft
+difficulty: medium
+
+Per-thread statistics counters that sit next to each other in memory destroy each other's cache lines: every increment by one thread invalidates the line in every other core. Fix it structurally. Implement `PaddedCounter` — a `uint64_t value` that owns a full 64-byte cache line — and `Counters`, a fixed bank of 8 of them with `void add(size_t i, uint64_t d)`, `uint64_t get(size_t i) const`, and `uint64_t total() const`. Adjacent counters must never share a line.
+
+Constraints: `sizeof(PaddedCounter) == 64` and `alignof(PaddedCounter) == 64`; `0 <= i < 8`; counters start at zero; `add`/`get` are O(1) array indexing (no map, no hash).
+
+Example: `Counters c; c.add(0,5); c.add(7,2); c.add(0,1);` then `c.get(0) == 6`, `c.get(7) == 2`, `c.total() == 8`. In `PaddedCounter pair[2];`, `&pair[1].value` is exactly 64 bytes past `&pair[0].value`.
+
+hint: `alignas(64)` on the struct does two jobs at once: it aligns the first instance to a line boundary and rounds `sizeof` up to 64, so array elements land on distinct lines.
+hint: A manual `char pad[56]` after the value also works, but the invariant you actually need is `sizeof == 64` — let the compiler do the padding.
+hint: `Counters` is just `PaddedCounter slots_[8]` behind bounds-free O(1) indexing; `total()` walks the 8 slots.
+
+```cpp
+// starter
+#include <cstdint>
+#include <cstddef>
+// struct PaddedCounter { uint64_t value; ... };  // one full cache line
+// class Counters {  // bank of 8 padded counters, all starting at 0
+//     void add(size_t i, uint64_t d);
+//     uint64_t get(size_t i) const;
+//     uint64_t total() const;
+// };
+```
+
+```cpp
+struct alignas(64) PaddedCounter {
+    uint64_t value = 0;
+};
+
+class Counters {
+public:
+    void add(size_t i, uint64_t d) { slots_[i].value += d; }
+    uint64_t get(size_t i) const { return slots_[i].value; }
+    uint64_t total() const {
+        uint64_t t = 0;
+        for (const PaddedCounter& s : slots_) t += s.value;
+        return t;
+    }
+private:
+    PaddedCounter slots_[8];
+};
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+#include <cstddef>
+//__USER__
+static_assert(sizeof(PaddedCounter) == 64, "counter must own a full cache line");
+static_assert(alignof(PaddedCounter) == 64, "counter must be line aligned");
+int main() {
+    PaddedCounter pair[2];
+    uintptr_t d = reinterpret_cast<uintptr_t>(&pair[1].value)
+                - reinterpret_cast<uintptr_t>(&pair[0].value);
+    if (d != 64) { std::printf("adjacent values %u bytes apart, want 64\n", (unsigned)d); return 1; }
+    if (reinterpret_cast<uintptr_t>(&pair[0]) % 64 != 0) { std::puts("not line aligned"); return 1; }
+
+    Counters c;
+    for (size_t i = 0; i < 8; ++i) {
+        if (c.get(i) != 0) { std::printf("counter %zu not zero-initialized\n", i); return 1; }
+    }
+    c.add(0, 5); c.add(7, 2); c.add(0, 1); c.add(3, 100);
+    if (c.get(0) != 6)  { std::puts("get(0) wrong"); return 1; }
+    if (c.get(7) != 2)  { std::puts("get(7) wrong"); return 1; }
+    if (c.get(3) != 100){ std::puts("get(3) wrong"); return 1; }
+    if (c.get(1) != 0)  { std::puts("get(1) should be untouched"); return 1; }
+    if (c.total() != 108) { std::printf("total=%llu want 108\n", (unsigned long long)c.total()); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** False sharing is coherence traffic without actual sharing: eight plain `uint64_t` counters fit in one 64-byte line, so when thread A increments counter 0, the MESI protocol invalidates the line in the core running thread B, which was only ever touching counter 1. Each increment becomes a cross-core round trip (~40–100 ns) instead of an L1 hit (~1 ns) — a 50–100x slowdown that profiles as "memory bound" with no obvious culprit. The fix costs only space: give each counter its own line. `alignas(64)` guarantees both the alignment of the first element and, because `sizeof` must be a multiple of `alignof`, the 64-byte stride of every element — no fragile hand-counted `char pad[56]`. The `static_assert`s make the layout a compile-time contract so a colleague adding a field can't silently reintroduce sharing. C++17's `std::hardware_destructive_interference_size` names the constant, though many shops pin 64 explicitly (and use 128 on CPUs that prefetch line pairs). The same pattern protects SPSC queue head/tail indices and per-core sequence numbers.
+
+## challenge: AoS to SoA for the hot loop
+tags: cache, simd, data-layout
+track: hft
+difficulty: medium
+
+Quotes arrive as an array of structs: `struct Quote { int64_t price; int32_t qty; int32_t pad; };` (16 bytes each). A hot loop that only needs prices and quantities still drags every struct's full 16 bytes through the cache and can't vectorize cleanly. Split the data into parallel arrays. Implement `void toSoA(const Quote* q, size_t n, int64_t* prices, int32_t* qtys)` that scatters the AoS input into two dense arrays, and `int64_t notionalSum(const int64_t* prices, const int32_t* qtys, size_t n)` that returns the sum of `price * qty` over the SoA form in a single pass.
+
+Constraints: `n` up to 10^6; every product and the total fit in `int64_t`; `prices`/`qtys` are caller-provided buffers of length `n`; `notionalSum` must be one linear pass with no extra allocation.
+
+Example: quotes `{(100,2),(101,3),(-50,7)}` produce `prices == [100,101,-50]`, `qtys == [2,3,7]`, and `notionalSum == 100*2 + 101*3 + (-50)*7 == 153`.
+
+hint: `toSoA` is a single loop copying `q[i].price` and `q[i].qty` into position `i` of each output array — the win is in the layout, not in clever code.
+hint: In `notionalSum`, widen before multiplying: `prices[i]` is already `int64_t`, so `prices[i] * qtys[i]` is a 64-bit multiply — accumulate into an `int64_t`.
+hint: Keep both loops free of branches and function calls so the compiler can unroll and vectorize them.
+
+```cpp
+// starter
+#include <cstdint>
+#include <cstddef>
+struct Quote { int64_t price; int32_t qty; int32_t pad; };
+void toSoA(const Quote* q, size_t n, int64_t* prices, int32_t* qtys);
+int64_t notionalSum(const int64_t* prices, const int32_t* qtys, size_t n);
+```
+
+```cpp
+struct Quote { int64_t price; int32_t qty; int32_t pad; };
+
+void toSoA(const Quote* q, size_t n, int64_t* prices, int32_t* qtys) {
+    for (size_t i = 0; i < n; ++i) {
+        prices[i] = q[i].price;
+        qtys[i]   = q[i].qty;
+    }
+}
+
+int64_t notionalSum(const int64_t* prices, const int32_t* qtys, size_t n) {
+    int64_t total = 0;
+    for (size_t i = 0; i < n; ++i) {
+        total += prices[i] * qtys[i];
+    }
+    return total;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+#include <cstddef>
+//__USER__
+int main() {
+    Quote q[5] = {
+        {100, 2, 0}, {101, 3, 0}, {-50, 7, 0}, {99, 0, 0}, {1000000, 1000, 0},
+    };
+    int64_t prices[5] = {};
+    int32_t qtys[5] = {};
+    toSoA(q, 5, prices, qtys);
+    for (size_t i = 0; i < 5; ++i) {
+        if (prices[i] != q[i].price) { std::printf("prices[%zu] wrong\n", i); return 1; }
+        if (qtys[i] != q[i].qty)     { std::printf("qtys[%zu] wrong\n", i); return 1; }
+    }
+    int64_t want = 0;
+    for (size_t i = 0; i < 5; ++i) want += q[i].price * (int64_t)q[i].qty;
+    int64_t got = notionalSum(prices, qtys, 5);
+    if (got != want) { std::printf("notionalSum=%lld want %lld\n", (long long)got, (long long)want); return 1; }
+    if (notionalSum(prices, qtys, 0) != 0) { std::puts("empty sum must be 0"); return 1; }
+    toSoA(q, 0, prices, qtys);  // n == 0 must be a no-op
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Layout decides bandwidth. In AoS, a loop that reads `price` and `qty` streams 16 bytes per quote but uses 12 — and worse, the fields it wants sit at a 16-byte stride, so a 64-byte cache line delivers only 4 quotes and the vectorizer must emit gather/shuffle sequences to pack values into SIMD lanes. In SoA, `prices[]` is a dense `int64_t` stream and `qtys[]` a dense `int32_t` stream: every byte fetched is used, hardware prefetchers see two perfectly sequential streams, and `notionalSum` compiles to straight-line SIMD (widen 4 qtys, multiply into 64-bit lanes, add) with no shuffles. The transform itself costs one pass, which is why real systems don't transform at all — feed handlers write SoA (or column-oriented) layouts from the start, and this exercise is the argument for that design. Rule of thumb: structure your storage around your loops, not around your nouns; AoS is for objects you handle one at a time, SoA is for fields you scan a million at a time.
+
+## challenge: Branchless min/max scan
+tags: simd, branch-prediction, hot-path
+track: hft
+difficulty: easy
+
+Find the minimum and maximum of an array in one pass with no unpredictable branches. Implement `MinMax scanMinMax(const int32_t* a, size_t n)` returning `struct MinMax { int32_t mn; int32_t mx; }`. Write the loop body as pure value selects (`x < mn ? x : mn`) — never as `if (x < mn) mn = x;` with early-outs or logging — so the compiler can lower it to conditional moves and vector min/max instructions. On random data an `if`-based scan mispredicts constantly; a select-based scan runs at memory speed.
+
+Constraints: `1 <= n <= 10^6`. Single pass, O(1) extra space, no sorting, no early exit.
+
+Example: `scanMinMax([7,-3,9,0], 4)` returns `{mn: -3, mx: 9}`. `scanMinMax([5], 1)` returns `{5, 5}`.
+
+hint: Seed both `mn` and `mx` with `a[0]`, then fold the remaining elements — that handles `n == 1` and all-equal arrays for free.
+hint: `mn = x < mn ? x : mn;` is a select on values (both sides are just values, no side effects) — compilers turn it into `cmov` scalar or `pminsd`/`pmaxsd` vector ops.
+hint: Keep the loop body two selects and nothing else: no prints, no `if` statements, no function calls that could block vectorization.
+
+```cpp
+// starter
+#include <cstdint>
+#include <cstddef>
+struct MinMax { int32_t mn; int32_t mx; };
+MinMax scanMinMax(const int32_t* a, size_t n);
+```
+
+```cpp
+struct MinMax { int32_t mn; int32_t mx; };
+
+MinMax scanMinMax(const int32_t* a, size_t n) {
+    int32_t mn = a[0];
+    int32_t mx = a[0];
+    for (size_t i = 1; i < n; ++i) {
+        int32_t x = a[i];
+        mn = x < mn ? x : mn;   // value select, not a control branch
+        mx = x > mx ? x : mx;
+    }
+    return {mn, mx};
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+#include <cstddef>
+#include <climits>
+//__USER__
+int main() {
+    int32_t single[] = {5};
+    int32_t equal3[] = {3, 3, 3};
+    int32_t up[]     = {1, 2, 3, 4, 5};
+    int32_t down[]   = {5, 4, 3, 2, 1};
+    int32_t wild[]   = {7, -3, INT_MAX, 0, INT_MIN, 42};
+    struct { const int32_t* a; size_t n; int32_t mn, mx; } cases[] = {
+        {single, 1, 5, 5},
+        {equal3, 3, 3, 3},
+        {up,     5, 1, 5},
+        {down,   5, 1, 5},
+        {wild,   6, INT_MIN, INT_MAX},
+    };
+    for (auto& c : cases) {
+        MinMax r = scanMinMax(c.a, c.n);
+        if (r.mn != c.mn || r.mx != c.mx) {
+            std::printf("got {%d,%d} want {%d,%d}\n", r.mn, r.mx, c.mn, c.mx);
+            return 1;
+        }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The distinction is control dependency versus data dependency. `if (x < mn) mn = x;` makes the instruction stream depend on the data: the branch predictor must guess, and on random input "is this a new minimum" is guessed wrong often early on (each mispredict flushes ~15–20 cycles of pipeline). `mn = x < mn ? x : mn;` computes both possibilities and selects — a `cmov` in scalar code — so there is nothing to predict. More importantly for throughput, a select-only loop body is exactly what auto-vectorizers need: clang and gcc compile this loop to `pminsd`/`pmaxsd` (or NEON `smin`/`smax`), processing 4–8 elements per cycle with the min/max lattice folded horizontally once at the end. Any side effect inside the conditional (a store, a call, an early `return`) would force real branches and kill the transform. Seeding with `a[0]` instead of `INT_MAX`/`INT_MIN` sentinels is a small robustness bonus: it works for any value range without assuming sentinels are unreachable.
+
+## challenge: Sum with four independent accumulators
+tags: ilp, simd, hot-path
+track: hft
+difficulty: medium
+
+A naive `total += a[i]` loop is a single serial dependency chain: each add must wait for the previous one, so the CPU's multiple ALUs sit idle. Implement `int64_t sum4(const int32_t* a, size_t n)` that sums the array using four independent 64-bit accumulators — `s0..s3`, each fed by every 4th element — then combines them at the end, with a scalar tail loop for the leftover `n % 4` elements. Same answer, but the four chains run in parallel through the pipeline.
+
+Constraints: `0 <= n <= 10^6`; elements are arbitrary `int32_t`; the true sum fits in `int64_t` (accumulate in 64-bit — a 32-bit accumulator would overflow). Exactly one pass over the data.
+
+Example: `sum4([3,-1,4,-1,5,9,-2], 7) == 17`. `sum4([], 0) == 0`.
+
+hint: Main loop strides by 4 while `i + 4 <= n`: `s0 += a[i]; s1 += a[i+1]; s2 += a[i+2]; s3 += a[i+3];` — no accumulator reads another's result inside the loop.
+hint: Finish leftovers with a plain loop into `s0`, then return `(s0 + s1) + (s2 + s3)` — a balanced reduction tree.
+hint: Each `int32_t` element must be widened into an `int64_t` accumulator; declare `s0..s3` as `int64_t` and the conversion is implicit.
+
+```cpp
+// starter
+#include <cstdint>
+#include <cstddef>
+int64_t sum4(const int32_t* a, size_t n);
+```
+
+```cpp
+int64_t sum4(const int32_t* a, size_t n) {
+    int64_t s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+    size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        s0 += a[i];
+        s1 += a[i + 1];
+        s2 += a[i + 2];
+        s3 += a[i + 3];
+    }
+    for (; i < n; ++i) s0 += a[i];   // tail: 0..3 leftover elements
+    return (s0 + s1) + (s2 + s3);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+#include <cstddef>
+//__USER__
+static int32_t big[100000];
+int main() {
+    int32_t a[] = {3, -1, 4, -1, 5, 9, -2};
+    for (size_t n = 0; n <= 7; ++n) {   // every tail length 0..3, plus n==0
+        int64_t want = 0;
+        for (size_t i = 0; i < n; ++i) want += a[i];
+        int64_t got = sum4(a, n);
+        if (got != want) { std::printf("n=%zu got %lld want %lld\n", n, (long long)got, (long long)want); return 1; }
+    }
+    for (int i = 0; i < 100000; ++i) big[i] = (i % 2) ? 2000000000 : -1000000000;
+    int64_t want = 0;
+    for (int i = 0; i < 100000; ++i) want += big[i];   // 5e13: overflows int32 by far
+    int64_t got = sum4(big, 100000);
+    if (got != want) { std::printf("big got %lld want %lld\n", (long long)got, (long long)want); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** This is instruction-level parallelism made explicit. An add has ~1 cycle latency, but a modern core can *issue* 3–4 adds per cycle — the naive loop can't exploit that because `total += a[i]` forms one serial chain: iteration i+1's add consumes iteration i's result. Four accumulators create four independent chains, so the scheduler keeps 4 adds in flight and throughput approaches the load bandwidth limit rather than the add-latency limit. This is exactly the transform auto-vectorizers and `-ffast-math` reassociation perform for floats; for integers the compiler may already do it at `-O2`/`-O3`, but interviewers want you to know *why* it works, because the same reasoning applies where compilers can't help: chained FP sums (reassociation changes rounding, so the compiler must preserve your chain), latency-bound hash loops, and pointer chases. The reduction tree `(s0+s1)+(s2+s3)` finishes in 2 dependent steps instead of 3. Widening to `int64_t` per-accumulator also removes the overflow trap: 100k elements of ±2·10^9 exceed `int32_t` range a thousandfold.
+
+## challenge: Branch-free clamp over an array
+tags: simd, branch-prediction, hot-path
+track: hft
+difficulty: easy
+
+Risk checks clamp order sizes and prices into `[lo, hi]` for millions of values per second. Implement `void clampAll(int32_t* a, size_t n, int32_t lo, int32_t hi)` that clamps every element in place — written branch-free: the loop body must be two value selects (`x < lo ? lo : x`, then `x > hi ? hi : x`), not `if`/`else if` statements. Selects lower to min/max instructions and let the whole loop vectorize; branches on unpredictable data flush the pipeline element after element.
+
+Constraints: `lo <= hi`; `0 <= n <= 10^6`; in-place, single pass, no early exit, no `if` statements in the loop body.
+
+Example: with `lo = -5, hi = 5`: `[-100, -5, 0, 7, 5]` becomes `[-5, -5, 0, 5, 5]`. With `lo == hi == 0` every element becomes `0`.
+
+hint: Load once, select twice, store once: `int32_t x = a[i]; x = x < lo ? lo : x; x = x > hi ? hi : x; a[i] = x;`
+hint: Apply the lower bound first, then the upper — with `lo <= hi` the order gives the correct result for every input.
+hint: Both selects have plain values on both arms (no side effects), which is exactly the shape compilers turn into `pmaxsd`/`pminsd` over 4–8 lanes at a time.
+
+```cpp
+// starter
+#include <cstdint>
+#include <cstddef>
+void clampAll(int32_t* a, size_t n, int32_t lo, int32_t hi);
+```
+
+```cpp
+void clampAll(int32_t* a, size_t n, int32_t lo, int32_t hi) {
+    for (size_t i = 0; i < n; ++i) {
+        int32_t x = a[i];
+        x = x < lo ? lo : x;   // max(x, lo)
+        x = x > hi ? hi : x;   // min(x, hi)
+        a[i] = x;
+    }
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+#include <cstddef>
+#include <climits>
+//__USER__
+static void refClamp(const int32_t* in, int32_t* out, size_t n, int32_t lo, int32_t hi) {
+    for (size_t i = 0; i < n; ++i) {
+        int32_t x = in[i];
+        if (x < lo) x = lo;
+        if (x > hi) x = hi;
+        out[i] = x;
+    }
+}
+static bool runCase(const int32_t* in, size_t n, int32_t lo, int32_t hi) {
+    int32_t work[16], want[16];
+    for (size_t i = 0; i < n; ++i) work[i] = in[i];
+    refClamp(in, want, n, lo, hi);
+    clampAll(work, n, lo, hi);
+    for (size_t i = 0; i < n; ++i) {
+        if (work[i] != want[i]) {
+            std::printf("i=%zu got %d want %d (lo=%d hi=%d)\n", i, work[i], want[i], lo, hi);
+            return false;
+        }
+    }
+    return true;
+}
+int main() {
+    int32_t data[] = {INT_MIN, -100, -5, -1, 0, 1, 5, 7, 100, INT_MAX};
+    if (!runCase(data, 10, -5, 5)) return 1;
+    if (!runCase(data, 10, 0, 0)) return 1;                 // lo == hi
+    if (!runCase(data, 10, INT_MIN, INT_MAX)) return 1;     // identity
+    if (!runCase(data, 0, -5, 5)) return 1;                 // empty
+    if (!runCase(data, 1, 3, 9)) return 1;                  // single element
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Clamping is the canonical "unpredictable branch" workload: whether an element is below, inside, or above the band is data-dependent, so an `if (x < lo) ... else if (x > hi) ...` loop mispredicts on mixed input and each mispredict costs ~15–20 cycles — often more than the useful work in the entire iteration. Writing the body as two selects removes control flow entirely: `x < lo ? lo : x` is `max(x, lo)` and `x > hi ? hi : x` is `min(x, hi)`, and both gcc and clang lower the loop to packed `pmaxsd`/`pminsd` (or NEON `smax`/`smin`), clamping 4–8 elements per instruction with zero mispredict exposure. The order matters only for correctness bookkeeping: applying `max` with `lo` first, then `min` with `hi`, is correct whenever `lo <= hi` (this is also exactly how `std::clamp` composes). The general lesson: on hot paths, convert *control* dependencies into *data* dependencies whenever both arms are cheap pure values — the CPU is far better at streaming computation than at guessing your data.
+
+## challenge: Branchless select with an all-ones mask
+tags: branch-prediction, bit-tricks, hot-path
+track: hft
+difficulty: easy
+
+Implement `uint64_t select64(bool take_a, uint64_t a, uint64_t b)` that returns `a` when `take_a` is true and `b` otherwise — with no `if`, no ternary, no branches at all. Build a mask that is all-ones when the condition is true and all-zeros when false, then combine. This is the hand-rolled `cmov`: when the condition is unpredictable (e.g. "did the order cross the spread?"), a mispredicted branch costs more than the whole computation.
+
+Constraints: any `uint64_t` values for `a` and `b`; straight-line code — only arithmetic and bitwise ops on the bool and the operands.
+
+Example: `select64(true, 10, 20) == 10`, `select64(false, 10, 20) == 20`, `select64(true, 0xFFFFFFFFFFFFFFFF, 0) == 0xFFFFFFFFFFFFFFFF`.
+
+hint: A `bool` converts to integer 0 or 1; you need it as 0 or `0xFFFF...F` — unsigned negation does it: `0 - 1` wraps to all ones.
+hint: `uint64_t m = 0ull - static_cast<uint64_t>(take_a);` then pick with `(a & m) | (b & ~m)`.
+hint: An equivalent with one fewer op: `b ^ ((a ^ b) & m)` — when `m` is all ones the XORs cancel to `a`, when zero it stays `b`.
+
+```cpp
+// starter
+#include <cstdint>
+uint64_t select64(bool take_a, uint64_t a, uint64_t b);
+```
+
+```cpp
+uint64_t select64(bool take_a, uint64_t a, uint64_t b) {
+    uint64_t m = 0ull - static_cast<uint64_t>(take_a);  // true -> all ones, false -> 0
+    return (a & m) | (b & ~m);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { bool c; uint64_t a, b, want; } cases[] = {
+        {true,  10u, 20u, 10u},
+        {false, 10u, 20u, 20u},
+        {true,  0xFFFFFFFFFFFFFFFFull, 0u, 0xFFFFFFFFFFFFFFFFull},
+        {false, 0xFFFFFFFFFFFFFFFFull, 0u, 0u},
+        {true,  0u, 0xFFFFFFFFFFFFFFFFull, 0u},
+        {false, 0u, 0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull},
+        {true,  0xDEADBEEFCAFEBABEull, 0x0123456789ABCDEFull, 0xDEADBEEFCAFEBABEull},
+        {false, 0xDEADBEEFCAFEBABEull, 0x0123456789ABCDEFull, 0x0123456789ABCDEFull},
+        {true,  7u, 7u, 7u},   // equal operands
+    };
+    for (auto& c : cases) {
+        uint64_t got = select64(c.c, c.a, c.b);
+        if (got != c.want) {
+            std::printf("select64(%d,%llx,%llx)=%llx want %llx\n",
+                        (int)c.c, (unsigned long long)c.a, (unsigned long long)c.b,
+                        (unsigned long long)got, (unsigned long long)c.want);
+            return 1;
+        }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The core trick is manufacturing a full-width mask from a 1-bit condition: `bool` converts to 0 or 1, and unsigned negation `0 - x` wraps modulo 2^64, so 1 becomes `0xFFFF...F` and 0 stays 0 (perfectly defined for unsigned types — no UB). With the mask in hand, `(a & m) | (b & ~m)` muxes bitwise between the operands; the XOR form `b ^ ((a ^ b) & m)` does it in three ops. Why bother when `cond ? a : b` exists? For a plain value ternary the compiler usually emits `cmov` anyway — but "usually" is doing heavy lifting: surround it with other code and the optimizer may prefer a branch, and on an unpredictable condition each mispredict flushes ~15–20 cycles of pipeline. The mask form *guarantees* straight-line code: constant latency, no predictor state, no timing variation — which also makes it a staple of constant-time cryptography, where a data-dependent branch is an information leak. Know both spellings; reach for the mask when the condition is coin-flip unpredictable and the latency budget is single-digit nanoseconds.
+
+## challenge: Partition, then the branch is free
+tags: branch-prediction, hot-path
+track: hft
+difficulty: medium
+
+The famous interview riddle — "why is processing a sorted array faster?" — is branch prediction. The production fix is to group data by branch outcome once, so every downstream pass is perfectly predictable. Implement `size_t partitionBelow(int32_t* a, size_t n, int32_t pivot)`: reorder `a` in place so every element `< pivot` comes before every element `>= pivot`, and return the number of elements `< pivot`. Order within each group is unconstrained.
+
+Constraints: `0 <= n <= 10^6`; in place, O(n) time, O(1) extra space, single pass.
+
+Example: `a = [5,1,9,3,7]`, `pivot = 5` → returns `2`; the array becomes some permutation like `[1,3,9,5,7]` where the first 2 elements are `< 5` and the rest are `>= 5`. Elements equal to the pivot belong to the second group.
+
+hint: Keep a write cursor `w` for the "below" region; scan `i` left to right and when `a[i] < pivot`, swap `a[i]` with `a[w]` and advance `w`.
+hint: The invariant: at every step `a[0..w)` are all `< pivot` and `a[w..i)` are all `>= pivot` — when the scan ends, `w` is your return value.
+hint: Swapping an element with itself (when `i == w`) is harmless — don't special-case it; the branch you'd add costs more than the redundant swap.
+
+```cpp
+// starter
+#include <cstdint>
+#include <cstddef>
+size_t partitionBelow(int32_t* a, size_t n, int32_t pivot);
+```
+
+```cpp
+size_t partitionBelow(int32_t* a, size_t n, int32_t pivot) {
+    size_t w = 0;
+    for (size_t i = 0; i < n; ++i) {
+        if (a[i] < pivot) {
+            int32_t t = a[w];
+            a[w] = a[i];
+            a[i] = t;
+            ++w;
+        }
+    }
+    return w;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+#include <cstddef>
+#include <algorithm>
+//__USER__
+static bool verify(int32_t* a, size_t n, int32_t pivot, const int32_t* orig, const char* name) {
+    size_t k = partitionBelow(a, n, pivot);
+    size_t wantK = 0;
+    for (size_t i = 0; i < n; ++i) wantK += (orig[i] < pivot) ? 1u : 0u;
+    if (k != wantK) { std::printf("%s: returned %zu want %zu\n", name, k, wantK); return false; }
+    for (size_t i = 0; i < k; ++i)
+        if (!(a[i] < pivot)) { std::printf("%s: a[%zu]=%d not < pivot\n", name, i, a[i]); return false; }
+    for (size_t i = k; i < n; ++i)
+        if (a[i] < pivot) { std::printf("%s: a[%zu]=%d should be >= pivot\n", name, i, a[i]); return false; }
+    int32_t s1[16], s2[16];
+    std::copy(a, a + n, s1);
+    std::copy(orig, orig + n, s2);
+    std::sort(s1, s1 + n);
+    std::sort(s2, s2 + n);
+    if (!std::equal(s1, s1 + n, s2)) { std::printf("%s: multiset changed\n", name); return false; }
+    return true;
+}
+int main() {
+    { int32_t a[] = {5,1,9,3,7,3,2,8}; int32_t o[8]; std::copy(a,a+8,o); if (!verify(a,8,5,o,"mixed")) return 1; }
+    { int32_t a[] = {1,2,3}; int32_t o[3]; std::copy(a,a+3,o); if (!verify(a,3,10,o,"all below")) return 1; }
+    { int32_t a[] = {7,8,9}; int32_t o[3]; std::copy(a,a+3,o); if (!verify(a,3,0,o,"none below")) return 1; }
+    { int32_t a[] = {4,4,4,4}; int32_t o[4]; std::copy(a,a+4,o); if (!verify(a,4,4,o,"all equal pivot")) return 1; }
+    { int32_t a[] = {-3,0,-1,2}; int32_t o[4]; std::copy(a,a+4,o); if (!verify(a,4,0,o,"negatives")) return 1; }
+    { int32_t a[1] = {0}; int32_t o[1] = {0}; if (!verify(a,0,5,o,"empty")) return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The write-cursor (Lomuto-style) partition maintains a simple invariant — `a[0..w)` holds everything seen so far that is `< pivot`, `a[w..i)` everything that isn't — and each element is examined exactly once with at most one swap, so it's O(n)/O(1) and cache-perfect (two forward-moving pointers the prefetcher loves). The performance story is why this routine exists at all: a downstream loop like `if (x < threshold) hot_path(x);` over *random* data mispredicts ~50% of the time at ~15–20 cycles per miss, which famously makes summing a sorted array several times faster than an unsorted one. Partitioning is the cheaper cousin of sorting — one linear pass buys you two homogeneous ranges where the branch is either always-taken or never-taken, i.e. free. In a trading system this shows up as splitting messages into adds/cancels before processing, or separating in-band from out-of-band prices. For the partition loop itself, `w += (a[i] < pivot)` with an unconditional conditional-swap makes even *this* pass branchless — worth knowing when the partition is the hot loop. `std::partition` does the same job; know what's inside it.
+
+## challenge: Message length: table, not switch
+tags: branch-prediction, dispatch, hot-path
+track: hft
+difficulty: medium
+
+An ITCH-style feed parser must map a message type byte to its wire length before it can advance to the next message — on every single packet. Implement `uint8_t msgLength(uint8_t type)` for this dictionary: `'A'` (add) → 36, `'E'` (execute) → 31, `'X'` (cancel) → 23, `'D'` (delete) → 19, `'U'` (replace) → 34, `'P'` (trade) → 44; any other byte → 0. No `switch`, no `if` chain: build a 256-entry `constexpr` table at compile time and make the function body a single array load.
+
+Constraints: the table must be `constexpr` (built at compile time, stored in read-only data); `msgLength` contains exactly one indexed load and no control flow; input is any byte 0–255.
+
+Example: `msgLength('A') == 36`, `msgLength('P') == 44`, `msgLength('Z') == 0`, `msgLength(0) == 0`.
+
+hint: An immediately-invoked `constexpr` lambda builds the table cleanly: `constexpr auto kLen = []{ std::array<uint8_t,256> t{}; ...; return t; }();` — value-initialization zeroes all 256 slots first.
+hint: Assign only the six known types (`t['A'] = 36;` etc.); every unknown byte stays at the zero the initialization gave it.
+hint: `uint8_t` indexes cover 0–255 exactly, so `kLen[type]` needs no bounds check — the domain of the input *is* the domain of the table.
+
+```cpp
+// starter
+#include <cstdint>
+#include <array>
+uint8_t msgLength(uint8_t type);
+```
+
+```cpp
+constexpr auto kLen = [] {
+    std::array<uint8_t, 256> t{};   // all zeros: unknown types map to 0
+    t['A'] = 36;
+    t['E'] = 31;
+    t['X'] = 23;
+    t['D'] = 19;
+    t['U'] = 34;
+    t['P'] = 44;
+    return t;
+}();
+
+uint8_t msgLength(uint8_t type) {
+    return kLen[type];
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+#include <array>
+//__USER__
+int main() {
+    struct { uint8_t type; uint8_t want; } cases[] = {
+        {'A', 36}, {'E', 31}, {'X', 23}, {'D', 19}, {'U', 34}, {'P', 44},
+        {'Z', 0}, {'a', 0}, {'p', 0}, {0, 0}, {255, 0}, {' ', 0},
+    };
+    for (auto& c : cases) {
+        uint8_t got = msgLength(c.type);
+        if (got != c.want) {
+            std::printf("msgLength(%d)=%d want %d\n", (int)c.type, (int)got, (int)c.want);
+            return 1;
+        }
+    }
+    unsigned known = 0;
+    for (int t = 0; t < 256; ++t) known += (msgLength((uint8_t)t) != 0) ? 1u : 0u;
+    if (known != 6) { std::printf("%u nonzero entries, want exactly 6\n", known); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A `switch` over sparse byte values compiles to either a compare-and-branch chain or a jump table — and a jump table is an *indirect branch*, which the predictor must guess by target. A market-data stream interleaves adds, executes, and cancels unpredictably, so that indirect branch mispredicts constantly, costing ~15–20 cycles per message before you've parsed a single field. The dense lookup table replaces all control flow with one data load: 256 bytes is four cache lines, hot forever in L1, so the lookup is ~4–5 cycles with perfectly flat latency — no best case, no worst case. Building it with an immediately-invoked `constexpr` lambda means zero runtime initialization: the table is baked into `.rodata` at compile time, and mistakes like a wrong length are still checkable with `static_assert`. Sizing the table to exactly 256 entries and indexing with `uint8_t` eliminates the bounds check by construction — the type system proves the index is in range. This pattern (byte → attribute via flat table) is everywhere in feed handlers: message lengths, field offsets, per-type dispatch indices; when handlers are functions, the same table stores function pointers, trading the switch for one indirect call that at least the branch-target buffer can learn per-site.
+
+## challenge: Round to powers of two, both ways
+tags: bit-tricks, hot-path
+track: hft
+difficulty: medium
+
+Ring buffer capacities, arena sizes, and hash table sizes must be powers of two so that indexing is a mask instead of a division. Implement both directions for 64-bit values, without loops over bits and without `std::bit_ceil`/`std::bit_floor`/builtins: `uint64_t floorPow2(uint64_t x)` returns the largest power of two `<= x` (define `floorPow2(0) == 0`), and `uint64_t ceilPow2(uint64_t x)` returns the smallest power of two `>= x` for `1 <= x <= 2^63`.
+
+Constraints: O(1) — a fixed ladder of shifts and ORs (6 steps for 64 bits); no loops, no lookup tables, no builtins.
+
+Example: `floorPow2(1000) == 512`, `floorPow2(1024) == 1024`, `floorPow2(0) == 0`. `ceilPow2(1000) == 1024`, `ceilPow2(1024) == 1024`, `ceilPow2(1) == 1`.
+
+hint: The bit-smear ladder `x |= x >> 1; x |= x >> 2; ... x |= x >> 32;` propagates the most significant set bit into every position below it, turning `x` into `2^(k+1) - 1` where `k` is the MSB index.
+hint: After smearing, `x - (x >> 1)` leaves just the top bit — that's the floor. For zero input the smear leaves zero, so the definition `floorPow2(0) == 0` falls out for free.
+hint: For the ceiling, subtract 1 *before* smearing and add 1 after — the decrement is what makes exact powers of two map to themselves instead of doubling.
+
+```cpp
+// starter
+#include <cstdint>
+uint64_t floorPow2(uint64_t x);
+uint64_t ceilPow2(uint64_t x);
+```
+
+```cpp
+uint64_t floorPow2(uint64_t x) {
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    x |= x >> 32;
+    return x - (x >> 1);   // keep only the top set bit
+}
+
+uint64_t ceilPow2(uint64_t x) {
+    x -= 1;                // so exact powers stay put
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    x |= x >> 32;
+    return x + 1;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+int main() {
+    struct { uint64_t x, want; } fl[] = {
+        {0ull, 0ull}, {1ull, 1ull}, {2ull, 2ull}, {3ull, 2ull}, {5ull, 4ull},
+        {6ull, 4ull}, {1000ull, 512ull}, {1024ull, 1024ull}, {1025ull, 1024ull},
+        {(1ull << 63), (1ull << 63)}, {(1ull << 63) + 5ull, (1ull << 63)},
+        {0xFFFFFFFFFFFFFFFFull, (1ull << 63)},
+    };
+    for (auto& c : fl) {
+        uint64_t got = floorPow2(c.x);
+        if (got != c.want) {
+            std::printf("floorPow2(%llu)=%llu want %llu\n",
+                        (unsigned long long)c.x, (unsigned long long)got, (unsigned long long)c.want);
+            return 1;
+        }
+    }
+    struct { uint64_t x, want; } ce[] = {
+        {1ull, 1ull}, {2ull, 2ull}, {3ull, 4ull}, {5ull, 8ull}, {1000ull, 1024ull},
+        {1023ull, 1024ull}, {1024ull, 1024ull}, {1025ull, 2048ull},
+        {(1ull << 62) + 1ull, (1ull << 63)}, {(1ull << 63), (1ull << 63)},
+    };
+    for (auto& c : ce) {
+        uint64_t got = ceilPow2(c.x);
+        if (got != c.want) {
+            std::printf("ceilPow2(%llu)=%llu want %llu\n",
+                        (unsigned long long)c.x, (unsigned long long)got, (unsigned long long)c.want);
+            return 1;
+        }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The smear ladder is a doubling propagation: after `x |= x >> 1` the MSB covers 2 positions, after `>> 2` it covers 4, and after the `>> 32` step every bit at or below the MSB is set — six steps handle 64 bits because coverage doubles each time. From the smeared value `2^(k+1)-1`, the floor is `x - (x >> 1)` (all-ones minus all-ones-shifted leaves the top bit), and the ceiling comes from the classic decrement/smear/increment: subtracting 1 first means an exact power like 1024 smears from 1023 and increments right back to 1024, while 1025 smears from 1024 up to 2047 and lands on 2048. Watch the domain edges — `ceilPow2` overflows to 0 for `x > 2^63` (no 64-bit power of two exists above it), which is why the constraint stops at `2^63`; and `floorPow2(0) == 0` falls out naturally since zero smears to zero. Hardware does this with one `lzcnt`, and C++20 exposes it as `std::bit_ceil`/`std::bit_floor` — but the ladder is what you write where those don't reach (constexpr-in-C++17 code, GPUs, verification models), and deriving it shows you understand *why* power-of-two capacities matter: `index & (cap - 1)` replaces a 20–40 cycle divide with a 1-cycle AND on every queue operation.
+
 ## challenge: Integer log2 (floor)
 tags: bit-tricks, fast-math
 track: hft
@@ -33673,6 +34378,872 @@ _check()
 ```
 
 **Editorial:** `re.split(r'(\d+)', s)` breaks each string into alternating text and digit chunks (the capturing group keeps the digits). Casting the digit chunks to `int` makes the `key` a list that compares text lexicographically but numbers numerically, so `sorted` yields human-friendly "natural" order. Python's element-wise list comparison does the rest — no custom comparator needed. (Chunk positions alternate str/int by construction, so like compares with like.)
+
+## challenge: Merge Two Sorted Lists
+tags: array, two-pointers
+track: python
+lang: python
+difficulty: easy
+
+Given two lists `a` and `b`, each already sorted in non-decreasing order, merge them into a single sorted list and return it. Do not use `sort()` — produce the result in one linear pass.
+
+Constraints: `0 <= len(a), len(b) <= 10^4`, elements are integers (duplicates allowed).
+
+Example: `a = [1, 2, 4], b = [1, 3, 4]` → `[1, 1, 2, 3, 4, 4]`.
+
+hint: Both inputs are sorted — the smallest remaining element is always at the front of one of them.
+hint: Keep an index into each list; compare the two front elements and append the smaller one.
+hint: When one index runs off the end, the rest of the other list can be appended wholesale.
+
+```python
+# starter
+def merge_sorted(a, b):
+    ...
+```
+
+```python
+def merge_sorted(a, b):
+    i, j = 0, 0
+    out = []
+    while i < len(a) and j < len(b):
+        if a[i] <= b[j]:
+            out.append(a[i])
+            i += 1
+        else:
+            out.append(b[j])
+            j += 1
+    out.extend(a[i:])
+    out.extend(b[j:])
+    return out
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert merge_sorted([1, 2, 4], [1, 3, 4]) == [1, 1, 2, 3, 4, 4]
+    assert merge_sorted([], []) == []
+    assert merge_sorted([], [0]) == [0]
+    assert merge_sorted([5], []) == [5]
+    assert merge_sorted([1, 1, 1], [1, 1]) == [1, 1, 1, 1, 1]
+    assert merge_sorted([-3, -1, 2], [-2, 0, 7]) == [-3, -2, -1, 0, 2, 7]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Classic two-pointer merge — the merge step of merge sort. Walk both lists with indices `i` and `j`, always appending the smaller front element, then extend with whichever tail remains. Using `<=` for ties keeps the merge stable. O(n + m) time, O(n + m) space for the output.
+
+## challenge: Squares of a Sorted Array
+tags: array, two-pointers
+track: python
+lang: python
+difficulty: easy
+
+Given a list `nums` sorted in non-decreasing order (it may contain negatives), return a list of the squares of each number, also sorted in non-decreasing order. Aim for O(n) — squaring then sorting is the O(n log n) baseline.
+
+Constraints: `1 <= len(nums) <= 10^4`, `-10^4 <= nums[i] <= 10^4`, input is sorted.
+
+Example: `nums = [-4, -1, 0, 3, 10]` → `[0, 1, 9, 16, 100]`.
+
+hint: After squaring, the biggest values sit at the two *ends* of the input, not in the middle.
+hint: Compare `abs(nums[lo])` with `abs(nums[hi])` — the larger absolute value produces the next-largest square.
+hint: Fill the output array from the back while moving `lo` and `hi` inward.
+
+```python
+# starter
+def sorted_squares(nums):
+    ...
+```
+
+```python
+def sorted_squares(nums):
+    n = len(nums)
+    out = [0] * n
+    lo, hi = 0, n - 1
+    for k in range(n - 1, -1, -1):
+        if abs(nums[lo]) > abs(nums[hi]):
+            out[k] = nums[lo] ** 2
+            lo += 1
+        else:
+            out[k] = nums[hi] ** 2
+            hi -= 1
+    return out
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert sorted_squares([-4, -1, 0, 3, 10]) == [0, 1, 9, 16, 100]
+    assert sorted_squares([-7, -3, 2, 3, 11]) == [4, 9, 9, 49, 121]
+    assert sorted_squares([-5, -3, -2]) == [4, 9, 25]
+    assert sorted_squares([1, 2, 3]) == [1, 4, 9]
+    assert sorted_squares([0]) == [0]
+    assert sorted_squares([-1, 1]) == [1, 1]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** The squared values form a valley: large at both ends, smallest near zero. Two pointers at the ends pick the larger absolute value each step and write it into the output from the back. One pass, O(n) time, O(n) output space — no sort needed.
+
+## challenge: Roman to Integer
+tags: string, hash-table
+track: python
+lang: python
+difficulty: easy
+
+Given a valid Roman numeral string `s`, convert it to an integer. Symbols: `I=1, V=5, X=10, L=50, C=100, D=500, M=1000`. Subtractive pairs like `IV` (4), `IX` (9), `XL` (40), `CM` (900) mean a smaller symbol placed before a larger one is subtracted.
+
+Constraints: `1 <= len(s) <= 15`, `s` is a valid Roman numeral in `[1, 3999]`.
+
+Example: `s = "MCMXCIV"` → `1994` (M=1000, CM=900, XC=90, IV=4).
+
+hint: Map each symbol to its value with a dict, then scan left to right.
+hint: The only twist is the subtractive rule — when does a symbol count as negative?
+hint: If a symbol's value is smaller than the value of the symbol to its right, subtract it; otherwise add it.
+
+```python
+# starter
+def roman_to_int(s):
+    ...
+```
+
+```python
+def roman_to_int(s):
+    vals = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+    total = 0
+    for i, ch in enumerate(s):
+        v = vals[ch]
+        if i + 1 < len(s) and v < vals[s[i + 1]]:
+            total -= v
+        else:
+            total += v
+    return total
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert roman_to_int("III") == 3
+    assert roman_to_int("IV") == 4
+    assert roman_to_int("IX") == 9
+    assert roman_to_int("LVIII") == 58
+    assert roman_to_int("MCMXCIV") == 1994
+    assert roman_to_int("MMXXVI") == 2026
+    assert roman_to_int("I") == 1
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** One pass with a symbol-to-value dict. The subtractive notation collapses to a single local rule: a symbol strictly smaller than its right neighbor contributes negatively (`IV` = -1 + 5). No pair table needed. O(n) time, O(1) space.
+
+## challenge: Min Cost Climbing Stairs
+tags: dp, array
+track: python
+lang: python
+difficulty: easy
+
+You are given a list `cost` where `cost[i]` is the price of stepping on stair `i`. Once you pay, you may climb one or two stairs. You start from stair `0` or stair `1` for free (you pay when you step off it). Return the minimum total cost to reach the top — one past the last stair.
+
+Constraints: `2 <= len(cost) <= 1000`, `0 <= cost[i] <= 999`.
+
+Example: `cost = [10, 15, 20]` → `15` (start on stair 1, pay 15, jump two to the top).
+
+hint: Let `dp[i]` be the cheapest way to *leave* stair `i`. How do you arrive at stair `i` in the first place?
+hint: `dp[i] = cost[i] + min(dp[i-1], dp[i-2])`, and the answer is `min(dp[n-1], dp[n-2])`.
+hint: You only ever look two steps back — two rolling variables replace the whole array.
+
+```python
+# starter
+def min_cost_climbing_stairs(cost):
+    ...
+```
+
+```python
+def min_cost_climbing_stairs(cost):
+    a, b = 0, 0
+    for c in cost:
+        a, b = b, min(a, b) + c
+    return min(a, b)
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert min_cost_climbing_stairs([10, 15, 20]) == 15
+    assert min_cost_climbing_stairs([1, 100, 1, 1, 1, 100, 1, 1, 100, 1]) == 6
+    assert min_cost_climbing_stairs([0, 0]) == 0
+    assert min_cost_climbing_stairs([5, 10]) == 5
+    assert min_cost_climbing_stairs([1, 2]) == 1
+    assert min_cost_climbing_stairs([0, 1, 2, 2]) == 2
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Bottom-up DP where `dp[i]` is the cost paid up to and including leaving stair `i`: `dp[i] = cost[i] + min(dp[i-1], dp[i-2])`. Because you may start on stair 0 or 1, the two seeds are 0, and because you may finish from either of the last two stairs, the answer is `min(dp[n-1], dp[n-2])`. Rolling two variables gives O(n) time, O(1) space.
+
+## challenge: Rotate Array
+tags: array, two-pointers
+track: python
+lang: python
+difficulty: medium
+
+Given a list `nums` and a non-negative integer `k`, return a new list equal to `nums` rotated to the right by `k` steps (the last `k` elements wrap around to the front). `k` may be larger than the length of the list.
+
+Constraints: `1 <= len(nums) <= 10^5`, `0 <= k <= 10^9`.
+
+Example: `nums = [1, 2, 3, 4, 5, 6, 7], k = 3` → `[5, 6, 7, 1, 2, 3, 4]`.
+
+hint: Rotating by `len(nums)` steps lands you back where you started — what does that say about huge `k`?
+hint: Reduce with `k % n` first, then the answer is just two slices glued together.
+hint: The last `k` elements are `nums[-k:]`; everything before them is `nums[:-k]`. Watch the `k == 0` case — `nums[-0:]` is the whole list!
+
+```python
+# starter
+def rotate_array(nums, k):
+    ...
+```
+
+```python
+def rotate_array(nums, k):
+    n = len(nums)
+    k %= n
+    if k == 0:
+        return nums[:]
+    return nums[-k:] + nums[:-k]
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert rotate_array([1, 2, 3, 4, 5, 6, 7], 3) == [5, 6, 7, 1, 2, 3, 4]
+    assert rotate_array([-1, -100, 3, 99], 2) == [3, 99, -1, -100]
+    assert rotate_array([1, 2, 3], 0) == [1, 2, 3]
+    assert rotate_array([1, 2, 3], 3) == [1, 2, 3]
+    assert rotate_array([1, 2, 3], 10) == [3, 1, 2]
+    assert rotate_array([1], 5) == [1]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Normalize `k %= n` since a full-length rotation is the identity, then concatenate the two slices `nums[-k:] + nums[:-k]`. The classic trap is `k == 0`: `nums[-0:]` slices the entire list, so it needs a guard. The in-place alternative (reverse all, reverse first `k`, reverse rest) achieves O(1) extra space; the slice version is O(n) time and space.
+
+## challenge: String Compression
+tags: string, two-pointers
+track: python
+lang: python
+difficulty: medium
+
+Given a string `s`, compress it by replacing each run of consecutive repeated characters with the character followed by the run length — but omit the count when the run length is 1. Return the compressed string. `"aabbccc"` becomes `"a2b2c3"`; `"abc"` stays `"abc"`. Runs longer than 9 keep their full multi-digit count.
+
+Constraints: `0 <= len(s) <= 10^5`, `s` consists of letters (case-sensitive).
+
+Example: `s = "abbbbbbbbbbbb"` → `"ab12"` (one `a`, twelve `b`s).
+
+hint: Walk the string with two indices: `i` marks the start of the current run, `j` scans forward while characters match.
+hint: The run length is `j - i`; append the character, then the count only if it exceeds 1.
+hint: Build the pieces in a list and `"".join` at the end — repeated string concatenation is quadratic.
+
+```python
+# starter
+def compress(s):
+    ...
+```
+
+```python
+def compress(s):
+    out = []
+    i = 0
+    while i < len(s):
+        j = i
+        while j < len(s) and s[j] == s[i]:
+            j += 1
+        out.append(s[i])
+        if j - i > 1:
+            out.append(str(j - i))
+        i = j
+    return "".join(out)
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert compress("aabbccc") == "a2b2c3"
+    assert compress("a") == "a"
+    assert compress("abbbbbbbbbbbb") == "ab12"
+    assert compress("abc") == "abc"
+    assert compress("") == ""
+    assert compress("aaAAaa") == "a2A2a2"
+    assert compress("aaaaaaaaaaaa") == "a12"
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Two-pointer run-length encoding: `i` anchors the run, `j` races ahead until the character changes, and `j - i` is the count. Emitting into a list and joining once avoids O(n²) string concatenation. Edge cases that trip people up: single-character runs (no count emitted), multi-digit counts, and the empty string. O(n) time, O(n) space.
+
+## challenge: Longest Palindromic Substring
+tags: string, dp
+track: python
+lang: python
+difficulty: medium
+
+Given a string `s`, return the longest contiguous substring of `s` that is a palindrome. If several palindromic substrings tie for the longest, returning any one of them is accepted.
+
+Constraints: `1 <= len(s) <= 1000`, `s` consists of letters and digits.
+
+Example: `s = "babad"` → `"bab"` (`"aba"` is equally valid).
+
+hint: Every palindrome has a center — either a single character (odd length) or a gap between two characters (even length).
+hint: For each of the `2n - 1` centers, expand outward while the two ends match.
+hint: Track the best window seen; expansion from all centers gives O(n²) time with O(1) extra space — no DP table required.
+
+```python
+# starter
+def longest_palindrome(s):
+    ...
+```
+
+```python
+def longest_palindrome(s):
+    best = s[0]
+    for i in range(len(s)):
+        for lo, hi in ((i, i), (i, i + 1)):
+            while lo >= 0 and hi < len(s) and s[lo] == s[hi]:
+                lo -= 1
+                hi += 1
+            if hi - lo - 1 > len(best):
+                best = s[lo + 1:hi]
+    return best
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert longest_palindrome("babad") in ("bab", "aba")
+    assert longest_palindrome("cbbd") == "bb"
+    assert longest_palindrome("a") == "a"
+    assert longest_palindrome("ac") in ("a", "c")
+    assert longest_palindrome("bananas") == "anana"
+    assert longest_palindrome("forgeeksskeegfor") == "geeksskeeg"
+    assert longest_palindrome("aacabdkacaa") == "aca"
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Expand around every center: `n` odd centers `(i, i)` and `n - 1` even centers `(i, i + 1)`. Each expansion grows while the ends match; after the loop overshoots, the palindrome is `s[lo+1:hi]` with length `hi - lo - 1`. O(n²) time, O(1) space — beats the O(n²)-space DP table, and Manacher's algorithm gets O(n) if you ever need it.
+
+## challenge: Spiral Matrix
+tags: matrix, array
+track: python
+lang: python
+difficulty: medium
+
+Given an `m x n` matrix (a list of lists), return a flat list of all elements visited in clockwise spiral order: across the top row, down the right column, back across the bottom row, up the left column, then repeat one layer in.
+
+Constraints: `0 <= m, n <= 100`; an empty matrix yields `[]`.
+
+Example: `matrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]` → `[1, 2, 3, 6, 9, 8, 7, 4, 5]`.
+
+hint: Maintain four boundaries — `top`, `bottom`, `left`, `right` — and shrink one after consuming each edge.
+hint: The traversal order is: top row left→right, right column top→bottom, bottom row right→left, left column bottom→top.
+hint: For non-square matrices, re-check `top <= bottom` before the bottom row and `left <= right` before the left column, or you'll double-count a lone row or column.
+
+```python
+# starter
+def spiral_order(matrix):
+    ...
+```
+
+```python
+def spiral_order(matrix):
+    if not matrix or not matrix[0]:
+        return []
+    out = []
+    top, bottom = 0, len(matrix) - 1
+    left, right = 0, len(matrix[0]) - 1
+    while top <= bottom and left <= right:
+        for c in range(left, right + 1):
+            out.append(matrix[top][c])
+        top += 1
+        for r in range(top, bottom + 1):
+            out.append(matrix[r][right])
+        right -= 1
+        if top <= bottom:
+            for c in range(right, left - 1, -1):
+                out.append(matrix[bottom][c])
+            bottom -= 1
+        if left <= right:
+            for r in range(bottom, top - 1, -1):
+                out.append(matrix[r][left])
+            left += 1
+    return out
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert spiral_order([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == [1, 2, 3, 6, 9, 8, 7, 4, 5]
+    assert spiral_order([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]) == [1, 2, 3, 4, 8, 12, 11, 10, 9, 5, 6, 7]
+    assert spiral_order([[1, 2, 3]]) == [1, 2, 3]
+    assert spiral_order([[1], [2], [3]]) == [1, 2, 3]
+    assert spiral_order([[7]]) == [7]
+    assert spiral_order([[1, 2], [3, 4]]) == [1, 2, 4, 3]
+    assert spiral_order([]) == []
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Peel the matrix layer by layer with four shrinking boundaries. Each pass consumes the top row, right column, bottom row, and left column, tightening the corresponding bound after each edge. The two mid-loop guards prevent re-reading a single remaining row or column in non-square inputs — the classic bug in this problem. O(mn) time, O(1) extra space beyond the output.
+
+## challenge: Rotting Oranges
+tags: bfs, matrix, graph
+track: python
+lang: python
+difficulty: medium
+
+You are given an `m x n` grid where each cell is `0` (empty), `1` (fresh orange), or `2` (rotten orange). Every minute, each fresh orange 4-directionally adjacent to a rotten one becomes rotten. Return the number of minutes until no fresh orange remains, or `-1` if some fresh orange can never rot. Do not mutate the input grid.
+
+Constraints: `1 <= m, n <= 100`, cells are `0`, `1`, or `2`.
+
+Example: `grid = [[2, 1, 1], [1, 1, 0], [0, 1, 1]]` → `4`.
+
+hint: "Every minute, all adjacent at once" is the signature of multi-source BFS — seed the queue with *every* rotten orange.
+hint: Process the queue level by level; each level is one minute.
+hint: Count fresh oranges up front. If the BFS finishes with fresh ones left, they're unreachable — return -1.
+
+```python
+# starter
+def oranges_rotting(grid):
+    ...
+```
+
+```python
+from collections import deque
+
+def oranges_rotting(grid):
+    rows, cols = len(grid), len(grid[0])
+    grid = [row[:] for row in grid]
+    q = deque()
+    fresh = 0
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c] == 2:
+                q.append((r, c))
+            elif grid[r][c] == 1:
+                fresh += 1
+    minutes = 0
+    while q and fresh:
+        for _ in range(len(q)):
+            r, c = q.popleft()
+            for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 1:
+                    grid[nr][nc] = 2
+                    fresh -= 1
+                    q.append((nr, nc))
+        minutes += 1
+    return -1 if fresh else minutes
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert oranges_rotting([[2, 1, 1], [1, 1, 0], [0, 1, 1]]) == 4
+    assert oranges_rotting([[2, 1, 1], [0, 1, 1], [1, 0, 1]]) == -1
+    assert oranges_rotting([[0, 2]]) == 0
+    assert oranges_rotting([[0]]) == 0
+    assert oranges_rotting([[1]]) == -1
+    assert oranges_rotting([[2, 1, 1, 1]]) == 3
+    assert oranges_rotting([[2], [1], [1], [2]]) == 1
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Multi-source BFS: enqueue every initially rotten orange, count the fresh ones, then expand in levels — one level per minute. Looping `for _ in range(len(q))` freezes the current frontier so newly rotted oranges wait for the next minute. Guarding the loop with `and fresh` stops the clock the moment the last orange rots, and any leftover `fresh` means an isolated orange → -1. O(mn) time and space.
+
+## challenge: Merge Intervals
+tags: intervals, array
+track: python
+lang: python
+difficulty: medium
+
+Given a list of intervals `[start, end]` in arbitrary order, merge all overlapping intervals and return the merged list sorted by start. Intervals that merely touch (one ends exactly where the next begins) count as overlapping.
+
+Constraints: `0 <= len(intervals) <= 10^4`, `start <= end` for every interval.
+
+Example: `intervals = [[1, 3], [2, 6], [8, 10], [15, 18]]` → `[[1, 6], [8, 10], [15, 18]]`.
+
+hint: Sort by start first — then any overlap must be with the interval you just emitted.
+hint: Compare each interval's start with the end of the last merged interval.
+hint: On overlap, don't just replace the end — take the max, or a nested interval like `[2, 3]` inside `[1, 10]` will shrink it.
+
+```python
+# starter
+def merge_intervals(intervals):
+    ...
+```
+
+```python
+def merge_intervals(intervals):
+    merged = []
+    for start, end in sorted(intervals):
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return merged
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert merge_intervals([[1, 3], [2, 6], [8, 10], [15, 18]]) == [[1, 6], [8, 10], [15, 18]]
+    assert merge_intervals([[1, 4], [4, 5]]) == [[1, 5]]
+    assert merge_intervals([[5, 6], [1, 3], [2, 4]]) == [[1, 4], [5, 6]]
+    assert merge_intervals([[1, 4]]) == [[1, 4]]
+    assert merge_intervals([[1, 10], [2, 3], [4, 5]]) == [[1, 10]]
+    assert merge_intervals([]) == []
+    assert merge_intervals([[-5, -2], [-3, 0], [1, 2]]) == [[-5, 0], [1, 2]]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Sort by start, then sweep once: if the current interval starts at or before the end of the last merged one, extend that end with `max` (the max matters for nested intervals); otherwise start a new merged interval. Sorting dominates at O(n log n); the sweep is O(n). This sort-then-sweep pattern is the backbone of nearly every interval problem.
+
+## challenge: Jump Game
+tags: greedy, array, dp
+track: python
+lang: python
+difficulty: medium
+
+You are given a list `nums` where `nums[i]` is the maximum number of positions you may jump forward from index `i`. Starting at index `0`, return `True` if you can reach the last index, and `False` otherwise.
+
+Constraints: `1 <= len(nums) <= 10^4`, `0 <= nums[i] <= 10^5`.
+
+Example: `nums = [2, 3, 1, 1, 4]` → `True` (jump 0→1, then 1→4).
+
+hint: You don't need to know *which* jumps to take — only how far right you could possibly be.
+hint: Track `reach`, the furthest index attainable so far; from index `i` you can extend it to `i + nums[i]`.
+hint: If you ever stand at an index beyond `reach`, you're stranded — that's the only way to fail.
+
+```python
+# starter
+def can_jump(nums):
+    ...
+```
+
+```python
+def can_jump(nums):
+    reach = 0
+    for i, step in enumerate(nums):
+        if i > reach:
+            return False
+        reach = max(reach, i + step)
+    return True
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert can_jump([2, 3, 1, 1, 4]) is True
+    assert can_jump([3, 2, 1, 0, 4]) is False
+    assert can_jump([0]) is True
+    assert can_jump([0, 1]) is False
+    assert can_jump([2, 0, 0]) is True
+    assert can_jump([1, 1, 1, 1]) is True
+    assert can_jump([5, 0, 0, 0]) is True
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Greedy beats DP here. Sweep left to right maintaining `reach`, the furthest reachable index; a position `i > reach` is unreachable, so the answer is `False`, otherwise fold `i + nums[i]` into `reach`. If the scan completes, the last index was covered. The greedy is safe because reachability is monotone — reaching further never hurts. O(n) time, O(1) space, versus O(n²) for naive DP.
+
+## challenge: K Closest Points to Origin
+tags: heap, array
+track: python
+lang: python
+difficulty: medium
+
+Given a list of `points` where `points[i] = [x, y]`, return the `k` points closest to the origin `(0, 0)` by Euclidean distance. The answer may be returned in any order and is guaranteed unique for the given tests.
+
+Constraints: `1 <= k <= len(points) <= 10^4`, `-10^4 <= x, y <= 10^4`.
+
+Example: `points = [[1, 3], [-2, 2]], k = 1` → `[[-2, 2]]` (distance √8 < √10).
+
+hint: Comparing squared distances `x² + y²` avoids the square root entirely — the ordering is identical.
+hint: Sorting everything costs O(n log n); a heap of the candidates gets you O(n log k).
+hint: `heapq.nsmallest(k, points, key=...)` does the bounded-heap selection in one line.
+
+```python
+# starter
+def k_closest(points, k):
+    ...
+```
+
+```python
+import heapq
+
+def k_closest(points, k):
+    return heapq.nsmallest(k, points, key=lambda p: p[0] * p[0] + p[1] * p[1])
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert sorted(k_closest([[1, 3], [-2, 2]], 1)) == [[-2, 2]]
+    assert sorted(k_closest([[3, 3], [5, -1], [-2, 4]], 2)) == [[-2, 4], [3, 3]]
+    assert sorted(k_closest([[0, 1], [1, 0]], 2)) == [[0, 1], [1, 0]]
+    assert sorted(k_closest([[0, 0]], 1)) == [[0, 0]]
+    assert sorted(k_closest([[2, 2], [1, 1], [3, 3]], 2)) == [[1, 1], [2, 2]]
+    assert sorted(k_closest([[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]], 3)) == [[1, 1], [2, 2], [3, 3]]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Rank by squared distance — monotone in true distance, so the square root is dead weight. `heapq.nsmallest` maintains a bounded max-heap of size `k` internally: O(n log k) time, O(k) space, better than a full sort when `k << n`. Interviewers may also want the quickselect variant, which reaches O(n) average by partitioning around a pivot distance.
+
+## challenge: Non-overlapping Intervals
+tags: intervals, greedy
+track: python
+lang: python
+difficulty: hard
+
+Given a list of intervals `[start, end]`, return the minimum number of intervals you must remove so that the remaining intervals are mutually non-overlapping. Intervals that only touch at a point (like `[1, 2]` and `[2, 3]`) do not overlap.
+
+Constraints: `0 <= len(intervals) <= 10^5`, `start < end` for every interval.
+
+Example: `intervals = [[1, 2], [2, 3], [3, 4], [1, 3]]` → `1` (remove `[1, 3]`).
+
+hint: Minimizing removals is the same as maximizing the number of intervals you keep — a scheduling problem in disguise.
+hint: Greedy by earliest *end* time: the interval that finishes first leaves the most room for the rest.
+hint: Sort by end; keep an interval if its start is at or after the end of the last kept one, otherwise count it as removed.
+
+```python
+# starter
+def erase_overlap_intervals(intervals):
+    ...
+```
+
+```python
+def erase_overlap_intervals(intervals):
+    removed = 0
+    prev_end = float("-inf")
+    for start, end in sorted(intervals, key=lambda iv: iv[1]):
+        if start >= prev_end:
+            prev_end = end
+        else:
+            removed += 1
+    return removed
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert erase_overlap_intervals([[1, 2], [2, 3], [3, 4], [1, 3]]) == 1
+    assert erase_overlap_intervals([[1, 2], [1, 2], [1, 2]]) == 2
+    assert erase_overlap_intervals([[1, 2], [2, 3]]) == 0
+    assert erase_overlap_intervals([]) == 0
+    assert erase_overlap_intervals([[1, 2]]) == 0
+    assert erase_overlap_intervals([[1, 100], [11, 22], [1, 11], [2, 12]]) == 2
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** This is interval scheduling maximization flipped around: `removals = n - (max compatible set)`. The greedy that sorts by end time and always keeps the earliest-finishing compatible interval is provably optimal — an exchange argument shows any optimal solution can be rewritten to use the earliest end without losing intervals. Sorting by *start* instead is the classic wrong move. O(n log n) time, O(1) extra space.
+
+## challenge: Longest Increasing Subsequence
+tags: dp, binary-search, array
+track: python
+lang: python
+difficulty: hard
+
+Given a list `nums`, return the length of the longest strictly increasing subsequence. A subsequence keeps relative order but need not be contiguous. The O(n²) DP is easy — aim for O(n log n).
+
+Constraints: `0 <= len(nums) <= 2500`, `-10^4 <= nums[i] <= 10^4`.
+
+Example: `nums = [10, 9, 2, 5, 3, 7, 101, 18]` → `4` (one LIS is `[2, 3, 7, 101]`).
+
+hint: Keep `tails`, where `tails[i]` is the smallest possible tail of an increasing subsequence of length `i + 1`.
+hint: `tails` is always sorted — so each new number can be placed with binary search (`bisect_left`).
+hint: If the number extends beyond every tail, append it (length grows); otherwise it *replaces* the first tail `>=` it, keeping future options open.
+
+```python
+# starter
+def length_of_lis(nums):
+    ...
+```
+
+```python
+from bisect import bisect_left
+
+def length_of_lis(nums):
+    tails = []
+    for x in nums:
+        i = bisect_left(tails, x)
+        if i == len(tails):
+            tails.append(x)
+        else:
+            tails[i] = x
+    return len(tails)
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert length_of_lis([10, 9, 2, 5, 3, 7, 101, 18]) == 4
+    assert length_of_lis([0, 1, 0, 3, 2, 3]) == 4
+    assert length_of_lis([7, 7, 7, 7]) == 1
+    assert length_of_lis([1]) == 1
+    assert length_of_lis([]) == 0
+    assert length_of_lis([4, 10, 4, 3, 8, 9]) == 3
+    assert length_of_lis([1, 3, 6, 7, 9, 4, 10, 5, 6]) == 6
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Patience sorting. `tails[i]` holds the smallest tail of any increasing subsequence of length `i + 1`; that invariant keeps `tails` sorted, so `bisect_left` finds each number's spot in O(log n). Appending means a longer LIS exists; replacing lowers a tail so later numbers have an easier bar to clear. Note `tails` is *not* an actual LIS — only its length is meaningful. `bisect_left` (not `bisect_right`) enforces strict increase by rejecting equal elements. O(n log n) time, O(n) space.
+
+## challenge: Partition Equal Subset Sum
+tags: dp, array
+track: python
+lang: python
+difficulty: hard
+
+Given a list `nums` of positive integers, return `True` if the list can be split into two subsets with equal sums, and `False` otherwise. Every element must land in exactly one subset.
+
+Constraints: `1 <= len(nums) <= 200`, `1 <= nums[i] <= 100`.
+
+Example: `nums = [1, 5, 11, 5]` → `True` (`[1, 5, 5]` and `[11]` both sum to 11).
+
+hint: If the total sum is odd, no split can exist. If it's even, you're hunting a subset summing to exactly `total // 2` — 0/1 knapsack.
+hint: Track the set of subset sums reachable so far; each number extends every previously reachable sum.
+hint: Prune sums above the target, and return early the moment the target becomes reachable.
+
+```python
+# starter
+def can_partition(nums):
+    ...
+```
+
+```python
+def can_partition(nums):
+    total = sum(nums)
+    if total % 2:
+        return False
+    target = total // 2
+    reachable = {0}
+    for x in nums:
+        reachable |= {r + x for r in reachable if r + x <= target}
+        if target in reachable:
+            return True
+    return False
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert can_partition([1, 5, 11, 5]) is True
+    assert can_partition([1, 2, 3, 5]) is False
+    assert can_partition([1, 1]) is True
+    assert can_partition([1]) is False
+    assert can_partition([2, 2, 3, 5]) is False
+    assert can_partition([3, 3, 3, 4, 5]) is True
+    assert can_partition([100]) is False
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Reduce to subset-sum: an equal split exists iff some subset hits `total // 2` (impossible when the total is odd). The DP state is simply "which sums are reachable" — a set (or boolean array/bitmask) that each number extends by shifting. Building the extension as a separate set before the union is the 0/1 discipline: it stops one element from being used twice in the same round. O(n · target) time, O(target) space; the bitmask trick (`bits |= bits << x`) makes it startlingly fast in practice.
+
+## challenge: Pacific Atlantic Water Flow
+tags: graph, bfs, matrix
+track: python
+lang: python
+difficulty: hard
+
+You are given an `m x n` grid `heights` of land elevations. The Pacific Ocean touches the top and left edges; the Atlantic touches the bottom and right edges. Rain water flows from a cell to a 4-directional neighbor of **equal or lower** height, and into an ocean off the matching edges. Return a list of `[r, c]` coordinates from which water can reach *both* oceans, in any order.
+
+Constraints: `1 <= m, n <= 200`, `0 <= heights[r][c] <= 10^5`.
+
+Example: `heights = [[1, 2], [4, 3]]` → `[[0, 1], [1, 0], [1, 1]]` (only `[0, 0]` is landlocked from the Atlantic).
+
+hint: Tracing water *downhill* from every cell is O((mn)²). Flip it: flood *uphill* from each ocean instead.
+hint: Start a search from every Pacific-edge cell and every Atlantic-edge cell, moving only to neighbors with height `>=` the current cell.
+hint: Two reachability sets — one per ocean — and the answer is their intersection.
+
+```python
+# starter
+def pacific_atlantic(heights):
+    ...
+```
+
+```python
+def pacific_atlantic(heights):
+    rows, cols = len(heights), len(heights[0])
+
+    def flood(starts):
+        seen = set(starts)
+        stack = list(starts)
+        while stack:
+            r, c = stack.pop()
+            for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if (0 <= nr < rows and 0 <= nc < cols
+                        and (nr, nc) not in seen
+                        and heights[nr][nc] >= heights[r][c]):
+                    seen.add((nr, nc))
+                    stack.append((nr, nc))
+        return seen
+
+    pacific = flood([(r, 0) for r in range(rows)] + [(0, c) for c in range(cols)])
+    atlantic = flood([(r, cols - 1) for r in range(rows)] + [(rows - 1, c) for c in range(cols)])
+    return [[r, c] for r, c in pacific & atlantic]
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    grid = [[1, 2, 2, 3, 5], [3, 2, 3, 4, 4], [2, 4, 5, 3, 1], [6, 7, 1, 4, 5], [5, 1, 1, 2, 4]]
+    assert sorted(pacific_atlantic(grid)) == [[0, 4], [1, 3], [1, 4], [2, 2], [3, 0], [3, 1], [4, 0]]
+    assert sorted(pacific_atlantic([[1]])) == [[0, 0]]
+    assert sorted(pacific_atlantic([[1, 2], [4, 3]])) == [[0, 1], [1, 0], [1, 1]]
+    assert sorted(pacific_atlantic([[1, 2, 3]])) == [[0, 0], [0, 1], [0, 2]]
+    assert sorted(pacific_atlantic([[2, 1], [1, 2]])) == [[0, 0], [0, 1], [1, 0], [1, 1]]
+    assert sorted(pacific_atlantic([[10, 10], [10, 10]])) == [[0, 0], [0, 1], [1, 0], [1, 1]]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** The key inversion: instead of asking "where can each cell drain to?", flood *from* each ocean, moving uphill (`neighbor >= current`) — a cell an ocean can climb to is exactly a cell that drains to that ocean. Two multi-source searches (BFS or DFS, here an iterative stack) seeded from the ocean edges give two reachability sets; the answer is their intersection. Each search visits every cell once: O(mn) time and space, versus O((mn)²) for per-cell downhill simulation.
 
 ## quiz: What does this print?
 tags: functions, gotcha
