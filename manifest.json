@@ -1,5 +1,5 @@
 {
- "count": 664,
+ "count": 662,
  "cards": [
   {
    "topic": "cpp-core",
@@ -1475,10 +1475,10 @@
   },
   {
    "topic": "faang",
-   "file": "faang/bt_02_generate-parentheses_easy.md",
+   "file": "faang/bt_02_generate-parentheses_medium.md",
    "type": "challenge",
    "track": "faang",
-   "level": "easy",
+   "level": "medium",
    "title": "Generate Parentheses"
   },
   {
@@ -2323,14 +2323,6 @@
   },
   {
    "topic": "faang",
-   "file": "faang/ib_06_single-number_easy.md",
-   "type": "challenge",
-   "track": "faang",
-   "level": "easy",
-   "title": "Single Number"
-  },
-  {
-   "topic": "faang",
    "file": "faang/ib_07_number-of-1-bits_easy.md",
    "type": "challenge",
    "track": "faang",
@@ -3151,7 +3143,7 @@
    "type": "challenge",
    "track": "faang",
    "level": "hard",
-   "title": "Backspace String Compare"
+   "title": "Backspace String Compare (O(1) space)"
   },
   {
    "topic": "faang",
@@ -3159,7 +3151,7 @@
    "type": "challenge",
    "track": "faang",
    "level": "hard",
-   "title": "Partition Labels"
+   "title": "Partition Labels (one pass, O(1) extra)"
   },
   {
    "topic": "faang",
@@ -3208,14 +3200,6 @@
    "track": "faang",
    "level": "medium",
    "title": "Insert into a Binary Search Tree"
-  },
-  {
-   "topic": "faang",
-   "file": "faang/tr2_07_path-sum-ii_medium.md",
-   "type": "challenge",
-   "track": "faang",
-   "level": "medium",
-   "title": "Path Sum II"
   },
   {
    "topic": "faang",

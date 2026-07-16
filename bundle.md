@@ -9579,7 +9579,7 @@ int main() {
 ## challenge: Generate Parentheses
 tags: backtracking, string, dynamic-programming
 track: faang
-difficulty: easy
+difficulty: medium
 
 Given `n` pairs of parentheses, return all combinations of well-formed (balanced) parentheses using exactly `n` opening and `n` closing brackets. Return the answer in any order.
 
@@ -16308,53 +16308,6 @@ int main() {
 
 **Editorial:** Bursting all balloons with the fewest arrows is an interval-covering problem. Sort balloons by their right edge; place the first arrow at that edge, which greedily pops every subsequent balloon whose start lies at or before it. Only when a balloon starts strictly beyond the current arrow do we need a fresh arrow, positioned at the new balloon's end. Comparing starts against the arrow position with a 64-bit variable avoids overflow near the `int` limits. O(n log n) time, O(1) extra space.
 
-## challenge: Single Number
-tags: bit-tricks, array, hash-table
-track: faang
-difficulty: easy
-
-Given a non-empty array `nums` in which every element appears exactly twice except for one element that appears once, find that single element. Your solution must run in linear time and use only constant extra space.
-
-Constraints: `1 <= nums.length <= 3*10^4`, `nums.length` is odd, `-3*10^4 <= nums[i] <= 3*10^4`, exactly one element is unpaired.
-
-Example: `nums = [2,2,1]` → `1`. Example: `nums = [4,1,2,1,2]` → `4`. Example: `nums = [1]` → `1`.
-
-hint: A hash set works but costs O(n) space; the constraints hint at something cheaper.
-hint: XOR has two properties that matter: `x ^ x == 0` and `x ^ 0 == x`, and it is commutative and associative.
-hint: XOR every element together. All paired values cancel to 0, leaving only the lone element.
-
-```cpp
-// starter
-#include <vector>
-int singleNumber(std::vector<int>& nums);
-```
-
-```cpp
-int singleNumber(std::vector<int>& nums) {
-    int result = 0;
-    for (int x : nums) result ^= x;
-    return result;
-}
-```
-
-```cpp
-// harness
-#include <cstdio>
-#include <vector>
-using std::vector;
-//__USER__
-int main() {
-    { vector<int> n{2,2,1};       if (singleNumber(n) != 1)  { std::puts("case1"); return 1; } }
-    { vector<int> n{4,1,2,1,2};   if (singleNumber(n) != 4)  { std::puts("case2"); return 1; } }
-    { vector<int> n{1};           if (singleNumber(n) != 1)  { std::puts("case3"); return 1; } }
-    { vector<int> n{-1,-1,-2};    if (singleNumber(n) != -2) { std::puts("case4"); return 1; } }
-    { vector<int> n{7,3,3,7,11};  if (singleNumber(n) != 11) { std::puts("case5"); return 1; } }
-    std::puts("PASS");
-}
-```
-
-**Editorial:** XOR is its own inverse: any value XORed with itself is 0, and XOR with 0 is the identity. Because XOR is commutative and associative, folding the whole array with `^` makes every duplicated pair vanish, and only the unique value remains. This gives O(n) time and O(1) space with no hashing.
-
 ## challenge: Number of 1 Bits
 tags: bit-tricks, divide-and-conquer
 track: faang
@@ -22791,7 +22744,7 @@ int main() {
 
 **Editorial:** 4Sum is a nested reduction of 3Sum. Sort the array, then fix the two outer indices with a double loop; for each fixed pair the problem becomes finding a pair in the sorted suffix that sums to `target - nums[i] - nums[j]`, which the classic two-pointer converge solves in linear time. Duplicate quadruplets are avoided by skipping equal adjacent values at all four positions. The critical correctness detail is 64-bit accumulation: four values near 10^9 exceed the 32-bit range, so the sums are computed as `long long`. Two outer loops times a linear inner scan give O(n^3) time and O(1) extra space beyond the output.
 
-## challenge: Backspace String Compare
+## challenge: Backspace String Compare (O(1) space)
 tags: two-pointers, string, stack
 track: faang
 difficulty: hard
@@ -22858,7 +22811,7 @@ int main() {
 
 **Editorial:** Because a backspace only erases characters to its left, scanning from the right lets you resolve deletions on the fly without materializing the edited strings. For each string keep a counter of pending skips: a `'#'` increments the skip count, and a normal character is either consumed by a pending skip or is the next surviving character. Advance both pointers to their next survivors and compare; if one string still has a survivor while the other is exhausted, they differ. This runs in O(n + m) time and O(1) extra space, improving on the stack-based O(n + m) space solution.
 
-## challenge: Partition Labels
+## challenge: Partition Labels (one pass, O(1) extra)
 tags: two-pointers, greedy, string, hash-table
 track: faang
 difficulty: hard
@@ -23431,110 +23384,6 @@ int main() {
 ```
 
 **Editorial:** Follow the BST ordering downward — go left when the new value is smaller, right when larger — until you fall off the tree at a null pointer. That empty slot is the correct home for the new node. Returning the subtree root from each call lets the parent reattach the (unchanged or newly created) child cleanly. The walk follows one root-to-leaf path. O(h) time, O(h) space for recursion.
-
-## challenge: Path Sum II
-tags: tree, dfs, backtracking
-track: faang
-difficulty: medium
-
-Given the root of a binary tree and an integer `targetSum`, return all root-to-leaf paths where the sum of the node values along the path equals `targetSum`. Each path is returned as the list of node values in order from root to leaf. A leaf is a node with no children.
-
-Constraints: `0 <= n <= 5000` nodes, `-1000 <= Node.val <= 1000`, `-10^9 <= targetSum <= 10^9`.
-
-Example: `[5,4,8,11,null,13,4,7,2,null,null,5,1], targetSum = 22` → `[[5,4,11,2],[5,8,4,5]]`. Example: `[1,2,3], targetSum = 5` → `[]`. Example: empty, `targetSum = 0` → `[]`.
-
-hint: This is a depth-first walk that must remember the whole path so far, not just a running sum.
-hint: Push the current node onto a path list on entry and pop it on exit — classic backtracking so siblings do not see each other's nodes.
-hint: Record a copy of the path only when you are at a leaf and the remaining target has reached exactly zero.
-
-```cpp
-// starter
-#include <vector>
-struct TreeNode {
-    int val;
-    TreeNode* left;
-    TreeNode* right;
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-};
-std::vector<std::vector<int>> pathSum(TreeNode* root, int targetSum);
-```
-
-```cpp
-std::vector<std::vector<int>> pathSum(TreeNode* root, int targetSum) {
-    std::vector<std::vector<int>> res;
-    std::vector<int> path;
-    std::function<void(TreeNode*, int)> dfs = [&](TreeNode* node, int rem) {
-        if (!node) return;
-        path.push_back(node->val);
-        rem -= node->val;
-        if (!node->left && !node->right) {
-            if (rem == 0) res.push_back(path);
-        } else {
-            dfs(node->left, rem);
-            dfs(node->right, rem);
-        }
-        path.pop_back();
-    };
-    dfs(root, targetSum);
-    return res;
-}
-```
-
-```cpp
-// harness
-#include <cstdio>
-#include <vector>
-#include <queue>
-#include <functional>
-#include <optional>
-using std::vector;
-using std::optional;
-struct TreeNode {
-    int val;
-    TreeNode* left;
-    TreeNode* right;
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-};
-static TreeNode* build(const vector<optional<int>>& a) {
-    if (a.empty() || !a[0].has_value()) return nullptr;
-    TreeNode* root = new TreeNode(*a[0]);
-    std::queue<TreeNode*> q; q.push(root);
-    size_t i = 1;
-    while (!q.empty() && i < a.size()) {
-        TreeNode* cur = q.front(); q.pop();
-        if (i < a.size()) { if (a[i].has_value()) { cur->left  = new TreeNode(*a[i]); q.push(cur->left);  } ++i; }
-        if (i < a.size()) { if (a[i].has_value()) { cur->right = new TreeNode(*a[i]); q.push(cur->right); } ++i; }
-    }
-    return root;
-}
-//__USER__
-int main() {
-    using N = optional<int>;
-    {
-        auto r = pathSum(build({5,4,8,11,N{},13,4,7,2,N{},N{},5,1}), 22);
-        vector<vector<int>> want = {{5,4,11,2},{5,8,4,5}};
-        if (r != want) { std::puts("case1"); return 1; }
-    }
-    {
-        if (!pathSum(build({1,2,3}), 5).empty()) { std::puts("case2"); return 1; }
-    }
-    {
-        if (!pathSum(build({}), 0).empty()) { std::puts("case3"); return 1; }
-    }
-    {
-        auto r = pathSum(build({1,2}), 1);
-        if (!r.empty()) { std::puts("case4"); return 1; }
-    }
-    {
-        auto r = pathSum(build({-2,N{},-3}), -5);
-        vector<vector<int>> want = {{-2,-3}};
-        if (r != want) { std::puts("case5"); return 1; }
-    }
-    std::puts("PASS");
-}
-```
-
-**Editorial:** Depth-first search carrying both the running path and the remaining target. On entering a node we append it and subtract its value; at a leaf we save a copy of the path only if the remainder is zero; on exit we pop to backtrack so unrelated branches never share nodes. Building each qualifying path costs its length. O(n^2) worst case for copying paths, O(h) auxiliary space.
 
 ## challenge: Merge Two Binary Trees
 tags: tree, dfs, recursion

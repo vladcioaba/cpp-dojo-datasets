@@ -1,4 +1,4 @@
-## challenge: Partition Labels
+## challenge: Partition Labels (one pass, O(1) extra)
 tags: two-pointers, greedy, string, hash-table
 track: faang
 difficulty: hard

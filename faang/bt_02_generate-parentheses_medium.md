@@ -1,7 +1,7 @@
 ## challenge: Generate Parentheses
 tags: backtracking, string, dynamic-programming
 track: faang
-difficulty: easy
+difficulty: medium
 
 Given `n` pairs of parentheses, return all combinations of well-formed (balanced) parentheses using exactly `n` opening and `n` closing brackets. Return the answer in any order.
 

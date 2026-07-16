@@ -1,4 +1,4 @@
-## challenge: Backspace String Compare
+## challenge: Backspace String Compare (O(1) space)
 tags: two-pointers, string, stack
 track: faang
 difficulty: hard
