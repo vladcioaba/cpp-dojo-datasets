@@ -1,5 +1,5 @@
 {
- "count": 636,
+ "count": 663,
  "cards": [
   {
    "topic": "cpp-core",
@@ -272,6 +272,110 @@
    "track": "core",
    "level": "drill",
    "title": "Move constructor"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_01_range_sum_off_by_one_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "fix: range totals come up short"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_02_erase_loop_skips_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "fix: stubborn negatives survive the purge"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_03_millis_overflow_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "fix: uptime goes backwards after 49 days"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_04_ends_with_npos_hard.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "hard",
+   "title": "fix: the suffix check that says yes to longer suffixes"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_05_range_for_copy_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "fix: the discount that never sticks"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_06_map_bracket_insert_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "fix: the settings map that grows on read"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_07_ctor_shadowing_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "fix: every rectangle has zero area"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_08_flag_precedence_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "fix: permissions only work for bit zero"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_09_float_equality_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "fix: the sensor reading that doesn't count"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_10_remove_without_erase_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "fix: the zeros that won't leave"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_11_leak_early_return_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "fix: the packet validator that leaks"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/fix_12_stale_cache_hard.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "hard",
+   "title": "fix: the display name that gets stuck"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/review.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "easy",
+   "title": "review: the welcome email"
   },
   {
    "topic": "design",
@@ -4643,6 +4747,102 @@
   },
   {
    "topic": "python",
+   "file": "python/pyfix_01_range-off-by-one_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "fix: Last page never prints"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyfix_02_discarded-strip_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "fix: Blank lines survive the cleaner"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyfix_03_alias-not-copy_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "fix: Defaults drift after every request"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyfix_04_mutable-default_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "fix: Dedupe remembers too much"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyfix_05_version-sort_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "fix: Version 1.10 releases before 1.9"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyfix_06_late-binding_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "fix: Every currency converts at the yen rate"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyfix_07_remove-while-iterating_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "fix: Failing scores dodge the purge"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyfix_08_shallow-copy_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "fix: Undo corrupts the board"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyfix_09_float-equality_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "fix: Ten dimes don't make a dollar"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyfix_10_check-then-act_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "fix: Account drained below zero"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyfix_11_reverse-tie-break_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "fix: Leaderboard ties sorted backwards"
+  },
+  {
+   "topic": "python",
+   "file": "python/pyfix_12_broad-except_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "fix: Schema bugs vanish into the total"
+  },
+  {
+   "topic": "python",
    "file": "python/pyg_01_invert-binary-tree_easy.md",
    "type": "challenge",
    "track": "python",
@@ -4856,6 +5056,22 @@
    "track": "python",
    "level": "concept",
    "title": "What does this print?"
+  },
+  {
+   "topic": "python",
+   "file": "python/review.md",
+   "type": "quiz",
+   "track": "python",
+   "level": "easy",
+   "title": "review: Everyone joins the same team"
+  },
+  {
+   "topic": "python",
+   "file": "python/runs.md",
+   "type": "quiz",
+   "track": "python",
+   "level": "easy",
+   "title": "Does string + int run?"
   },
   {
    "topic": "quant",

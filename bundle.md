@@ -770,6 +770,978 @@ int main() {
 
 **Editorial:** The move constructor transfers ownership by copying the pointer and size, then resetting the source (`data = nullptr`) so its destructor will not double-free. Marking it `noexcept` lets containers move instead of copy when they reallocate. The drill teaches move semantics and the leave-the-source-valid rule. O(1).
 
+## challenge: fix: range totals come up short
+tags: code-review, debugging, bounds
+track: core
+difficulty: easy
+
+This code review found a bug: totals over an inclusive index range are consistently short — the last element of the range is never counted. Find and fix it — keep the function signature.
+
+hint: Look at the loop condition, not the accumulation.
+hint: This is an off-by-one: an inclusive bound treated as exclusive.
+hint: The contract says v[lo..hi] inclusive, but the loop stops when i == hi, so v[hi] is never added.
+
+```cpp
+// starter
+// Returns the sum of v[lo..hi], both endpoints inclusive.
+// Precondition: lo <= hi < v.size().
+int sumRange(const std::vector<int>& v, std::size_t lo, std::size_t hi) {
+    int total = 0;
+    for (std::size_t i = lo; i < hi; ++i) {
+        total += v[i];
+    }
+    return total;
+}
+```
+
+```cpp
+// Returns the sum of v[lo..hi], both endpoints inclusive.
+// Precondition: lo <= hi < v.size().
+int sumRange(const std::vector<int>& v, std::size_t lo, std::size_t hi) {
+    int total = 0;
+    for (std::size_t i = lo; i <= hi; ++i) {
+        total += v[i];
+    }
+    return total;
+}
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    std::vector<int> v{10, 20, 30, 40};
+    assert(sumRange(v, 1, 3) == 90);   // 20 + 30 + 40
+    assert(sumRange(v, 0, 0) == 10);   // single-element range
+    assert(sumRange(v, 0, 3) == 100);  // whole vector
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The documented contract is inclusive on both ends, but the loop condition `i < hi` stops one element early, so `v[hi]` is silently dropped — a single-element range even sums to zero. The fix is `i <= hi` (safe here because the precondition guarantees `hi < v.size()`). A reviewer spots this by matching the comment's contract against the loop bound: whenever a range is described as inclusive, `<` in the terminating condition is the first suspect.
+
+## challenge: fix: stubborn negatives survive the purge
+tags: code-review, debugging, iterators
+track: core
+difficulty: medium
+
+This code review found a bug: after "removing all negatives", the vector sometimes still contains negative numbers — always ones that sat right next to another negative. Find and fix it — keep the function signature.
+
+hint: Trace what happens to the indices when two negatives are adjacent.
+hint: This is the classic erase-inside-a-loop bug, in index form.
+hint: After erase(begin() + i), the next element shifts into slot i, but the loop increments i anyway and never examines it.
+
+```cpp
+// starter
+void removeNegatives(std::vector<int>& v) {
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        if (v[i] < 0) {
+            v.erase(v.begin() + i);
+        }
+    }
+}
+```
+
+```cpp
+void removeNegatives(std::vector<int>& v) {
+    for (std::size_t i = 0; i < v.size(); ) {
+        if (v[i] < 0) {
+            v.erase(v.begin() + i);   // next element shifts into slot i
+        } else {
+            ++i;
+        }
+    }
+}
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    std::vector<int> a{3, -1, -4, -2, 5, -6};
+    removeNegatives(a);
+    assert(a == std::vector<int>({3, 5}));
+
+    std::vector<int> b{-7, -8};
+    removeNegatives(b);
+    assert(b.empty());
+
+    std::vector<int> c{1, 2, 3};
+    removeNegatives(c);
+    assert(c == std::vector<int>({1, 2, 3}));
+
+    std::puts("PASS");
+}
+```
+
+**Editorial:** When `v[i]` is erased, the element after it shifts down into index `i` — but the `for` loop then executes `++i`, so the shifted element is never inspected. Two adjacent negatives therefore leave the second one behind (`{3, -1, -4, ...}` keeps `-4`). The fix is to advance `i` only when nothing was erased; equivalently, use the erase-remove idiom (`v.erase(std::remove_if(...), v.end())`), which is also O(n) instead of O(n²). Reviewers should flag any loop that erases from the container it is indexing and then unconditionally increments.
+
+## challenge: fix: uptime goes backwards after 49 days
+tags: code-review, debugging, integer-arithmetic
+track: core
+difficulty: medium
+
+This code review found a bug: the reported uptime in milliseconds is correct for weeks, then suddenly jumps back near zero once the server has been up for about 49 days. Find and fix it — keep the function signature.
+
+hint: The return type is 64-bit, but where does the arithmetic actually happen?
+hint: This is an integer overflow: the multiplication wraps before the widening conversion.
+hint: uint32_t * int is computed in 32 bits and wraps at 2^32 (~49.7 days of milliseconds); only afterwards is the wrapped value converted to uint64_t.
+
+```cpp
+// starter
+std::uint64_t uptimeMillis(std::uint32_t uptimeSeconds) {
+    return uptimeSeconds * 1000;
+}
+```
+
+```cpp
+std::uint64_t uptimeMillis(std::uint32_t uptimeSeconds) {
+    return static_cast<std::uint64_t>(uptimeSeconds) * 1000;
+}
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    assert(uptimeMillis(0) == 0);
+    assert(uptimeMillis(2) == 2000);
+    assert(uptimeMillis(4294967) == 4294967000ULL);      // just under the 2^32 ms line
+    assert(uptimeMillis(5000000) == 5000000000ULL);      // ~58 days: wraps in the buggy version
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `uptimeSeconds * 1000` is evaluated in `std::uint32_t` (the `int` literal converts to unsigned of the same rank), so the product is reduced modulo 2^32 — 5,000,000 seconds becomes 705,032,704 ms instead of 5,000,000,000 ms. The 64-bit return type widens the value only *after* it has already wrapped. Widen an operand first: `static_cast<std::uint64_t>(uptimeSeconds) * 1000`. Reviewers should be suspicious whenever a narrow multiplication feeds a wide result type — the destination type never rescues the arithmetic.
+
+## challenge: fix: the suffix check that says yes to longer suffixes
+tags: code-review, debugging, strings
+track: core
+difficulty: hard
+
+This code review found a bug: `endsWith("bc", "abc")` returns true — a string is reported as ending with a suffix that is longer than the string itself. Find and fix it — keep the function signature.
+
+hint: What does rfind return when the suffix is not found at all, and what does the right-hand side compute when the suffix is longer than the string?
+hint: This is unsigned wraparound colliding with a sentinel value.
+hint: s.size() - suffix.size() wraps to SIZE_MAX when the suffix is one longer than s — and SIZE_MAX is exactly std::string::npos, the same value rfind returns for "not found", so the two compare equal.
+
+```cpp
+// starter
+bool endsWith(const std::string& s, const std::string& suffix) {
+    return s.rfind(suffix) == s.size() - suffix.size();
+}
+```
+
+```cpp
+bool endsWith(const std::string& s, const std::string& suffix) {
+    if (suffix.size() > s.size()) {
+        return false;
+    }
+    return s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    assert(endsWith("catalog", "log"));
+    assert(!endsWith("catalog", "dog"));
+    assert(endsWith("abc", "abc"));
+    assert(endsWith("catalog", ""));
+    assert(!endsWith("bc", "abc"));    // suffix longer than the string: buggy version says true
+    assert(!endsWith("", "x"));
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Both sides of the comparison misbehave in the same corner: when `suffix` is longer than `s`, `rfind` returns `npos` (defined as `size_t(-1)`, i.e. `SIZE_MAX`), and the unsigned subtraction `s.size() - suffix.size()` wraps around — for a suffix exactly one character longer it wraps to `SIZE_MAX` too, so "not found" compares equal to the garbage index and the function answers true. The fix rejects oversized suffixes up front and then compares the tail directly with `compare` (in C++20 you would just call `s.ends_with(suffix)`). Reviewers should treat any arithmetic on `size()` values that can go "negative", and any `==` against a value that might be `npos`, as a wraparound trap.
+
+## challenge: fix: the discount that never sticks
+tags: code-review, debugging, references
+track: core
+difficulty: easy
+
+This code review found a bug: applying a discount to the cart runs without errors, but every price in the cart is unchanged afterwards. Find and fix it — keep the function signature.
+
+hint: The math is right — look at the range-for declaration.
+hint: The loop mutates something, but not the elements in the vector.
+hint: `for (auto item : items)` copies each Item; the discount is applied to the copy, which is thrown away at the end of each iteration.
+
+```cpp
+// starter
+struct Item {
+    std::string name;
+    double price;
+};
+
+void applyDiscount(std::vector<Item>& items, double rate) {
+    for (auto item : items) {
+        item.price -= item.price * rate;
+    }
+}
+```
+
+```cpp
+struct Item {
+    std::string name;
+    double price;
+};
+
+void applyDiscount(std::vector<Item>& items, double rate) {
+    for (auto& item : items) {
+        item.price -= item.price * rate;
+    }
+}
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    std::vector<Item> cart{{"keyboard", 100.0}, {"mouse", 40.0}};
+    applyDiscount(cart, 0.5);
+    assert(cart[0].price == 50.0);
+    assert(cart[1].price == 20.0);
+    assert(cart[0].name == "keyboard");
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `for (auto item : items)` declares `item` as a *copy* of each element, so the discount mutates a temporary that dies at the end of the iteration — the vector itself is untouched (and each iteration also pays for copying a `std::string`). Change the loop variable to `auto&` to mutate in place (`const auto&` is the right default when only reading). Reviewers spot this by checking every range-for that writes to the loop variable: if the intent is mutation, the declaration must be a reference.
+
+## challenge: fix: the settings map that grows on read
+tags: code-review, debugging, containers
+track: core
+difficulty: medium
+
+This code review found a bug: merely *reading* a setting adds phantom empty entries to the map — after a few lookups of unknown keys, dumps of the settings show keys nobody ever set. Find and fix it — keep the function signature.
+
+hint: The returned values look fine; watch what happens to settings.size() after a miss.
+hint: This is std::map::operator[] doing more than a lookup.
+hint: settings[key] default-constructs and inserts an empty string for every missing key — twice per miss here — so reads mutate the map.
+
+```cpp
+// starter
+std::string getSetting(std::map<std::string, std::string>& settings,
+                       const std::string& key) {
+    if (settings[key].empty()) {
+        return "default";
+    }
+    return settings[key];
+}
+```
+
+```cpp
+std::string getSetting(std::map<std::string, std::string>& settings,
+                       const std::string& key) {
+    auto it = settings.find(key);
+    if (it == settings.end() || it->second.empty()) {
+        return "default";
+    }
+    return it->second;
+}
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    std::map<std::string, std::string> settings{
+        {"host", "localhost"},
+        {"port", "8080"},
+    };
+    assert(getSetting(settings, "host") == "localhost");
+    assert(getSetting(settings, "retries") == "default");
+    assert(settings.size() == 2);                    // buggy version inserted "retries"
+    assert(getSetting(settings, "timeout") == "default");
+    assert(settings.size() == 2);                    // ...and "timeout"
+    assert(settings.count("retries") == 0);
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `std::map::operator[]` is find-or-*insert*: for a missing key it default-constructs an empty `std::string`, inserts it, and returns a reference to it. Here every miss silently plants an empty entry (and the function even does it twice per call), so read paths mutate shared state — corrupting iteration, size checks, and serialization of the settings. The fix is `find` plus an end-check, leaving the map untouched. In review, `operator[]` on a map inside anything that is semantically a *read* is an instant flag — that is also why it does not exist on `const` maps.
+
+## challenge: fix: every rectangle has zero area
+tags: code-review, debugging, classes
+track: core
+difficulty: easy
+
+This code review found a bug: no matter what dimensions a Rectangle is constructed with, `area()` always returns 0. Find and fix it — keep the function signature.
+
+hint: The constructor body runs without errors — but what exactly does each assignment assign to?
+hint: This is name shadowing: parameters hiding members.
+hint: Inside the constructor body, `width` and `height` name the parameters, so both statements assign a parameter to itself and the members keep their default 0.
+
+```cpp
+// starter
+class Rectangle {
+public:
+    Rectangle(int width, int height) {
+        width = width;
+        height = height;
+    }
+    int area() const { return width * height; }
+private:
+    int width = 0;
+    int height = 0;
+};
+```
+
+```cpp
+class Rectangle {
+public:
+    Rectangle(int width, int height)
+        : width(width), height(height) {}
+    int area() const { return width * height; }
+private:
+    int width = 0;
+    int height = 0;
+};
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    Rectangle r(3, 4);
+    assert(r.area() == 12);
+    Rectangle q(7, 2);
+    assert(q.area() == 14);
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The constructor parameters `width` and `height` shadow the data members of the same name, so `width = width;` assigns the parameter to itself and the members are never written — they keep their default initializers of 0. A member-initializer list fixes it, because in `: width(width)` the name *outside* the parentheses is looked up as a member while the name inside is the parameter; `this->width = width;` in the body works too. Reviewers catch this by being wary of constructor bodies that assign same-named identifiers — and most compilers will point at it with `-Wshadow` or self-assign warnings, which is a good reason to build with warnings on.
+
+## challenge: fix: permissions only work for bit zero
+tags: code-review, debugging, operators
+track: core
+difficulty: medium
+
+This code review found a bug: permission checks pass or fail based only on whether the user has the READ bit — asking for WRITE with WRITE granted returns false, while asking for EXEC with only READ granted returns true. Find and fix it — keep the function signature.
+
+hint: The bitmask logic is conceptually right; the compiler just isn't grouping it the way the author thought.
+hint: This is an operator-precedence bug: == binds tighter than &.
+hint: `flags & required == required` parses as `flags & (required == required)`, i.e. `flags & 1` — it only ever tests the lowest bit of flags.
+
+```cpp
+// starter
+// Returns true when every bit set in `required` is also set in `flags`.
+bool hasPermission(unsigned flags, unsigned required) {
+    return flags & required == required;
+}
+```
+
+```cpp
+// Returns true when every bit set in `required` is also set in `flags`.
+bool hasPermission(unsigned flags, unsigned required) {
+    return (flags & required) == required;
+}
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    constexpr unsigned FLAG_READ  = 1u << 0;
+    constexpr unsigned FLAG_WRITE = 1u << 1;
+    constexpr unsigned FLAG_EXEC  = 1u << 2;
+
+    assert(hasPermission(FLAG_WRITE, FLAG_WRITE));                  // buggy: false
+    assert(!hasPermission(FLAG_READ, FLAG_EXEC));                   // buggy: true
+    assert(hasPermission(FLAG_READ | FLAG_WRITE, FLAG_WRITE));
+    assert(!hasPermission(FLAG_WRITE, FLAG_WRITE | FLAG_EXEC));
+    assert(hasPermission(FLAG_READ, FLAG_READ));
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Equality binds tighter than bitwise AND, so `flags & required == required` evaluates `required == required` first — always `true`, which converts to `1` — and the whole check collapses to `flags & 1`: "does the user have the READ bit". Parenthesize the mask test: `(flags & required) == required`. This precedence quirk (relational and equality operators binding tighter than `&`, `^`, `|`) is a C legacy famous enough that compilers emit `-Wparentheses` for it; in review, any bitwise expression mixed with a comparison and no parentheses should be re-derived by hand.
+
+## challenge: fix: the sensor reading that doesn't count
+tags: code-review, debugging, floating-point
+track: core
+difficulty: easy
+
+This code review found a bug: counting how many sensor readings equal 0.3 misses readings that were computed as 0.1 + 0.2 — values that print identically are not counted. Find and fix it — keep the function signature.
+
+hint: Print the readings with 17 significant digits and compare them again.
+hint: This is exact floating-point equality where a tolerance is needed.
+hint: 0.1 + 0.2 is 0.30000000000000004 in binary floating point, so operator== rejects it; compare |r - target| against a small epsilon instead.
+
+```cpp
+// starter
+int countOccurrences(const std::vector<double>& readings, double target) {
+    int count = 0;
+    for (double r : readings) {
+        if (r == target) {
+            ++count;
+        }
+    }
+    return count;
+}
+```
+
+```cpp
+int countOccurrences(const std::vector<double>& readings, double target) {
+    int count = 0;
+    for (double r : readings) {
+        if (std::fabs(r - target) < 1e-9) {
+            ++count;
+        }
+    }
+    return count;
+}
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    std::vector<double> readings{0.1 + 0.2, 0.3, 0.7};
+    assert(countOccurrences(readings, 0.3) == 2);   // buggy: 1 (0.1 + 0.2 != 0.3 exactly)
+    assert(countOccurrences(readings, 0.7) == 1);
+    assert(countOccurrences(readings, 9.9) == 0);
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Neither 0.1 nor 0.2 nor 0.3 is exactly representable in binary floating point; `0.1 + 0.2` rounds to 0.30000000000000004, which is one ULP away from the literal `0.3`, so exact `==` calls them different even though both print as "0.3" at default precision. The fix compares against a tolerance (`std::fabs(r - target) < 1e-9`); production code should pick an epsilon meaningful for the domain, or a relative tolerance for values far from 1. Reviewers should challenge any `==`/`!=` between computed floating-point values — exact equality is only defensible for values that were assigned, never derived.
+
+## challenge: fix: the zeros that won't leave
+tags: code-review, debugging, algorithms
+track: core
+difficulty: medium
+
+This code review found a bug: after "stripping zeros" the vector has exactly the same size as before, and its tail contains stale leftover values. Find and fix it — keep the function signature.
+
+hint: Check the vector's size after the call — did anything actually get removed?
+hint: This is the remove/erase idiom with the second half missing.
+hint: std::remove only shifts the kept elements to the front and returns the new logical end; it cannot change the vector's size, so the erase(...) call is mandatory.
+
+```cpp
+// starter
+void stripZeros(std::vector<int>& v) {
+    std::remove(v.begin(), v.end(), 0);
+}
+```
+
+```cpp
+void stripZeros(std::vector<int>& v) {
+    v.erase(std::remove(v.begin(), v.end(), 0), v.end());
+}
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    std::vector<int> a{1, 0, 2, 0, 3};
+    stripZeros(a);
+    assert(a.size() == 3);                    // buggy: still 5
+    assert(a == std::vector<int>({1, 2, 3}));
+
+    std::vector<int> b{0, 0, 0};
+    stripZeros(b);
+    assert(b.empty());
+
+    std::vector<int> c{4, 5};
+    stripZeros(c);
+    assert(c == std::vector<int>({4, 5}));
+
+    std::puts("PASS");
+}
+```
+
+**Editorial:** `std::remove` works on iterators and knows nothing about the container: it shifts every non-zero element toward the front and returns an iterator to the new logical end, leaving the physical size untouched and the tail full of unspecified leftovers (`{1,0,2,0,3}` becomes `{1,2,3,0,3}`). The removal is only complete when the container erases that tail — `v.erase(newEnd, v.end())` — which is why it is called the erase-remove idiom (C++20's `std::erase(v, 0)` does both steps). A reviewer spots this instantly: a call to `std::remove`/`remove_if` whose return value is discarded is always a bug.
+
+## challenge: fix: the packet validator that leaks
+tags: code-review, debugging, raii
+track: core
+difficulty: medium
+
+This code review found a bug: a long-running service that rejects many malformed packets slowly exhausts memory — the live-buffer counter climbs and never comes back down. Find and fix it — keep the function signature.
+
+hint: Follow every return path and ask which ones run the delete.
+hint: This is a resource leak on an early return.
+hint: The validation early-return exits before `delete buf`, so every rejected packet leaks one Buffer; RAII (std::unique_ptr) makes all exits safe.
+
+```cpp
+// starter
+struct Buffer {
+    inline static int alive = 0;
+    std::array<int, 64> data{};
+    Buffer() { ++alive; }
+    ~Buffer() { --alive; }
+};
+
+bool processPacket(const std::vector<int>& packet) {
+    Buffer* buf = new Buffer();
+    if (packet.empty() || packet.size() > buf->data.size()) {
+        return false;   // reject malformed packet
+    }
+    for (std::size_t i = 0; i < packet.size(); ++i) {
+        buf->data[i] = packet[i];
+    }
+    bool ok = buf->data[0] == 42;
+    delete buf;
+    return ok;
+}
+```
+
+```cpp
+struct Buffer {
+    inline static int alive = 0;
+    std::array<int, 64> data{};
+    Buffer() { ++alive; }
+    ~Buffer() { --alive; }
+};
+
+bool processPacket(const std::vector<int>& packet) {
+    auto buf = std::make_unique<Buffer>();
+    if (packet.empty() || packet.size() > buf->data.size()) {
+        return false;   // reject malformed packet
+    }
+    for (std::size_t i = 0; i < packet.size(); ++i) {
+        buf->data[i] = packet[i];
+    }
+    return buf->data[0] == 42;
+}
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    assert(processPacket({42, 7, 9}) == true);
+    assert(processPacket({7}) == false);      // valid size, wrong magic: cleaned up in both versions
+    assert(Buffer::alive == 0);
+    assert(processPacket({}) == false);       // malformed: early return
+    assert(Buffer::alive == 0);               // buggy version leaked one Buffer here
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The happy path pairs `new Buffer()` with `delete buf`, but the malformed-packet branch returns *before* the delete, so every rejected packet leaks a `Buffer` — invisible in tests that only send valid traffic, fatal in a service bombarded with junk. Deleting before the early return would patch it, but the robust fix is RAII: hold the buffer in a `std::unique_ptr` (or just declare it on the stack here) so *every* exit path — including future returns and exceptions — releases it. Reviewers should treat any raw `new` in a function with multiple returns as guilty until proven paired on all paths.
+
+## challenge: fix: the display name that gets stuck
+tags: code-review, debugging, caching
+track: core
+difficulty: hard
+
+This code review found a bug: the function sometimes returns stale data — after the first user is looked up, every other user is shown the first user's display name. Find and fix it — keep the function signature.
+
+hint: The cache is doing its job a little too well; look at the condition that decides a cache hit.
+hint: This is cache staleness: the validity check tests the wrong thing.
+hint: "Is the cached string non-empty" only proves the cache was filled once by *someone* — a hit must require cachedId == userId, otherwise the first result is returned for every id forever.
+
+```cpp
+// starter
+const std::string& displayName(int userId) {
+    static int cachedId = -1;
+    static std::string cachedName;
+    if (!cachedName.empty()) {
+        return cachedName;   // cache hit
+    }
+    cachedId = userId;
+    cachedName = "user-" + std::to_string(userId);
+    return cachedName;
+}
+```
+
+```cpp
+const std::string& displayName(int userId) {
+    static int cachedId = -1;
+    static std::string cachedName;
+    if (cachedId != userId || cachedName.empty()) {
+        cachedId = userId;
+        cachedName = "user-" + std::to_string(userId);
+    }
+    return cachedName;   // cache hit only when cachedId == userId
+}
+```
+
+```cpp
+// harness
+#include <bits/stdc++.h>
+//__USER__
+int main() {
+    assert(displayName(7) == "user-7");
+    assert(displayName(7) == "user-7");     // repeat lookup: served from cache
+    assert(displayName(42) == "user-42");   // buggy version returns stale "user-7"
+    assert(displayName(7) == "user-7");     // and the cache must refresh back, too
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The cache-hit test asks "do I have *a* cached name?" instead of "do I have the cached name *for this userId*?", so whichever id arrives first poisons the cache for every id after it — `cachedId` is even stored but never consulted. The fix keys the hit on `cachedId == userId` and refills otherwise. This bug family (cache checked for presence but not for matching key/version) is what "sometimes returns stale data" reports usually turn out to be; a reviewer spots it by demanding that every cache read compares against the *full* lookup key — and by noticing stored state (`cachedId`) that nothing ever reads. Note the single-entry static cache is also not thread-safe; under concurrency this wants a mutex or a per-key map.
+
+## quiz: review: the welcome email
+tags: code-review, move-semantics
+track: core
+difficulty: easy
+
+You're reviewing this code. What's the bug?
+
+```cpp
+void sendEmail(const std::string& to, const std::string& body);
+
+void registerUser(std::vector<std::string>& audit, std::string email) {
+    std::string body = "Welcome aboard, " + email + "!";
+    audit.push_back(std::move(email));
+    sendEmail(email, body);
+}
+```
+
+- [ ] `audit.push_back` stores a reference to a local variable that dangles when the function returns
+- [x] `email` is read after being moved from, so the mail is sent to a moved-from (in practice empty) address
+- [ ] `body` must be passed to `sendEmail` by value because the reference parameter outlives the call
+- [ ] calling `std::move` on a by-value function parameter is undefined behavior
+
+> After `std::move(email)` hands the string to `push_back`, `email` is left in a valid-but-unspecified state — empty on every mainstream implementation — so `sendEmail` targets a blank address. Reorder the code to use `email` before moving it, or move it only in the last use. A reviewer should treat any read of a name after `std::move(name)` as a red flag.
+
+## quiz: review: purging expired sessions
+tags: code-review, iterators
+track: core
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```cpp
+struct Session {
+    int id;
+    bool expired;
+};
+
+void purgeExpired(std::vector<Session>& sessions) {
+    for (auto it = sessions.begin(); it != sessions.end(); ++it) {
+        if (it->expired) {
+            sessions.erase(it);
+        }
+    }
+}
+```
+
+- [ ] `sessions.end()` must be cached before the loop because calling it repeatedly is invalid
+- [ ] `erase` on a `std::vector` is O(n), so this function should use `std::list` instead
+- [x] `erase(it)` invalidates `it`, so the `++it` that follows is undefined behavior and adjacent expired sessions get skipped
+- [ ] the loop needs a `const_iterator` because `erase` requires one since C++11
+
+> `vector::erase` invalidates the erased iterator and everything after it; incrementing it afterwards is UB, and even when it "works" the element shifted into the erased slot is never examined. The fix is `it = sessions.erase(it)` and incrementing only in the else-branch — or the erase-remove idiom. Any loop that erases from the container it is iterating deserves a hard look in review.
+
+## quiz: review: printing a label
+tags: code-review, lifetime
+track: core
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```cpp
+std::string makeLabel(int id) {
+    return "item-" + std::to_string(id);
+}
+
+void printLabel(int id) {
+    std::string_view label = makeLabel(id);
+    std::cout << "label=" << label << '\n';
+}
+```
+
+- [ ] `std::string_view` is not null-terminated, so streaming it to `std::cout` reads past the end
+- [ ] `makeLabel` returns by value, which forces an extra heap allocation per call
+- [x] `label` views a temporary `std::string` that is destroyed at the end of the declaration, so the print reads freed memory
+- [ ] `std::string_view` cannot be constructed from a `std::string` without calling `.data()` explicitly
+
+> The temporary returned by `makeLabel` lives only until the end of the full expression that initializes `label`; the view dangles on the very next line. Store the result in a `std::string` (or print the temporary directly). In review, any `string_view` initialized from a function returning `std::string` by value is a lifetime bug.
+
+## quiz: review: running a download task
+tags: code-review, polymorphism
+track: core
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```cpp
+struct Task {
+    virtual void run() = 0;
+};
+
+struct DownloadTask : Task {
+    std::string url;
+    std::vector<char> buffer;
+    void run() override { buffer.resize(1 << 20); }
+};
+
+void execute() {
+    std::unique_ptr<Task> task = std::make_unique<DownloadTask>();
+    task->run();
+}
+```
+
+- [ ] `run` is declared `override` but the base method is pure virtual, so the override never binds
+- [x] `Task` has no virtual destructor, so destroying `DownloadTask` through `unique_ptr<Task>` is undefined behavior and leaks `url` and `buffer` in practice
+- [ ] `std::make_unique<DownloadTask>()` cannot be assigned to `std::unique_ptr<Task>` without an explicit cast
+- [ ] `buffer.resize` inside `run` reallocates the vector and invalidates the `task` pointer
+
+> When `task` goes out of scope, `unique_ptr<Task>` runs `delete` on a `Task*` whose static type has a non-virtual destructor — undefined behavior, and typically the derived members' destructors never run, leaking the buffer. Add `virtual ~Task() = default;` to the base. Every polymorphic base deleted through a base pointer needs a virtual destructor; reviewers should check this on any `virtual` function they see.
+
+## quiz: review: parallel match counting
+tags: code-review, concurrency
+track: core
+difficulty: hard
+
+You're reviewing this code. What's the bug?
+
+```cpp
+int matches = 0;
+
+void countMatches(const std::vector<int>& data, int needle) {
+    std::vector<std::thread> workers;
+    for (int t = 0; t < 4; ++t) {
+        workers.emplace_back([&, t] {
+            for (std::size_t i = t; i < data.size(); i += 4) {
+                if (data[i] == needle) ++matches;
+            }
+        });
+    }
+    for (auto& w : workers) w.join();
+}
+```
+
+- [ ] the lambda captures `data` by reference, which dangles because the threads outlive `countMatches`
+- [ ] `emplace_back` copies the `std::thread`, and threads are not copyable
+- [x] four threads increment `matches` with no synchronization — a data race, so counts are lost and the behavior is undefined
+- [ ] the stride `i += 4` skips elements whenever `data.size()` is not a multiple of 4
+
+> `++matches` is a read-modify-write on a shared non-atomic int from four threads at once: a data race, which is undefined behavior and in practice loses increments. Make it `std::atomic<int>`, or better, accumulate per-thread locals and sum after `join`. The reference captures are fine here because every worker is joined before the function returns.
+
+## quiz: review: the money transfer
+tags: code-review, concurrency
+track: core
+difficulty: hard
+
+You're reviewing this code. What's the bug?
+
+```cpp
+struct Account {
+    std::mutex m;
+    long balance = 0;
+};
+
+void transfer(Account& from, Account& to, long amount) {
+    std::lock_guard<std::mutex> lockFrom(from.m);
+    std::lock_guard<std::mutex> lockTo(to.m);
+    from.balance -= amount;
+    to.balance += amount;
+}
+// thread A: transfer(checking, savings, 100);
+// thread B: transfer(savings, checking, 50);
+```
+
+- [ ] `std::lock_guard` does not release the mutex if an exception is thrown between the two locks
+- [x] the two calls lock the same pair of mutexes in opposite order, so each thread can hold one mutex while waiting for the other — deadlock
+- [ ] `balance` must be `std::atomic<long>` even while both mutexes are held
+- [ ] `transfer` modifies `from.balance` without checking for a negative result first
+
+> Thread A locks `checking.m` then wants `savings.m`; thread B locks `savings.m` then wants `checking.m` — a classic ABBA deadlock. Acquire both with one deadlock-avoiding operation, `std::scoped_lock lock(from.m, to.m);`, or lock in a globally consistent order (e.g. by address). Whenever review shows two mutexes taken one after the other, ask who else takes them in the other order.
+
+## quiz: review: appending a summary line
+tags: code-review, lifetime
+track: core
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```cpp
+void appendSummary(std::vector<std::string>& lines) {
+    if (lines.empty()) {
+        return;
+    }
+    const std::string& title = lines.front();
+    lines.push_back("----------");
+    lines.push_back("End of: " + title);
+}
+```
+
+- [ ] `lines.front()` returns a temporary, so binding it to a reference extends the wrong lifetime
+- [x] `push_back` can reallocate the vector, leaving `title` a dangling reference when it is read on the last line
+- [ ] the second `push_back` invalidates the string literal appended by the first one
+- [ ] `"End of: " + title` concatenates a `const char*` with a `std::string`, which does not compile
+
+> If the first `push_back` grows the vector past its capacity, every element is moved to new storage and `title` — a reference into the old buffer — dangles; the concatenation then reads freed memory. Take a copy (`std::string title = lines.front();`) before mutating the vector. References, pointers, and iterators into a `std::vector` are only valid until the next capacity-changing operation.
+
+## quiz: review: adjacent duplicates
+tags: code-review, integer-arithmetic
+track: core
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```cpp
+bool hasAdjacentDuplicate(const std::vector<int>& values) {
+    for (std::size_t i = 0; i < values.size() - 1; ++i) {
+        if (values[i] == values[i + 1]) {
+            return true;
+        }
+    }
+    return false;
+}
+```
+
+- [ ] `i + 1` overflows `std::size_t` on the last iteration and wraps to zero
+- [ ] the function returns after the first pair, so later duplicates are never reported
+- [x] when `values` is empty, `values.size() - 1` wraps to a huge unsigned value and the loop reads far out of bounds
+- [ ] `std::size_t` cannot index a `std::vector<int>`; the index must be `std::vector<int>::size_type`
+
+> `size()` returns an unsigned type, so `0 - 1` wraps to `SIZE_MAX` and an empty input turns the loop bound into effectively infinity — out-of-bounds reads and a likely crash. Guard with `if (values.size() < 2) return false;` or write the condition as `i + 1 < values.size()`, which never underflows. Unsigned subtraction in loop bounds is a classic review catch.
+
+## quiz: review: moving average
+tags: code-review, bounds
+track: core
+difficulty: easy
+
+You're reviewing this code. What's the bug?
+
+```cpp
+double movingAverage(const double* samples, int count) {
+    double sum = 0.0;
+    for (int i = 0; i <= count; ++i) {
+        sum += samples[i];
+    }
+    return sum / count;
+}
+```
+
+- [ ] `sum / count` performs integer division and truncates the result
+- [x] the loop condition `i <= count` reads `samples[count]`, one element past the end of the array
+- [ ] `sum` should be initialized to `samples[0]`, not `0.0`
+- [ ] `count` should be `std::size_t`, because a negative count makes the loop skip all elements
+
+> With `i <= count` the final iteration reads `samples[count]`, which is one past the last valid element — an out-of-bounds read that silently corrupts the average (or crashes). The condition must be `i < count`. Off-by-one on `<=` versus `<` at an array bound is the first thing to check in any raw-pointer loop.
+
+## quiz: review: config lookup
+tags: code-review, null-safety
+track: core
+difficulty: easy
+
+You're reviewing this code. What's the bug?
+
+```cpp
+struct Config {
+    int timeoutMs;
+};
+
+Config* findConfig(const std::string& name);   // returns nullptr when absent
+
+int getTimeout(const std::string& name) {
+    Config* cfg = findConfig(name);
+    return cfg->timeoutMs;
+}
+```
+
+- [ ] `findConfig` returns a raw pointer, so the caller of `getTimeout` leaks a `Config` on every call
+- [ ] `name` is passed by const reference and may dangle inside `findConfig`
+- [x] `cfg` is dereferenced without a null check, so an unknown name dereferences `nullptr`
+- [ ] `timeoutMs` is uninitialized in `Config`, so the returned value is garbage even on success
+
+> The comment on `findConfig` documents that it can return `nullptr`, and `getTimeout` dereferences the result unconditionally — undefined behavior (usually a crash) for any unknown name. Check the pointer and return a sensible default or signal the error. When an API documents a null return, every call site must be reviewed for a matching check.
+
+## quiz: review: retry policy defaults
+tags: code-review, classes
+track: core
+difficulty: easy
+
+You're reviewing this code. What's the bug?
+
+```cpp
+class RetryPolicy {
+public:
+    RetryPolicy(int maxAttempts, int delayMs) {
+        maxAttempts = maxAttempts;
+        delayMs = delayMs;
+    }
+    int attempts() const { return maxAttempts; }
+    int delay() const { return delayMs; }
+private:
+    int maxAttempts = 3;
+    int delayMs = 100;
+};
+```
+
+- [ ] the members are initialized twice — once by the default initializers and once in the constructor body
+- [x] the constructor parameters shadow the members, so each statement assigns a parameter to itself and every policy keeps the defaults 3 and 100
+- [ ] the constructor is missing `explicit`, so a stray brace-list converts to `RetryPolicy` silently
+- [ ] `attempts()` and `delay()` return copies instead of const references, losing updates
+
+> Inside the constructor body, `maxAttempts` names the parameter, not the member, so `maxAttempts = maxAttempts;` is a self-assignment and the members silently keep their default values. Use a member-initializer list (`: maxAttempts(maxAttempts), delayMs(delayMs)`) or `this->maxAttempts = maxAttempts;`. Same-named constructor parameters are fine — but only with an initializer list.
+
+## quiz: review: ramp to target
+tags: code-review, floating-point
+track: core
+difficulty: easy
+
+You're reviewing this code. What's the bug?
+
+```cpp
+bool rampReaches(double start, double step, double target, int maxSteps) {
+    double level = start;
+    for (int i = 0; i < maxSteps; ++i) {
+        if (level == target) {
+            return true;
+        }
+        level += step;
+    }
+    return false;
+}
+// rampReaches(0.0, 0.1, 0.3, 100) is expected to return true
+```
+
+- [ ] `level += step` accumulates into a `double` but `step` is promoted to `long double`, changing the sum
+- [x] `level == target` compares accumulated floating-point values exactly; 0.1 + 0.1 + 0.1 is not exactly 0.3, so the function returns false
+- [ ] the loop runs `maxSteps` times even after passing `target`, wasting iterations
+- [ ] `start`, `step`, and `target` should be `float`, since `double` cannot represent 0.1
+
+> 0.1 has no exact binary representation, so three accumulated steps land at 0.30000000000000004 — never exactly equal to `0.3` — and the ramp "misses" its target. Compare with a tolerance (`std::fabs(level - target) < eps`) or with `level >= target` for a monotone ramp. Exact `==` between computed floating-point values is almost always wrong.
+
+## quiz: review: block offsets
+tags: code-review, integer-arithmetic
+track: core
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```cpp
+constexpr int kBlockSize = 64 * 1024;   // 64 KiB blocks
+
+long long blockOffset(int blockIndex) {
+    return blockIndex * kBlockSize;
+}
+
+bool validOffset(int blockIndex, long long fileSize) {
+    return blockOffset(blockIndex) + kBlockSize <= fileSize;
+}
+```
+
+- [ ] `kBlockSize` participates in a `long long` expression, so it must be declared `long long` to compile
+- [ ] `<=` in `validOffset` should be `<`, because a block ending exactly at `fileSize` is invalid
+- [x] `blockIndex * kBlockSize` multiplies two `int`s, so the product overflows before it is widened to `long long` — offsets go wrong past 2 GiB
+- [ ] returning `long long` from an `int` expression truncates the upper 32 bits
+
+> The multiplication happens entirely in `int`; for `blockIndex >= 32768` the product exceeds `INT_MAX`, which is signed overflow — undefined behavior that in practice yields a negative offset. Widen an operand first: `return static_cast<long long>(blockIndex) * kBlockSize;`. The `long long` return type does not help — the damage is done before the conversion. Any `int * int` assigned to a 64-bit type deserves scrutiny.
+
 ## fact: Single Responsibility — one reason to change
 tags: solid, srp, cohesion
 track: design
@@ -30240,6 +31212,620 @@ _check()
 
 **Editorial:** Load all values into a set for O(1) lookups. A number begins a consecutive run only if `n - 1` is absent, so from each such start you walk upward `n + 1, n + 2, ...` counting how far the run extends. Because every value is only ever walked as part of exactly one run, the total work is O(n) despite the nested loop, using O(n) space — beating the O(n log n) sort-based approach.
 
+## challenge: fix: Last page never prints
+tags: code-review, debugging, off-by-one
+track: python
+lang: python
+difficulty: easy
+
+Code review found a bug: printing pages 1–3 only ever produces pages 1 and 2, and printing a single page (5–5) produces nothing at all. Find and fix it — keep the function signature.
+
+hint: Look at how the sequence of page numbers is generated.
+hint: Classic off-by-one — which end of the interval does `range` include?
+hint: `range(a, b)` stops at `b - 1`; an inclusive upper bound needs `b + 1`.
+
+```python
+# starter
+def pages_to_print(first, last):
+    """Every page number from `first` to `last`, inclusive."""
+    if first > last:
+        return []
+    return list(range(first, last))
+```
+
+```python
+def pages_to_print(first, last):
+    """Every page number from `first` to `last`, inclusive."""
+    if first > last:
+        return []
+    return list(range(first, last + 1))
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert pages_to_print(1, 3) == [1, 2, 3], "last page missing"
+    assert pages_to_print(5, 5) == [5], "single-page job printed nothing"
+    assert pages_to_print(4, 2) == []
+    assert pages_to_print(0, 1) == [0, 1]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** `range(first, last)` is half-open — it stops at `last - 1` — so the final page is always dropped, and a one-page request (`first == last`) yields an empty range. The fix is `range(first, last + 1)`. A reviewer spots this by checking interval endpoints against the docstring ("inclusive") and by mentally running the degenerate case `first == last`, which is where half-open/closed confusion always shows first.
+
+## challenge: fix: Blank lines survive the cleaner
+tags: code-review, debugging, strings
+track: python
+lang: python
+difficulty: easy
+
+Code review found a bug: the log cleaner still emits lines of pure whitespace, and the lines it keeps still carry their trailing newlines. Find and fix it — keep the function signature.
+
+hint: Watch what happens to each `line` inside the loop, statement by statement.
+hint: Strings are immutable — string methods never modify in place.
+hint: `line.strip()` computes a new string and returns it; if you don't bind the result, it's discarded.
+
+```python
+# starter
+def clean_lines(lines):
+    """Trim whitespace from each line; drop lines that are empty after trimming."""
+    cleaned = []
+    for line in lines:
+        line.strip()
+        if line:
+            cleaned.append(line)
+    return cleaned
+```
+
+```python
+def clean_lines(lines):
+    """Trim whitespace from each line; drop lines that are empty after trimming."""
+    cleaned = []
+    for line in lines:
+        line = line.strip()
+        if line:
+            cleaned.append(line)
+    return cleaned
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert clean_lines(["  alpha  ", "", "   ", "beta\n"]) == ["alpha", "beta"]
+    assert clean_lines(["\t\n", " "]) == []
+    assert clean_lines([]) == []
+    assert clean_lines(["ok"]) == ["ok"]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Strings are immutable, so `line.strip()` cannot change `line` — it builds a new string and returns it, and here the return value was thrown away. The untouched `line` is then tested (a whitespace-only string is truthy) and appended verbatim. The fix is to rebind: `line = line.strip()`. Reviewers catch this by flagging any bare string-method call used as a statement — `s.strip()`, `s.replace(...)`, `s.upper()` on their own line are almost always bugs.
+
+## challenge: fix: Defaults drift after every request
+tags: code-review, debugging, aliasing
+track: python
+lang: python
+difficulty: easy
+
+Code review found a bug: after one request passes custom settings, every later request mysteriously sees those custom values baked into the shared defaults. Find and fix it — keep the function signature.
+
+hint: The docstring promises not to modify either argument — check whether that's true.
+hint: Assignment in Python never copies data; it only creates another name for the same object.
+hint: `settings = defaults` aliases the caller's dict, so `settings.update(...)` mutates the original — make a copy first.
+
+```python
+# starter
+def merge_settings(defaults, overrides):
+    """Combine `defaults` with per-request `overrides` (overrides win).
+
+    Must not modify either argument.
+    """
+    settings = defaults
+    settings.update(overrides)
+    return settings
+```
+
+```python
+def merge_settings(defaults, overrides):
+    """Combine `defaults` with per-request `overrides` (overrides win).
+
+    Must not modify either argument.
+    """
+    settings = dict(defaults)
+    settings.update(overrides)
+    return settings
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    defaults = {"theme": "light", "retries": 3}
+    out = merge_settings(defaults, {"theme": "dark"})
+    assert out == {"theme": "dark", "retries": 3}
+    assert defaults == {"theme": "light", "retries": 3}, "defaults were mutated"
+    out2 = merge_settings(defaults, {})
+    assert out2 == defaults and out2 is not defaults
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** `settings = defaults` does not copy anything — both names point at the same dict, so `settings.update(overrides)` writes the per-request overrides straight into the shared defaults, poisoning every subsequent call. The fix is to copy first: `settings = dict(defaults)` (or `defaults.copy()`, or `{**defaults, **overrides}`). Reviewers spot this by treating every `a = b` on a mutable value followed by mutation as a red flag, especially when a docstring or contract promises the inputs stay untouched.
+
+## challenge: fix: Dedupe remembers too much
+tags: code-review, debugging, mutable-default
+track: python
+lang: python
+difficulty: medium
+
+Code review found a bug: the first call works, but later calls silently drop items that were never in their own input — as if the function remembers previous batches. Find and fix it — keep the function signature.
+
+hint: Each call in isolation is correct; the bug only appears across multiple calls.
+hint: When is a default parameter value evaluated — per call, or once?
+hint: `seen=set()` is created once at `def` time and shared by every call that omits it; use a `None` sentinel and create the set inside.
+
+```python
+# starter
+def dedupe(items, seen=set()):
+    """Return `items` without duplicates, preserving first-seen order."""
+    out = []
+    for x in items:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out
+```
+
+```python
+def dedupe(items, seen=None):
+    """Return `items` without duplicates, preserving first-seen order."""
+    if seen is None:
+        seen = set()
+    out = []
+    for x in items:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert dedupe([1, 2, 1, 3]) == [1, 2, 3]
+    assert dedupe([3, 4, 4, 5]) == [3, 4, 5], "state leaked from a previous call"
+    assert dedupe(["a", "a"]) == ["a"]
+    assert dedupe([1, 1]) == [1], "state leaked from a previous call"
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Default values are evaluated exactly once, when the `def` statement runs — so the single `set()` object is shared by every call that doesn't pass `seen`, and each call inherits everything previous calls added to it. The second call drops `3` because the first call already "saw" it. The canonical fix is the `None` sentinel: default to `None` and build a fresh `set()` inside the body. Reviewers flag any mutable default (`[]`, `{}`, `set()`) on sight; the tell in the wild is call-order-dependent behavior.
+
+## challenge: fix: Version 1.10 releases before 1.9
+tags: code-review, debugging, sorting
+track: python
+lang: python
+difficulty: medium
+
+Code review found a bug: the changelog lists `1.10.0` *before* `1.9.0`, and `10.0.0` before `2.0.0` — newest releases are buried in the middle. Find and fix it — keep the function signature.
+
+hint: Print the sorted output for versions with multi-digit components.
+hint: What type are the things being compared, and how does that type order itself?
+hint: Strings compare character by character, so `"1.10" < "1.9"` — sort by a tuple of ints instead (`key=`).
+
+```python
+# starter
+def sort_versions(versions):
+    """Sort dotted version strings ascending: '1.9.0' comes before '1.10.0'."""
+    return sorted(versions)
+```
+
+```python
+def sort_versions(versions):
+    """Sort dotted version strings ascending: '1.9.0' comes before '1.10.0'."""
+    return sorted(versions, key=lambda v: tuple(int(part) for part in v.split(".")))
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert sort_versions(["1.10.0", "1.9.0", "1.2.3"]) == ["1.2.3", "1.9.0", "1.10.0"]
+    assert sort_versions(["10.0.0", "2.0.0"]) == ["2.0.0", "10.0.0"]
+    assert sort_versions(["0.9.1", "0.9.0"]) == ["0.9.0", "0.9.1"]
+    assert sort_versions([]) == []
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** The versions are strings, and strings sort lexicographically: comparing `"1.10.0"` with `"1.9.0"` reaches `'1' < '9'` at the third character and stops — so 1.10 lands before 1.9. The fix is a sort key that restores numeric meaning: split on dots and compare tuples of ints, `key=lambda v: tuple(int(p) for p in v.split("."))`. Reviewers should be suspicious whenever "numbers" arrive as strings (CSV fields, version tags, IDs) and get sorted or compared without conversion — the code looks right and even works on single-digit data.
+
+## challenge: fix: Every currency converts at the yen rate
+tags: code-review, debugging, closures
+track: python
+lang: python
+difficulty: medium
+
+Code review found a bug: converting 10 USD to euros returns 1550 — every converter in the map applies whichever rate happened to be last in the dict. Find and fix it — keep the function signature.
+
+hint: Each lambda looks correct alone; the problem is what they all have in common.
+hint: Closures capture variables, not the values those variables had when the lambda was created.
+hint: All the lambdas share the single loop variable `rate`, which ends the loop at its final value — freeze it per iteration with a default argument (`lambda usd, rate=rate: ...`).
+
+```python
+# starter
+def build_converters(rates):
+    """Map currency code -> function that converts a USD amount to that currency."""
+    converters = {}
+    for code, rate in rates.items():
+        converters[code] = lambda usd: usd * rate
+    return converters
+```
+
+```python
+def build_converters(rates):
+    """Map currency code -> function that converts a USD amount to that currency."""
+    converters = {}
+    for code, rate in rates.items():
+        converters[code] = lambda usd, rate=rate: usd * rate
+    return converters
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    conv = build_converters({"eur": 0.9, "gbp": 0.8, "jpy": 155.0})
+    assert abs(conv["eur"](10) - 9.0) < 1e-9, "eur converter used the wrong rate"
+    assert abs(conv["gbp"](10) - 8.0) < 1e-9, "gbp converter used the wrong rate"
+    assert abs(conv["jpy"](10) - 1550.0) < 1e-9
+    assert abs(conv["eur"](0) - 0.0) < 1e-9
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Python closures are late-binding: each lambda closes over the loop *variable* `rate`, not the value it held when the lambda was built. The loop finishes with `rate == 155.0`, so every converter reads that final value at call time. The standard fix is to capture the current value as a default argument — `lambda usd, rate=rate: usd * rate` — since defaults are evaluated at definition time; `functools.partial(operator.mul, rate)` or a factory function also work. Reviewers should flag any lambda or `def` created inside a loop that references the loop variable.
+
+## challenge: fix: Failing scores dodge the purge
+tags: code-review, debugging, lists
+track: python
+lang: python
+difficulty: medium
+
+Code review found a bug: purging scores below the passing mark leaves some failing scores behind — always ones that sat right next to another failing score. Find and fix it — keep the function signature (and keep it in-place: callers hold references to the list).
+
+hint: Trace the loop by hand on `[50, 40, 90]` with passing=60 and watch the indices.
+hint: The list is being modified while it is being iterated.
+hint: `pop(i)` shifts everything after `i` one slot left, but the iterator still advances — the element right after each removal is never examined. Rebuild and assign back via `scores[:] = ...`.
+
+```python
+# starter
+def drop_failing(scores, passing):
+    """Remove every score below `passing` from the list, in place. Returns the list."""
+    for i, s in enumerate(scores):
+        if s < passing:
+            scores.pop(i)
+    return scores
+```
+
+```python
+def drop_failing(scores, passing):
+    """Remove every score below `passing` from the list, in place. Returns the list."""
+    scores[:] = [s for s in scores if s >= passing]
+    return scores
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    data = [50, 40, 90, 30, 20, 95]
+    out = drop_failing(data, 60)
+    assert out == [90, 95], out
+    assert out is data, "must modify the caller's list in place"
+    assert drop_failing([10, 10, 10], 60) == []
+    assert drop_failing([70, 80], 60) == [70, 80]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** Removing elements from a list while iterating over it desynchronizes the iterator from the data: `pop(i)` shifts every later element left, then the loop advances anyway, so the element that slid into position `i` is never inspected. That's why adjacent failing scores survive in pairs. The fix filters into a fresh list and assigns it back through a slice — `scores[:] = [s for s in scores if s >= passing]` — which preserves the in-place contract (same list object) while never mutating mid-iteration. A reviewer's rule of thumb: any `remove`/`pop`/`del` on the sequence named in the `for` header is a bug until proven otherwise.
+
+## challenge: fix: Undo corrupts the board
+tags: code-review, debugging, copying
+track: python
+lang: python
+difficulty: medium
+
+Code review found a bug: placing a mark on the "new" board also appears on the original board kept for undo, so undo restores a corrupted position. Find and fix it — keep the function signature.
+
+hint: `list(board)` does make a new list — so what do the two lists contain?
+hint: This is a shallow-vs-deep copy problem on a nested structure.
+hint: The copied outer list still holds the *same* row objects; copy each row too (`[list(r) for r in board]`) or use `copy.deepcopy`.
+
+```python
+# starter
+def with_move(board, row, col, mark):
+    """Return a new board with `mark` placed at (row, col).
+
+    The original board must be left untouched (it is kept for undo).
+    """
+    new_board = list(board)
+    new_board[row][col] = mark
+    return new_board
+```
+
+```python
+def with_move(board, row, col, mark):
+    """Return a new board with `mark` placed at (row, col).
+
+    The original board must be left untouched (it is kept for undo).
+    """
+    new_board = [list(r) for r in board]
+    new_board[row][col] = mark
+    return new_board
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    board = [[".", ".", "."], [".", ".", "."]]
+    nb = with_move(board, 0, 2, "X")
+    assert nb[0][2] == "X"
+    assert board[0][2] == ".", "original board was modified"
+    assert nb is not board
+    nb2 = with_move(board, 1, 0, "O")
+    assert nb2[1][0] == "O" and nb2[0][2] == "."
+    assert board == [[".", ".", "."], [".", ".", "."]]
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** `list(board)` copies only the outer list; its elements are references to the *same* row lists, so `new_board[row]` and `board[row]` are one object and writing a cell mutates both boards. The fix copies each level that will be mutated: `[list(r) for r in board]` (or `copy.deepcopy` for arbitrary nesting). Reviewers catch this by asking, whenever a copy of a nested structure is made, "shallow or deep — and which level gets mutated afterwards?"; `list(x)`, `x[:]`, `x.copy()`, and `copy.copy(x)` are all equally shallow.
+
+## challenge: fix: Ten dimes don't make a dollar
+tags: code-review, debugging, floats
+track: python
+lang: python
+difficulty: hard
+
+Code review found a bug: a customer who pays 1.00 in ten 0.10 installments is flagged as *not* having covered the bill, while other payment plans work fine. Find and fix it — keep the function signature.
+
+hint: Print `paid` with `repr()` after summing ten 0.10 payments.
+hint: 0.1 has no exact binary representation; adding it repeatedly accumulates representation error.
+hint: Never compare accumulated floats with `==` — compare within a tolerance (`math.isclose`) or work in integer cents.
+
+```python
+# starter
+def payments_cover(installments, total):
+    """True if the installments add up to exactly the total owed."""
+    paid = 0.0
+    for amount in installments:
+        paid += amount
+    return paid == total
+```
+
+```python
+import math
+
+def payments_cover(installments, total):
+    """True if the installments add up to exactly the total owed."""
+    paid = 0.0
+    for amount in installments:
+        paid += amount
+    return math.isclose(paid, total, rel_tol=1e-9, abs_tol=1e-9)
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    assert payments_cover([0.1] * 10, 1.0), "ten 0.10 payments must cover 1.00"
+    assert payments_cover([0.5, 0.25, 0.25], 1.0)
+    assert not payments_cover([0.5, 0.25], 1.0), "underpayment must not pass"
+    assert payments_cover([], 0.0)
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** `0.1` cannot be represented exactly in binary floating point; each addition carries a tiny error, and after ten of them `paid` is `0.9999999999999999`, which `== 1.0` rejects. Payments of 0.5/0.25 happen to be exact powers of two, which is why "other plans work fine" — the classic intermittent float bug. Fix the comparison, not the arithmetic: `math.isclose(paid, total, rel_tol=1e-9, abs_tol=1e-9)` (the `abs_tol` matters so that totals of 0.0 still compare). For real money, the deeper fix is to avoid floats entirely — integer cents or `decimal.Decimal`. Reviewers flag any `==` between floats that were produced by accumulation.
+
+## challenge: fix: Account drained below zero
+tags: code-review, debugging, race-condition
+track: python
+lang: python
+difficulty: hard
+
+Code review found a bug: when the notification hook triggers another transaction on the same accounts, the source balance can go negative even though the funds check passed. Find and fix it — keep the function signature.
+
+hint: The balance check is correct — the question is what can happen *between* the check and the debit.
+hint: Time-of-check to time-of-use: the hook runs arbitrary code while the check's conclusion is still pending.
+hint: Make check-and-update atomic: perform the debit/credit immediately after the check, and only then run the hook (in real concurrent code, hold a lock around check+update or re-validate).
+
+```python
+# starter
+def transfer(accounts, src, dst, amount, on_transfer=None):
+    """Move `amount` from accounts[src] to accounts[dst] if funds allow.
+
+    `on_transfer` is a notification hook; handlers may run arbitrary code,
+    including other transactions against the same `accounts` mapping.
+    """
+    if accounts[src] >= amount:
+        if on_transfer is not None:
+            on_transfer(accounts)
+        accounts[src] -= amount
+        accounts[dst] += amount
+        return True
+    return False
+```
+
+```python
+def transfer(accounts, src, dst, amount, on_transfer=None):
+    """Move `amount` from accounts[src] to accounts[dst] if funds allow.
+
+    `on_transfer` is a notification hook; handlers may run arbitrary code,
+    including other transactions against the same `accounts` mapping.
+    """
+    if accounts[src] >= amount:
+        accounts[src] -= amount
+        accounts[dst] += amount
+        if on_transfer is not None:
+            on_transfer(accounts)
+        return True
+    return False
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    accounts = {"a": 100, "b": 0}
+    assert transfer(accounts, "a", "b", 60) is True
+    assert accounts == {"a": 40, "b": 60}
+    assert transfer(accounts, "a", "b", 100) is False
+    assert accounts == {"a": 40, "b": 60}
+
+    # A handler that fires a rival transaction while ours is in flight.
+    accounts = {"a": 100, "b": 0, "c": 0}
+    def rival(accts):
+        if accts["a"] >= 100:
+            accts["a"] -= 100
+            accts["c"] += 100
+    transfer(accounts, "a", "b", 60, on_transfer=rival)
+    assert accounts["a"] >= 0, "source account overdrawn: %r" % accounts
+    assert accounts["a"] + accounts["b"] + accounts["c"] == 100
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** This is a time-of-check/time-of-use (TOCTOU) bug: the code verifies `accounts[src] >= amount`, then runs the hook — arbitrary foreign code that can move money — and only afterwards applies the debit. By then the check's conclusion may be stale: the rival handler drains the account between check and use, and the debit pushes it to -60. The fix makes check-and-update one uninterruptible unit — debit and credit immediately after the guard, with the hook moved outside the critical section. The same shape appears with threads (`if key not in cache: cache[key] = ...`), files (`os.path.exists` then `open`), and `await` points; the reviewer's question is always "what can run between this check and this action, and is the check still true then?"
+
+## challenge: fix: Leaderboard ties sorted backwards
+tags: code-review, debugging, sorting
+track: python
+lang: python
+difficulty: hard
+
+Code review found a bug: players tied on score appear in reverse alphabetical order (Z→A) on the leaderboard, though the spec says ties break A→Z. Find and fix it — keep the function signature.
+
+hint: The scores are ordered correctly; only the tie-break direction is wrong.
+hint: What does `reverse=True` apply to — one component of the key, or the whole comparison?
+hint: `reverse=True` flips the entire key, tie-breakers included. Encode direction in the key itself: negate the numeric part (`(-score, name)`) and drop `reverse`.
+
+```python
+# starter
+def leaderboard(players):
+    """Sort by score, highest first; ties broken by name A->Z."""
+    return sorted(players, key=lambda p: (p["score"], p["name"]), reverse=True)
+```
+
+```python
+def leaderboard(players):
+    """Sort by score, highest first; ties broken by name A->Z."""
+    return sorted(players, key=lambda p: (-p["score"], p["name"]))
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    players = [
+        {"name": "mia", "score": 90},
+        {"name": "alex", "score": 90},
+        {"name": "zoe", "score": 95},
+    ]
+    names = [p["name"] for p in leaderboard(players)]
+    assert names == ["zoe", "alex", "mia"], names
+
+    players = [
+        {"name": "dan", "score": 70},
+        {"name": "bea", "score": 70},
+        {"name": "cy", "score": 70},
+    ]
+    names = [p["name"] for p in leaderboard(players)]
+    assert names == ["bea", "cy", "dan"], names
+
+    assert leaderboard([]) == []
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** `reverse=True` reverses the *entire* sort order — every component of the key tuple — so while scores correctly come out highest-first, tied names come out Z→A as well. Mixed-direction sorts must encode direction inside the key: negate the numeric component (`key=lambda p: (-p["score"], p["name"])`) and sort forward. (For non-negatable keys, the alternative is two stable passes: sort by the secondary key first, then by the primary.) This is a cmp-era habit — thinking of `reverse` as "flip my main criterion" — and reviewers should re-check every `reverse=True` that rides along with a multi-part key.
+
+## challenge: fix: Schema bugs vanish into the total
+tags: code-review, debugging, exceptions
+track: python
+lang: python
+difficulty: hard
+
+Code review found a bug: a report whose column was misspelled upstream produced a quietly wrong total for weeks — rows with a missing `amount` key were silently dropped, when only genuinely non-numeric amounts should be skipped. Find and fix it — keep the function signature.
+
+hint: The skipping logic is intentional — the question is *which* failures it was meant to skip.
+hint: `except Exception` catches far more than bad numbers: `KeyError`, `AttributeError`, and other symptoms of code or schema bugs.
+hint: Catch exactly what a malformed amount raises — `float()` raises `ValueError` for bad strings and `TypeError` for non-numeric types — and let `KeyError` propagate.
+
+```python
+# starter
+def total_amount(rows):
+    """Sum each row's 'amount' field, skipping rows whose amount isn't a number."""
+    total = 0.0
+    for row in rows:
+        try:
+            total += float(row["amount"])
+        except Exception:
+            continue
+    return total
+```
+
+```python
+def total_amount(rows):
+    """Sum each row's 'amount' field, skipping rows whose amount isn't a number."""
+    total = 0.0
+    for row in rows:
+        try:
+            total += float(row["amount"])
+        except (ValueError, TypeError):
+            continue
+    return total
+```
+
+```python
+# harness
+#__USER__
+def _check():
+    rows = [{"amount": "3.5"}, {"amount": "oops"}, {"amount": "1.5"}, {"amount": None}]
+    assert total_amount(rows) == 5.0
+
+    try:
+        total_amount([{"amount": "2.0"}, {"amout": "9.9"}])   # misspelled column
+        raised = False
+    except KeyError:
+        raised = True
+    assert raised, "a missing 'amount' key must raise, not be silently swallowed"
+    print("PASS")
+
+_check()
+```
+
+**Editorial:** The `try` was meant to skip rows whose amount isn't a number, but `except Exception` also swallows `KeyError` — the signature of a schema bug, not of dirty data — so structurally broken rows disappear from the total without a trace. The fix is to catch exactly what a malformed amount can raise: `float()` raises `ValueError` for unparseable strings and `TypeError` for non-numeric objects, so `except (ValueError, TypeError): continue` keeps the intended skipping while letting real bugs surface loudly. In review, treat every `except Exception`/bare `except` around more than one failable operation as a place where your own bugs go to hide — name the exceptions the documented failure mode actually produces.
+
 ## challenge: Invert Binary Tree
 tags: tree, dfs, recursion, binary-tree
 track: python
@@ -31995,6 +33581,860 @@ print(["zero", "one", "two"][True])
 - [ ] `2` then `zero`
 
 > `bool` is a subclass of `int`, with `True == 1` and `False == 0`. So `True + True` is `2`, and indexing with `True` is indexing with `1`, giving the element `"one"`.
+
+## quiz: review: Everyone joins the same team
+tags: code-review, functions
+track: python
+difficulty: easy
+
+You're reviewing this code. What's the bug?
+
+```python
+def register_player(name, roster=[]):
+    roster.append(name)
+    return roster
+
+team_red = register_player("ann")
+team_blue = register_player("bob")
+print(team_blue)   # ['ann', 'bob'] -- bob is on ann's team?!
+```
+
+- [ ] `append` returns `None`, so the function should `return roster + [name]` instead
+- [x] the default `roster=[]` is evaluated once at `def` time, so every call that omits `roster` shares (and keeps appending to) the same list
+- [ ] lists are passed by value in Python, so appends inside the function never reach the caller
+- [ ] `team_blue` aliases `team_red` because assignment copies references between variables
+
+> Default parameter values are created once, when the `def` executes — not per call. Both calls that omit `roster` get the very same list object, which accumulates every player ever registered. Use a sentinel: `def register_player(name, roster=None):` and `if roster is None: roster = []`.
+
+## quiz: review: The session that was never found
+tags: code-review, identity
+track: python
+difficulty: easy
+
+You're reviewing this code. What's the bug?
+
+```python
+def find_token(sessions, user_id):
+    for s in sessions:
+        if s["user_id"] is user_id:
+            return s["token"]
+    return None
+
+sessions = [{"user_id": 1001, "token": "t-red"},
+            {"user_id": 1002, "token": "t-blue"}]
+uid = int("1001")                  # parsed from a request
+print(find_token(sessions, uid))   # None -- but the session exists!
+```
+
+- [ ] `int("1001")` returns a numeric string, which never equals the integer `1001`
+- [ ] dict lookup with `s["user_id"]` returns `None` because the key was stored as a string
+- [x] `is` tests object identity, not equality — two equal ints above 256 are usually distinct objects, so the comparison is `False`; use `==`
+- [ ] the loop should use `enumerate` — without it, `s` is the key, not the dict
+
+> `is` asks "are these the same object?", not "do they have the same value?". CPython caches only small ints (-5..256); `1001` from the literal and `1001` parsed at runtime are different objects, so `is` is `False` even though `==` is `True`. Reserve `is` for singletons like `None`; compare values with `==`.
+
+## quiz: review: Half a star, gone
+tags: code-review, arithmetic
+track: python
+difficulty: easy
+
+You're reviewing this code. What's the bug?
+
+```python
+def average_rating(ratings):
+    return sum(ratings) // len(ratings)
+
+def show(product, ratings):
+    return f"{product}: {average_rating(ratings)} stars"
+
+print(show("mouse", [4, 5, 5, 4]))   # 'mouse: 4 stars' -- true mean is 4.5
+```
+
+- [ ] the f-string formats numbers with zero decimal places by default, dropping the .5
+- [ ] `sum(ratings)` needs a float start value (`sum(ratings, 0.0)`) to avoid integer math
+- [x] `//` is floor division — `18 // 4` is `4`, so the fractional part of the mean is silently discarded; use `/`
+- [ ] `average_rating` only works for an even number of ratings
+
+> `//` floor-divides and quietly throws away the remainder, so every average is rounded down to a whole star. The mean of `[4, 5, 5, 4]` is 4.5, but `18 // 4` yields 4. Use true division `/` (and format as needed); reach for `//` only when you specifically want a floored integer.
+
+## quiz: review: strip() ate the filename
+tags: code-review, strings
+track: python
+difficulty: easy
+
+You're reviewing this code. What's the bug?
+
+```python
+def display_name(filename):
+    return filename.strip(".txt")
+
+for f in ["report.txt", "notes.txt", "test.txt"]:
+    print(display_name(f))
+# repor
+# notes
+# es
+```
+
+- [ ] `strip` only removes whitespace; its argument is ignored
+- [ ] `strip` returns `None` when the suffix is absent, so some names vanish
+- [ ] `strip` is case-sensitive, which is why only some names are damaged
+- [x] `strip(".txt")` treats the argument as a *set of characters* to remove from both ends, not a suffix — use `removesuffix(".txt")`
+
+> `str.strip(chars)` peels off any run of the given characters from *both* ends: for `"test.txt"` it strips leading/trailing `t`, `x`, `.` until it hits a character outside the set, leaving `"es"`. That's why some names look fine and others are mangled — a classically intermittent review trap. Use `filename.removesuffix(".txt")` (3.9+) or check `endswith` and slice.
+
+## quiz: review: Everyone gets the staff discount
+tags: code-review, closures
+track: python
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```python
+def make_discounts(rates):
+    fns = []
+    for rate in rates:
+        fns.append(lambda price: price * (1 - rate))
+    return fns
+
+standard, member, staff = make_discounts([0.05, 0.20, 0.50])
+print(standard(100.0), member(100.0), staff(100.0))
+# 50.0 50.0 50.0 -- every tier gets 50% off
+```
+
+- [ ] `lambda` cannot see loop variables, so `rate` is always the first value, 0.05
+- [x] each lambda closes over the *variable* `rate`, not its value at append time; when called after the loop, all three read the final value 0.50 — bind it with `lambda price, rate=rate: ...`
+- [ ] `fns.append` stores the result of calling the lambda, not the lambda itself
+- [ ] tuple unpacking assigns the functions in reverse order, so `standard` received the staff lambda
+
+> Closures capture variables, not values. All three lambdas share the single loop variable `rate`, and by the time any of them runs the loop has finished with `rate == 0.50`. Freeze the current value per iteration with a default argument (`lambda price, rate=rate: ...`) or `functools.partial`.
+
+## quiz: review: The spam that got away
+tags: code-review, lists
+track: python
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```python
+def remove_banned(words, banned):
+    for w in words:
+        if w in banned:
+            words.remove(w)
+    return words
+
+chat = ["hi", "spam", "spam", "team", "spam"]
+print(remove_banned(chat, {"spam"}))
+# ['hi', 'team', 'spam'] -- one slipped through
+```
+
+- [ ] `words.remove(w)` raises `ValueError` when there are duplicates, aborting the loop early
+- [ ] membership tests against a set only match the first occurrence of each value
+- [x] removing items from the list being iterated shifts later elements left while the iterator's index marches on, so the element right after each removal is never examined
+- [ ] `remove` deletes every occurrence at once, so the loop's bookkeeping is off by the number of duplicates
+
+> The list iterator works by index. When `remove` deletes an element, everything after it shifts left one slot, but the iterator still advances — so the element that slid into the current position is skipped. Consecutive matches therefore survive. Iterate over a copy (`for w in words[:]`) or, better, rebuild: `words[:] = [w for w in words if w not in banned]`.
+
+## quiz: review: The checkpoint that time-travels
+tags: code-review, copying
+track: python
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```python
+import copy
+
+def checkpoint(grid):
+    return copy.copy(grid)
+
+grid = [[0, 0, 0], [0, 0, 0]]
+saved = checkpoint(grid)
+grid[1][2] = 7          # play a move after saving
+print(saved[1][2])      # 7 -- the checkpoint changed retroactively
+```
+
+- [ ] `copy.copy` returns the same object, so `saved is grid`
+- [x] `copy.copy` is shallow: it duplicates the outer list but both grids still share the same row objects, so mutating a cell shows through — use `copy.deepcopy` (or copy each row)
+- [ ] item assignment `grid[1][2] = 7` rebinds the whole row, detaching it from the copy
+- [ ] the fix is to return `grid[:]` — slicing is the only way to get a real copy
+
+> A shallow copy creates a new outer list whose elements are the *same* inner row objects. `saved[1]` and `grid[1]` are one list, so writing a cell "changes the past". Deep-copy nested structures (`copy.deepcopy(grid)`) or copy each level explicitly (`[row[:] for row in grid]`); note `grid[:]` and `list(grid)` are just as shallow as `copy.copy`.
+
+## quiz: review: The groups that never formed
+tags: code-review, dicts
+track: python
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```python
+def group_by_team(pairs):
+    teams = {}
+    for name, team in pairs:
+        teams.get(team, []).append(name)
+    return teams
+
+roster = [("ann", "red"), ("bob", "blue"), ("cai", "red")]
+print(group_by_team(roster))   # {} -- everything vanished
+```
+
+- [ ] `.append` on the result of `.get` raises `AttributeError` for missing keys, which aborts silently
+- [ ] the dict is keyed by team but `get` looks the value up by player name
+- [x] `get(team, [])` returns a brand-new list that is never stored in the dict, so every `append` lands in an object that's immediately discarded — use `setdefault` or `defaultdict(list)`
+- [ ] dicts can't hold list values without wrapping them in `tuple` first
+
+> `dict.get` merely *returns* the default; it doesn't insert it. Each iteration builds a fresh `[]`, appends one name to it, and drops it — the dict never gains a key. `teams.setdefault(team, []).append(name)` stores the list on first use, or use `collections.defaultdict(list)`.
+
+## quiz: review: 100 points, no podium
+tags: code-review, sorting
+track: python
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```python
+def podium(results):
+    scores = [line.split(",")[1] for line in results]
+    return sorted(scores, reverse=True)[:3]
+
+results = ["ann,9", "bob,100", "cai,25", "dan,7"]
+print(podium(results))   # ['9', '7', '25'] -- where did 100 go?
+```
+
+- [ ] `reverse=True` sorts strings ascending because the comparison is inverted twice
+- [ ] `split(",")[1]` grabs the player name, not the score
+- [ ] slicing `[:3]` takes the bottom three; the top three need `[-3:]`
+- [x] the scores are still strings, so they sort lexicographically (`'9' > '100'` because `'9' > '1'`) — convert to int, or pass `key=int`
+
+> Splitting a CSV line yields strings, and strings compare character by character: `'9'` beats `'100'` because `'9' > '1'`. The sort runs fine and looks plausible on small same-width data, then misranks the moment digits differ in count. Convert early (`int(line.split(",")[1])`) or sort with `key=int`.
+
+## quiz: review: The sum of an empty tank
+tags: code-review, generators
+track: python
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```python
+def stats(readings):
+    valid = (r for r in readings if r >= 0)
+    n = sum(1 for _ in valid)
+    total = sum(valid)
+    return n, total
+
+print(stats([3.0, -1.0, 5.0]))   # (2, 0) -- two readings totalling zero?
+```
+
+- [ ] generator expressions always skip their first element on the second pass
+- [x] the counting pass exhausts the generator, so `sum(valid)` iterates over nothing and returns 0 — materialize once with `list(...)` and reuse it
+- [ ] `sum(1 for _ in valid)` consumes only the truthy readings, leaving the rest for `total`
+- [ ] the filter should be `r > 0`; including zero readings zeroes out the total
+
+> A generator is a one-shot stream: once the counting loop pulls every item, it's empty forever, so the second `sum` sees nothing and returns 0. Either materialize (`valid = [r for r in readings if r >= 0]`) and reuse the list, or compute both aggregates in a single pass.
+
+## quiz: review: Zero retries means five retries
+tags: code-review, truthiness
+track: python
+difficulty: medium
+
+You're reviewing this code. What's the bug?
+
+```python
+def retry_limit(config):
+    return config.get("retries") or 5
+
+print(retry_limit({"retries": 0}))   # 5 -- user explicitly disabled retries
+print(retry_limit({}))               # 5
+```
+
+- [ ] `config.get` returns `False` (not `None`) for missing keys, confusing the `or`
+- [x] `or` returns its left operand unless it's falsy — and `0` is falsy — so an explicit `retries: 0` is indistinguishable from a missing key; use `config.get("retries", 5)` or an `is None` check
+- [ ] `or` evaluates both sides and returns whichever is larger
+- [ ] the default belongs on the left: `5 or config.get("retries")`
+
+> `x or y` doesn't mean "x, defaulting to y when absent" — it means "y whenever x is falsy", and `0`, `""`, `[]` are all falsy. A user who deliberately set `retries: 0` silently gets 5. Only `None` should trigger the default: `config.get("retries", 5)`, or fetch then test `if value is None`.
+
+## quiz: review: The cleaner that cleans nothing
+tags: code-review, exceptions
+track: python
+difficulty: hard
+
+You're reviewing this code. What's the bug?
+
+```python
+def normalize_emails(entries):
+    out = []
+    for e in entries:
+        try:
+            out.append(e.strip().lowercase())
+        except Exception:
+            pass   # skip bad entries
+    return out
+
+print(normalize_emails(["Ann@Example.COM ", "bob@test.org"]))  # []
+```
+
+- [ ] `strip()` fails on strings that have no surrounding whitespace, so those entries are skipped
+- [ ] `pass` should be `continue`; without it the loop exits after the first bad entry
+- [x] `except Exception` silently swallows the `AttributeError` from the typo `lowercase` (the method is `str.lower`), so *every* entry is "skipped" and the code bug never surfaces — narrow the except to what can legitimately fail
+- [ ] `out.append` returns `None`, so the appended values are lost
+
+> There is no `str.lowercase`; every iteration raises `AttributeError`, and the blanket `except Exception: pass` converts that programming error into silently empty output. Broad excepts don't just skip bad data — they bury your own bugs. Catch the specific exceptions the data can cause (here: none for stripping/lowering a str), and let everything else propagate.
+
+## quiz: review: A cent short at the register
+tags: code-review, shadowing
+track: python
+difficulty: hard
+
+You're reviewing this code. What's the bug?
+
+```python
+def round(x, ndigits=0):
+    """Fast rounding without float noise."""
+    p = 10 ** ndigits
+    return int(x * p) / p
+
+def total_with_tax(subtotal, rate):
+    return round(subtotal * (1 + rate), 2)
+
+print(total_with_tax(19.99, 0.0825))   # 21.63 -- register says 21.64
+```
+
+- [ ] `10 ** ndigits` is integer math and overflows for `ndigits=2`
+- [ ] floats can't represent 19.99 exactly, so the bug is in the literal, not the code
+- [x] the helper shadows the built-in `round` with different semantics — `int()` truncates toward zero instead of rounding to nearest — so every total is systematically up to a cent low; rename the helper (and don't reimplement rounding via `int`)
+- [ ] `total_with_tax` runs before the module finishes loading, so it still calls the builtin
+
+> Defining a module-level `round` shadows the builtin for the whole module, and this version truncates (`int(2163.917...) == 2163`) instead of rounding to nearest, so `21.639...` becomes `21.63` rather than `21.64`. Shadowing a builtin with subtly different behavior is a silent, module-wide change — reviewers should flag any def/assignment that reuses a builtin name; if custom rounding is really needed, give it its own name.
+
+## quiz: Does string + int run?
+tags: types, errors
+track: python
+difficulty: easy
+
+You concatenate a string literal with an integer variable.
+
+```python
+age = 30
+print("Age: " + age)
+```
+
+- [ ] Prints `Age: 30` — the int is converted automatically
+- [x] Raises `TypeError`
+- [ ] Prints `Age: age`
+- [ ] `SyntaxError` — you cannot add different types
+
+> Python never implicitly converts an `int` to `str` for `+`; the code is syntactically fine but raises `TypeError: can only concatenate str (not "int") to str` at runtime. You must convert explicitly with `str(age)` or use an f-string. This is a deliberate design choice — silent coercion (as in JavaScript) hides bugs.
+
+## quiz: Assigning into a tuple
+tags: tuples, errors
+track: python
+difficulty: easy
+
+You try to replace the first element of a tuple.
+
+```python
+t = (1, 2, 3)
+t[0] = 99
+print(t)
+```
+
+- [ ] Prints `(99, 2, 3)`
+- [ ] `SyntaxError` — tuples cannot appear on the left of `=`
+- [x] Raises `TypeError`
+- [ ] Prints `(1, 2, 3)` — the assignment is silently ignored
+
+> Tuples are immutable: they do not implement item assignment, so `t[0] = 99` raises `TypeError: 'tuple' object does not support item assignment` at runtime. It is not a syntax error — the parser accepts it, and the failure only happens when the assignment executes. To "change" a tuple you must build a new one.
+
+## quiz: dict .get vs [] lookup
+tags: dicts, errors
+track: python
+difficulty: easy
+
+Both lines look up a key that is not in the dict.
+
+```python
+d = {"a": 1}
+print(d.get("b"))
+print(d["b"])
+```
+
+- [ ] Prints `None` twice
+- [ ] Raises `KeyError` on the first line — nothing is printed
+- [x] Prints `None`, then raises `KeyError`
+- [ ] Prints `None`, then `False`
+
+> `.get(key)` returns `None` (or a supplied default) when the key is missing, so the first line prints `None`. Subscript lookup `d["b"]` is strict and raises `KeyError: 'b'`. Since the first `print` completes before the second line runs, you see output followed by the traceback.
+
+## quiz: Slice past the end vs index past the end
+tags: strings, slicing
+track: python
+difficulty: easy
+
+The string has only three characters; every access goes past the end.
+
+```python
+s = "abc"
+print(s[1:10])
+print(s[10:])
+print(s[10])
+```
+
+- [ ] Raises `IndexError` on the first line
+- [ ] Prints `bc`, then raises `IndexError` on `s[10:]`
+- [x] Prints `bc`, then an empty line, then raises `IndexError`
+- [ ] Prints `bc`, then an empty line, then `None`
+
+> Slices are clamped to the sequence bounds and never raise: `s[1:10]` gives `"bc"` and `s[10:]` gives `""`. Plain indexing is strict, so `s[10]` raises `IndexError: string index out of range`. Remember: slices are forgiving, indexes are not.
+
+## quiz: / vs // with a negative number
+tags: numbers, operators
+track: python
+difficulty: easy
+
+Compare true division, floor division, and floor division of a negative.
+
+```python
+print(7 / 2)
+print(7 // 2)
+print(-7 // 2)
+```
+
+- [ ] `3.5`, `3`, `-3`
+- [x] `3.5`, `3`, `-4`
+- [ ] `3`, `3`, `-3`
+- [ ] `3.5`, `3.5`, `-3.5`
+
+> In Python 3, `/` always produces a float (`3.5`) and `//` floors the result. Flooring rounds toward negative infinity, not toward zero, so `-7 // 2` is `-4` (since -3.5 floors down to -4), not `-3` as C-style truncation would give. This trips up people coming from C or Java.
+
+## quiz: Unpacking three values into two names
+tags: unpacking, errors
+track: python
+difficulty: easy
+
+A three-element list is unpacked into two variables.
+
+```python
+data = [1, 2, 3]
+a, b = data
+print(a, b)
+```
+
+- [ ] Prints `1 2` — the extra value is dropped
+- [ ] Prints `1 [2, 3]`
+- [ ] `SyntaxError`
+- [x] Raises `ValueError`
+
+> Tuple/list unpacking requires the number of targets to match the number of items exactly, so this raises `ValueError: too many values to unpack (expected 2, got 3)`. Nothing is silently dropped. To absorb the extras you need a starred target: `a, *b = data` gives `a=1, b=[2, 3]`.
+
+## quiz: Arithmetic on booleans
+tags: bool, numbers
+track: python
+difficulty: easy
+
+Booleans are used directly in arithmetic and comparison.
+
+```python
+print(True + True)
+print(sum([True, False, True]))
+print(True == 1)
+```
+
+- [x] `2`, `2`, `True`
+- [ ] Raises `TypeError` — you cannot add booleans
+- [ ] `TrueTrue`, `2`, `True`
+- [ ] `2`, `2`, `False`
+
+> `bool` is a subclass of `int` with `True == 1` and `False == 0`, so `True + True` is `2` and `sum` over booleans counts the `True`s — a common idiom like `sum(x > 0 for x in xs)`. The comparison `True == 1` is genuinely `True`, not just truthy.
+
+## quiz: Shadowing the list builtin
+tags: builtins, errors
+track: python
+difficulty: easy
+
+A variable named `list` is created, then `list(...)` is called.
+
+```python
+list = [1, 2, 3]
+squares = list(range(3))
+print(squares)
+```
+
+- [ ] Prints `[0, 1, 2]`
+- [ ] `SyntaxError` — `list` is a reserved word
+- [x] Raises `TypeError`
+- [ ] Raises `NameError`
+
+> `list` is not a keyword, just a name in the builtins scope, so assigning to it is legal and shadows the builtin. The call `list(range(3))` then tries to call the list object `[1, 2, 3]`, raising `TypeError: 'list' object is not callable`. Avoid naming variables `list`, `dict`, `str`, `sum`, `id`, etc.
+
+## quiz: Mutating a list inside a tuple
+tags: tuples, mutability
+track: python
+difficulty: medium
+
+The tuple itself is immutable, but its second element is a list.
+
+```python
+t = ("a", [1, 2])
+t[1].append(3)
+print(t)
+```
+
+- [ ] Raises `TypeError` — tuples are immutable
+- [x] Prints `('a', [1, 2, 3])`
+- [ ] Prints `('a', [1, 2])` — the change does not stick
+- [ ] Raises `AttributeError`
+
+> Tuple immutability only means the tuple's slots cannot be rebound — the objects inside can still be mutated. `t[1]` is an ordinary read (allowed), and `.append` mutates the list in place without touching the tuple's structure. So this runs fine and prints `('a', [1, 2, 3])`.
+
+## quiz: Consuming a generator twice
+tags: generators, iteration
+track: python
+difficulty: medium
+
+The same generator object is passed to `list` twice.
+
+```python
+g = (x * x for x in range(3))
+print(list(g))
+print(list(g))
+```
+
+- [ ] Prints `[0, 1, 4]` twice
+- [ ] Prints `[0, 1, 4]`, then raises `StopIteration`
+- [x] Prints `[0, 1, 4]`, then `[]`
+- [ ] Raises `TypeError` — a generator can only be iterated once
+
+> Generators are single-use iterators: the first `list(g)` drains it, and internally the generator raises `StopIteration` when done. Iterating an exhausted generator is not an error — `list` catches `StopIteration` and simply produces an empty list. If you need two passes, rebuild the generator or use a list.
+
+## quiz: When does the genexp divide by zero?
+tags: generators, errors
+track: python
+difficulty: medium
+
+A generator expression divides by each number, and the list contains a zero.
+
+```python
+nums = [1, 0, 2]
+results = (10 // n for n in nums)
+print("created")
+print(list(results))
+```
+
+- [ ] Raises `ZeroDivisionError` on line 2 — nothing is printed
+- [ ] Prints `created`, then `[10, 0, 5]`
+- [x] Prints `created`, then raises `ZeroDivisionError`
+- [ ] Prints `created`, then `[10, 5]` — the bad value is skipped
+
+> Generator expressions are lazy: creating one does no division at all, so line 2 succeeds and `created` prints. The `ZeroDivisionError` only fires when `list(results)` pulls the second item and evaluates `10 // 0`. Lazy evaluation moves errors from creation time to consumption time — a classic debugging trap.
+
+## quiz: Read before assignment inside a function
+tags: scope, errors
+track: python
+difficulty: medium
+
+The function reads `count` before assigning to it later in the body.
+
+```python
+count = 0
+def bump():
+    print(count)
+    count = 1
+bump()
+```
+
+- [ ] Prints `0` — the global is visible until the assignment
+- [ ] Prints `0`, and the global becomes `1`
+- [x] Raises `UnboundLocalError`
+- [ ] Raises `NameError: name 'count' is not defined`
+
+> Scope is decided at compile time for the whole function: because `count = 1` appears anywhere in the body, `count` is local everywhere in `bump`. The `print` therefore reads a local that has no value yet, raising `UnboundLocalError` (a subclass of `NameError`, but reported distinctly). Declaring `global count` would make it print `0`.
+
+## quiz: Does the comprehension variable leak?
+tags: scope, comprehensions
+track: python
+difficulty: medium
+
+A list comprehension reuses the name `x` that already exists outside.
+
+```python
+x = "outer"
+squares = [x * x for x in range(3)]
+print(x)
+```
+
+- [x] Prints `outer`
+- [ ] Prints `2` — the loop variable leaks out
+- [ ] Prints `4` — the last computed square
+- [ ] Raises `NameError`
+
+> In Python 3 a comprehension runs in its own scope, so its loop variable `x` is completely separate from the outer `x` and does not leak. The outer binding is untouched and `outer` prints. (In Python 2 list comprehensions did leak, which is exactly why this was changed.) A plain `for` loop, by contrast, still leaks its variable.
+
+## quiz: Where does the walrus variable live?
+tags: walrus, scope
+track: python
+difficulty: medium
+
+`n` is bound with `:=` inside the `if` condition, then used after the block.
+
+```python
+data = [4, 8, 15]
+if (n := len(data)) > 2:
+    print("big")
+print(n)
+```
+
+- [ ] Prints `big`, then raises `NameError` — `n` only exists in the condition
+- [x] Prints `big`, then `3`
+- [ ] `SyntaxError` — `:=` is not allowed inside `if`
+- [ ] Prints `big`, then `True`
+
+> The walrus operator `:=` (Python 3.8+) assigns and yields the value in one expression, and the name goes into the enclosing function/module scope — Python has no block scope. So `n` is `3`, the condition is true, and `n` remains visible after the `if`. Note it binds the length, not the comparison result.
+
+## quiz: Chained comparison with in
+tags: comparisons, gotcha
+track: python
+difficulty: medium
+
+This looks like it checks that membership is `True`.
+
+```python
+a = [1]
+print(1 in a == True)
+```
+
+- [ ] Prints `True`
+- [x] Prints `False`
+- [ ] `SyntaxError` — `in` and `==` cannot be mixed
+- [ ] Raises `TypeError`
+
+> `in` and `==` are both comparison operators, so this chains: `1 in a == True` means `(1 in a) and (a == True)`. The first part is `True`, but `[1] == True` is `False`, so the whole thing prints `False`. Chaining is great for `0 < x < 10` but silently produces nonsense when you mix membership and equality — parenthesize `(1 in a) == True`, or just drop the comparison.
+
+## quiz: Lambdas created in a loop
+tags: closures, gotcha
+track: python
+difficulty: medium
+
+Three lambdas capture the comprehension variable `i`.
+
+```python
+funcs = [lambda: i for i in range(3)]
+print([f() for f in funcs])
+```
+
+- [ ] Prints `[0, 1, 2]`
+- [x] Prints `[2, 2, 2]`
+- [ ] Raises `NameError` — `i` is gone when the lambdas run
+- [ ] Prints `[3, 3, 3]`
+
+> Closures capture the variable, not its value at creation time. All three lambdas share the same `i` cell, which holds `2` after the loop finishes, so each call returns `2`. The variable outlives the comprehension inside the closure cells, so there is no `NameError`. The standard fix is a default argument: `lambda i=i: i`, which snapshots the value.
+
+## quiz: Sorting a mixed list
+tags: sorting, errors
+track: python
+difficulty: medium
+
+The list mixes ints and a string, then gets sorted.
+
+```python
+items = [3, "1", 2]
+items.sort()
+print(items)
+```
+
+- [ ] Prints `["1", 2, 3]` — strings sort first
+- [ ] Prints `[2, 3, "1"]` — ints sort first
+- [x] Raises `TypeError`
+- [ ] Prints `[1, 2, 3]` — the string is converted
+
+> Sorting compares elements pairwise with `<`, and Python 3 refuses to order unrelated types: `'1' < 3` raises `TypeError: '<' not supported between instances of 'str' and 'int'`. (Python 2 allowed this with an arbitrary but consistent order.) To sort mixed data you must supply a key, e.g. `items.sort(key=int)` or `key=str`.
+
+## quiz: When is an f-string evaluated?
+tags: f-strings, evaluation
+track: python
+difficulty: medium
+
+The variable changes after the f-string is created but before it is printed.
+
+```python
+x = 1
+msg = f"x is {x}"
+x = 2
+print(msg)
+```
+
+- [x] Prints `x is 1`
+- [ ] Prints `x is 2` — f-strings resolve when printed
+- [ ] Prints `x is {x}`
+- [ ] Raises `NameError`
+
+> An f-string is an expression evaluated immediately where it appears — it interpolates `x` at assignment time, producing the plain string `"x is 1"`. Rebinding `x` afterwards cannot affect a string that already exists. F-strings are not lazy templates; for deferred substitution you would use `str.format` on a template string later.
+
+## quiz: else on a for loop
+tags: loops, else
+track: python
+difficulty: medium
+
+A search loop over odd numbers has an `else` clause.
+
+```python
+for n in [1, 3, 5]:
+    if n % 2 == 0:
+        print("found even")
+        break
+else:
+    print("no even found")
+```
+
+- [ ] `SyntaxError` — `else` cannot attach to `for`
+- [ ] Prints nothing — the `else` belongs to the `if`, which is never true
+- [x] Prints `no even found`
+- [ ] Prints `no even found` three times, once per iteration
+
+> A `for` loop can have an `else` clause that runs only if the loop finishes without hitting `break`. No element here is even, so `break` never fires and the `else` body runs exactly once after the loop. Think of it as "no-break". Indentation makes it the loop's `else`, not the `if`'s.
+
+## quiz: Deleting dict keys while iterating
+tags: dicts, errors
+track: python
+difficulty: medium
+
+A key is deleted from the dict inside a loop over that same dict.
+
+```python
+d = {"a": 1, "b": 2}
+for k in d:
+    if d[k] == 1:
+        del d[k]
+print(d)
+```
+
+- [ ] Prints `{'b': 2}`
+- [ ] Prints `{'a': 1, 'b': 2}` — the deletion is deferred
+- [ ] Raises `KeyError`
+- [x] Raises `RuntimeError`
+
+> Adding or removing keys while iterating over a dict invalidates the iterator, and Python detects it on the next step: `RuntimeError: dictionary changed size during iteration`. Overwriting values of existing keys is fine; changing the key set is not. The idiomatic fix is to iterate over a snapshot — `for k in list(d):` — or build a new dict comprehension.
+
+## quiz: += on a list stored in a tuple
+tags: tuples, gotcha
+track: python
+difficulty: hard
+
+Augmented assignment targets a tuple slot that holds a list.
+
+```python
+t = ([1, 2],)
+try:
+    t[0] += [3]
+except TypeError:
+    print("TypeError")
+print(t)
+```
+
+- [ ] Prints `([1, 2, 3],)` only — no exception, `+=` mutates the list
+- [ ] Prints `TypeError` then `([1, 2],)` — the exception prevents any change
+- [x] Prints `TypeError` then `([1, 2, 3],)` — it raises AND the list changed
+- [ ] Raises `SyntaxError`
+
+> `t[0] += [3]` executes in two steps: first `list.__iadd__` extends the list in place (this succeeds — the list is now `[1, 2, 3]`), then Python tries to store the result back with `t[0] = ...`, which fails because tuples reject item assignment. So the `TypeError` is raised after the mutation already happened. It is Python's most famous "fails and succeeds at the same time" snippet.
+
+## quiz: global declared inside a nested function
+tags: scope, global
+track: python
+difficulty: hard
+
+`inner` declares `global x` while an enclosing `outer` also has its own `x`.
+
+```python
+x = "global"
+def outer():
+    x = "outer"
+    def inner():
+        global x
+        x = "changed"
+    inner()
+    print(x)
+outer()
+print(x)
+```
+
+- [ ] Prints `changed` then `changed`
+- [x] Prints `outer` then `changed`
+- [ ] Prints `outer` then `global`
+- [ ] Raises `SyntaxError` — `global` is not allowed in a nested function
+
+> `global` skips all enclosing function scopes and binds directly to the module level, so `inner` rewrites the module's `x` and leaves `outer`'s local `x` untouched — hence `outer` prints first, then `changed`. To rebind the enclosing function's variable instead, `inner` would need `nonlocal x`, which would print `changed` then `global`.
+
+## quiz: try/except/else/finally order
+tags: exceptions, control-flow
+track: python
+difficulty: hard
+
+The same function runs once without and once with an exception.
+
+```python
+def check(n):
+    try:
+        10 // n
+    except ZeroDivisionError:
+        print("except")
+    else:
+        print("else")
+    finally:
+        print("finally")
+check(2)
+check(0)
+```
+
+- [ ] `else`, `finally`, `except`, `else`, `finally`
+- [ ] `else`, `except`, `finally`, `finally`
+- [x] `else`, `finally`, `except`, `finally`
+- [ ] `finally`, `else`, `finally`, `except`
+
+> The `else` block runs only when the `try` body raised nothing, and it is skipped entirely when an exception was caught — `else` and `except` are mutually exclusive. `finally` runs unconditionally, last, in both cases. So `check(2)` prints `else`, `finally` and `check(0)` prints `except`, `finally`.
+
+## quiz: Infinite recursion — hang or crash?
+tags: recursion, errors
+track: python
+difficulty: hard
+
+The function calls itself unconditionally with no base case.
+
+```python
+def depth(n):
+    return depth(n + 1)
+print(depth(0))
+```
+
+- [ ] Hangs forever — you must kill the process
+- [ ] Crashes the interpreter with a segmentation fault
+- [x] Raises `RecursionError`
+- [ ] Raises `StackOverflowError`
+
+> CPython guards its call stack with a recursion limit (about 1000 by default, see `sys.getrecursionlimit()`), and blowing past it raises `RecursionError: maximum recursion depth exceeded` — a catchable Python exception, not a hang or a hard crash. `StackOverflowError` is Java, not Python. Python also does no tail-call optimization, so rewriting this as a "tail call" would not help.
+
+## quiz: Do two calls share the default list?
+tags: functions, gotcha
+track: python
+difficulty: hard
+
+Two separate calls each rely on the default `bucket`, then identity is checked.
+
+```python
+def collect(x, bucket=[]):
+    bucket.append(x)
+    return bucket
+a = collect(1)
+b = collect(2)
+print(a is b, a)
+```
+
+- [ ] Prints `False [1]` — each call gets a fresh list
+- [ ] Prints `True [2]` — the second call replaces the contents
+- [x] Prints `True [1, 2]`
+- [ ] Raises `TypeError` — mutable defaults are not allowed
+
+> Default values are evaluated once, at `def` time, and stored on the function object — every call that omits `bucket` gets the same list. Both calls append to that one object, so `a` and `b` are the same list (`a is b` is `True`) containing `[1, 2]`. The idiom to get a fresh list per call is `bucket=None` plus `if bucket is None: bucket = []`.
 
 ## quiz: You pay a fixed price to roll one fair six-sided die and are paid its face value in dollars. What is the fair price?
 tags: expected-value, dice
