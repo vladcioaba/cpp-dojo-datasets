@@ -29335,6 +29335,695 @@ int main() {
 
 **Editorial:** The smear ladder is a doubling propagation: after `x |= x >> 1` the MSB covers 2 positions, after `>> 2` it covers 4, and after the `>> 32` step every bit at or below the MSB is set — six steps handle 64 bits because coverage doubles each time. From the smeared value `2^(k+1)-1`, the floor is `x - (x >> 1)` (all-ones minus all-ones-shifted leaves the top bit), and the ceiling comes from the classic decrement/smear/increment: subtracting 1 first means an exact power like 1024 smears from 1023 and increments right back to 1024, while 1025 smears from 1024 up to 2047 and lands on 2048. Watch the domain edges — `ceilPow2` overflows to 0 for `x > 2^63` (no 64-bit power of two exists above it), which is why the constraint stops at `2^63`; and `floorPow2(0) == 0` falls out naturally since zero smears to zero. Hardware does this with one `lzcnt`, and C++20 exposes it as `std::bit_ceil`/`std::bit_floor` — but the ladder is what you write where those don't reach (constexpr-in-C++17 code, GPUs, verification models), and deriving it shows you understand *why* power-of-two capacities matter: `index & (cap - 1)` replaces a 20–40 cycle divide with a 1-cycle AND on every queue operation.
 
+## challenge: Enumerate every submask
+tags: bit-tricks, hot-path
+track: hft
+difficulty: medium
+
+A bitmask encodes a set — venues to route to, flags on an order, feature combinations. Sometimes you must visit every *subset* of that set. Implement `uint64_t foldSubmasks(uint32_t mask)` that visits every submask `s` of `mask` (every `s` with `s & mask == s`, including `mask` itself and `0`) exactly once, in decreasing numeric order starting from `mask` and ending at `0`, folding each into an accumulator as `acc = acc * 3 + s` (with `acc` starting at 0, arithmetic in `uint64_t`), and returns the final `acc`.
+
+Constraints: must run in O(2^k) where `k = popcount(mask)` — scanning all values from `mask` down to 0 and testing each is disallowed. For the tests, `popcount(mask) <= 8`.
+
+Example: `foldSubmasks(0b101)` visits `5, 4, 1, 0` in that order: acc = 5, then 5*3+4 = 19, then 19*3+1 = 58, then 58*3+0 = 174 — returns `174`. `foldSubmasks(0) == 0` (visits just `0`).
+
+hint: The classic enumeration: start at `s = mask`, and step with `s = (s - 1) & mask` — the decrement borrows through the trailing zeros, the AND throws away everything outside the mask.
+hint: That step visits all submasks in strictly decreasing numeric order and reaches `0` last; loop `while (true)`, fold, and break *after* processing `s == 0` (stepping from 0 would wrap back to `mask`).
+hint: Fold first, test for zero second: `acc = acc*3 + s; if (s == 0) break; s = (s - 1) & mask;`
+
+```cpp
+// starter
+#include <cstdint>
+uint64_t foldSubmasks(uint32_t mask);
+```
+
+```cpp
+uint64_t foldSubmasks(uint32_t mask) {
+    uint64_t acc = 0;
+    uint32_t s = mask;
+    while (true) {
+        acc = acc * 3 + s;
+        if (s == 0) break;
+        s = (s - 1) & mask;
+    }
+    return acc;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+static uint64_t reference(uint32_t mask) {
+    // Brute force: scan every value from mask down to 0, keep those inside mask.
+    uint64_t acc = 0;
+    for (uint64_t v = mask; ; --v) {
+        if ((v & mask) == v) acc = acc * 3 + v;
+        if (v == 0) break;
+    }
+    return acc;
+}
+int main() {
+    if (foldSubmasks(0u) != 0ull) { std::puts("mask 0 must fold to 0"); return 1; }
+    if (foldSubmasks(1u) != 3ull) { std::puts("mask 1 must fold to 3"); return 1; }      // 1 then 0
+    if (foldSubmasks(0b101u) != 174ull) { std::puts("mask 0b101 must fold to 174"); return 1; }
+    uint32_t masks[] = {0b11u, 0b1101u, 0xFFu, 0x92u, 0b110100000000u};
+    for (uint32_t m : masks) {
+        uint64_t got = foldSubmasks(m);
+        uint64_t want = reference(m);
+        if (got != want) {
+            std::printf("foldSubmasks(0x%x)=%llu want %llu\n",
+                        m, (unsigned long long)got, (unsigned long long)want);
+            return 1;
+        }
+    }
+    // spread-bits case: brute reference would scan 2^31 values, so the
+    // expected fold (submasks 0x80000001, 0x80000000, 1, 0) is precomputed —
+    // a submask walk visits 4 values here, the naive scan 2 billion
+    if (foldSubmasks(0x80000001u) != 77309411358ull) {
+        std::puts("foldSubmasks(0x80000001) wrong"); return 1;
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The step `s = (s - 1) & mask` is subset decrement: subtracting 1 clears the lowest set bit of `s` and sets every bit below it, and ANDing with `mask` keeps only the positions that belong to the set — the net effect is "the next smaller integer that is still a submask." Because every step strictly decreases `s` and never skips a valid submask (any submask between `s-1` and the result would survive the AND), the walk visits all `2^k` subsets of a k-bit mask in decreasing numeric order, ending at 0. The subtle trap is termination: from `s == 0` the step wraps to `mask` and loops forever, so you process 0 first, *then* break — the do-while-style structure in the solution. Cost is exactly `2^k` iterations regardless of how the k bits are spread across the word (the harness's `0x80000001` case), versus `mask+1` iterations for the naive scan — for 8 bits spread over a 32-bit word that's 256 versus 2 billion. This enumeration underpins subset-sum DP ("sum over submasks", total work 3^k across all masks), routing over venue combinations, and exhaustive small-set searches where the set is already a bitmask in a register.
+
+## challenge: Midpoint without overflow
+tags: integer-arithmetic, bit-tricks, hot-path
+track: hft
+difficulty: medium
+
+`(a + b) / 2` is a latent bug: the sum overflows for large operands — signed overflow is undefined behavior — and even when it doesn't, integer division truncates toward zero, not toward negative infinity. Implement `int32_t floorMid(int32_t a, int32_t b)` returning exactly `floor((a + b) / 2)` for *all* `int32_t` pairs, including `INT_MAX` with `INT_MAX` and mixed signs, with no overflow, no UB, and no widening to 64-bit.
+
+Constraints: any `int32_t` values for `a` and `b`; 32-bit arithmetic only (no `int64_t` anywhere); branchless — shifts, ANDs, adds.
+
+Example: `floorMid(3, 4) == 3`, `floorMid(-3, -4) == -4` (floor of -3.5), `floorMid(INT_MAX, INT_MAX) == INT_MAX`, `floorMid(INT_MAX, INT_MIN) == -1`.
+
+hint: Halve each operand separately: since C++20, `a >> 1` on a signed value is guaranteed arithmetic shift, which is exactly `floor(a / 2)` — for negatives too (unlike `a / 2`, which truncates toward zero).
+hint: `(a >> 1) + (b >> 1)` can never overflow (each half is at most half the range), but it drops half a unit from each odd operand — half plus half is the whole unit you're missing.
+hint: The two dropped halves add back to exactly 1 precisely when *both* operands are odd: add `a & b & 1`.
+
+```cpp
+// starter
+#include <cstdint>
+int32_t floorMid(int32_t a, int32_t b);
+```
+
+```cpp
+int32_t floorMid(int32_t a, int32_t b) {
+    // a>>1 is floor(a/2) in C++20 (arithmetic shift); the halves each drop 0.5
+    // when odd, and those two halves sum to a whole 1 exactly when both are odd.
+    return (a >> 1) + (b >> 1) + (a & b & 1);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+#include <climits>
+//__USER__
+static int32_t ref(int32_t a, int32_t b) {
+    long long s = (long long)a + (long long)b;
+    return (int32_t)(s >> 1);   // arithmetic shift of the wide sum == floor((a+b)/2)
+}
+int main() {
+    struct { int32_t a, b; } cases[] = {
+        {INT_MAX, INT_MAX}, {INT_MIN, INT_MIN}, {INT_MAX, INT_MIN}, {INT_MIN, INT_MAX},
+        {3, 4}, {4, 3}, {3, 5}, {-3, -4}, {-3, 4}, {3, -4}, {-3, -5},
+        {0, 0}, {-1, 0}, {0, -1}, {1, 1}, {-1, -1},
+        {INT_MAX - 1, INT_MAX}, {INT_MIN, INT_MIN + 1}, {INT_MIN + 1, INT_MAX},
+    };
+    for (auto& c : cases) {
+        int32_t got = floorMid(c.a, c.b);
+        int32_t want = ref(c.a, c.b);
+        if (got != want) {
+            std::printf("floorMid(%d,%d)=%d want %d\n", c.a, c.b, got, want);
+            return 1;
+        }
+    }
+    for (int a = -9; a <= 9; ++a) {
+        for (int b = -9; b <= 9; ++b) {
+            if (floorMid(a, b) != ref(a, b)) {
+                std::printf("floorMid(%d,%d)=%d want %d\n", a, b, floorMid(a, b), ref(a, b));
+                return 1;
+            }
+        }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** Decompose each operand as `2*(x >> 1) + (x & 1)`: the shift is floor-halving (C++20 finally *guarantees* arithmetic right shift on signed values — before that it was implementation-defined, though universal in practice), and the low bit is the remainder. Then `floor((a+b)/2) = (a>>1) + (b>>1) + floor(((a&1)+(b&1))/2)`, and that last term is 1 only when both low bits are 1 — i.e. `a & b & 1`. Every intermediate stays comfortably in range: each half is within `[-2^30, 2^30)`, so the sum can't overflow, and no UB is possible. Contrast the classics that fail: `(a+b)/2` overflows (the bug that famously lurked in binary searches for decades as `mid = (lo+hi)/2`); `a + (b-a)/2` fixes overflow only when the difference fits, and rounds toward `a`, not toward negative infinity; `std::midpoint` is overflow-safe but also rounds toward `a` — a different contract. Floor-rounding matters when the midpoint feeds price arithmetic that must be monotonic: floor is order-preserving under negation offsets, truncation is not. Three ALU ops, branchless, and correct on the entire domain — exactly the kind of primitive you prove once and reuse everywhere.
+
+## challenge: Aligned bump allocator
+tags: memory, allocator, hot-path
+track: hft
+difficulty: medium
+
+`malloc` takes locks, maintains free lists, and can syscall — none of which belongs on a hot path. The trading-system workhorse is the bump (arena) allocator: allocation is a pointer add, deallocation is wholesale `reset()` after the tick. Implement `class Arena` over a caller-provided buffer: `Arena(unsigned char* buf, size_t cap)`, `void* allocate(size_t size, size_t align)` (align is a power of two; returns a pointer aligned to `align`, or `nullptr` if it doesn't fit — *without* consuming any space on failure), `void reset()`, and `size_t used() const` (bytes consumed including alignment padding).
+
+Constraints: the caller guarantees `buf` is aligned at least as strictly as any `align` it will request (the harness passes a 64-byte-aligned buffer and aligns up to 64). `allocate` is O(1): align the offset up with bit arithmetic, no loops, no searching. A failed allocation must leave the arena unchanged. An allocation may exactly reach `cap`.
+
+Example: with a 256-byte arena: `allocate(1,1)` returns `buf` (used = 1); `allocate(8,8)` returns `buf+8` (offset bumped from 1 to 8; used = 16); `allocate(1000,1)` returns `nullptr` (used still 16); `reset()` makes `used() == 0` and the next allocation returns `buf` again.
+
+hint: Align the *offset*, not the pointer: `aligned = (off + (align - 1)) & ~(align - 1)` rounds up to the next multiple of a power of two; since `buf` itself is aligned, `buf + aligned` is too.
+hint: Check for space without overflow: test `aligned > cap` first, then `size > cap - aligned` — the naive `aligned + size > cap` can wrap for huge `size`.
+hint: Only commit state (`off = aligned + size`) after both checks pass — failure must be side-effect-free.
+
+```cpp
+// starter
+#include <cstddef>
+class Arena {
+public:
+    Arena(unsigned char* buf, size_t cap);
+    void* allocate(size_t size, size_t align);  // aligned pointer, or nullptr if it doesn't fit
+    void reset();                               // free everything at once
+    size_t used() const;                        // bytes consumed, padding included
+};
+```
+
+```cpp
+class Arena {
+public:
+    Arena(unsigned char* buf, size_t cap) : buf_(buf), cap_(cap), off_(0) {}
+
+    void* allocate(size_t size, size_t align) {
+        size_t aligned = (off_ + (align - 1)) & ~(align - 1);
+        if (aligned > cap_ || size > cap_ - aligned) return nullptr;  // overflow-safe
+        void* p = buf_ + aligned;
+        off_ = aligned + size;
+        return p;
+    }
+
+    void reset() { off_ = 0; }
+    size_t used() const { return off_; }
+
+private:
+    unsigned char* buf_;
+    size_t cap_;
+    size_t off_;
+};
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+#include <cstddef>
+//__USER__
+alignas(64) static unsigned char buf[256];
+int main() {
+    Arena a(buf, sizeof(buf));
+    if (a.used() != 0) { std::puts("fresh arena must be empty"); return 1; }
+
+    void* p1 = a.allocate(1, 1);
+    if (p1 != buf) { std::puts("first alloc must start at buf"); return 1; }
+    if (a.used() != 1) { std::puts("used after 1-byte alloc must be 1"); return 1; }
+
+    void* p2 = a.allocate(8, 8);
+    if (p2 != buf + 8) { std::puts("8-aligned alloc must land at offset 8"); return 1; }
+    if (a.used() != 16) { std::puts("used must include alignment padding"); return 1; }
+
+    void* p3 = a.allocate(4, 16);
+    if (p3 != buf + 16) { std::puts("16-aligned alloc must land at offset 16"); return 1; }
+    if (reinterpret_cast<uintptr_t>(p3) % 16 != 0) { std::puts("pointer not 16-aligned"); return 1; }
+    if (a.used() != 20) { std::puts("used must be 20"); return 1; }
+
+    if (a.allocate(1000, 1) != nullptr) { std::puts("oversized alloc must fail"); return 1; }
+    if (a.used() != 20) { std::puts("failed alloc must not consume space"); return 1; }
+
+    void* p4 = a.allocate(236, 4);   // 20 is 4-aligned; 20 + 236 == 256: exact fit allowed
+    if (p4 != buf + 20) { std::puts("exact-fit alloc must succeed"); return 1; }
+    if (a.used() != 256) { std::puts("arena must now be full"); return 1; }
+    if (a.allocate(1, 1) != nullptr) { std::puts("full arena must refuse"); return 1; }
+
+    a.reset();
+    if (a.used() != 0) { std::puts("reset must empty the arena"); return 1; }
+    void* p5 = a.allocate(64, 64);
+    if (p5 != buf) { std::puts("post-reset alloc must start at buf again"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** A bump allocator is the fastest allocation scheme that exists: round the offset up, compare, add — three ALU ops, no metadata per block, no locks, no free lists, and consecutive allocations are contiguous in memory (great for cache locality of related objects). Its contract is what makes it fast: you cannot free individual objects, only `reset()` the whole arena — which fits event-driven systems perfectly, where everything allocated while processing one packet dies when the packet is done ("per-tick arena"). The align-up idiom `(off + align-1) & ~(align-1)` works only for power-of-two `align` — the mask clears the low bits — and aligning the *offset* is valid because the base buffer is at least as aligned as any request, so alignment is preserved by addition. Two production-grade details the tests enforce: the space check must be overflow-safe (`size > cap - aligned` after checking `aligned <= cap`, since `aligned + size` can wrap `size_t`), and failure must be transactional — a `nullptr` return that also corrupted `off_` would poison every later allocation. `std::pmr::monotonic_buffer_resource` is this exact idea productized; writing one from scratch is a standing interview question because it exposes whether you understand alignment, overflow, and ownership at once.
+
+## challenge: Morton encode two 32-bit coordinates
+tags: bit-tricks, hot-path
+track: hft
+difficulty: hard
+
+Z-order (Morton) curves map 2D coordinates to a single index so that points close in 2D stay close in memory — used for spatial grids, quadtrees, and cache-friendly 2D tables. Implement `uint64_t mortonEncode(uint32_t x, uint32_t y)` that interleaves the bits: bit `i` of `x` goes to bit `2i` of the result (even positions), bit `i` of `y` goes to bit `2i+1` (odd positions). No per-bit loops: use the parallel-prefix mask ladder that spreads each 32-bit input into 64 bits in 5 fixed steps.
+
+Constraints: full 32-bit coordinate range; O(1) — a fixed sequence of shifts, ORs, and ANDs with the spreading mask constants; no loops, no tables, no builtins.
+
+Example: `mortonEncode(1, 0) == 1`, `mortonEncode(0, 1) == 2`, `mortonEncode(3, 0) == 5` (binary `101`), `mortonEncode(0, 3) == 10` (binary `1010`), `mortonEncode(0xFFFFFFFF, 0) == 0x5555555555555555`.
+
+hint: Write a helper that spreads one 32-bit value so its bits occupy the even positions of a 64-bit word, then combine: `spread(x) | (spread(y) << 1)`.
+hint: The spread halves the gap each step with magic masks: `v = (v | (v << 16)) & 0x0000FFFF0000FFFF; v = (v | (v << 8)) & 0x00FF00FF00FF00FF;` then masks `0x0F0F...`, `0x3333...`, `0x5555...`.
+hint: Each step moves the upper half of every block 2x its current gap to the left and the mask keeps exactly one half-block at each position — 16, 8, 4, 2, 1.
+
+```cpp
+// starter
+#include <cstdint>
+uint64_t mortonEncode(uint32_t x, uint32_t y);
+```
+
+```cpp
+static uint64_t spread(uint64_t v) {
+    // Spread the low 32 bits of v to the even bit positions of a 64-bit word.
+    v &= 0x00000000FFFFFFFFull;
+    v = (v | (v << 16)) & 0x0000FFFF0000FFFFull;
+    v = (v | (v << 8))  & 0x00FF00FF00FF00FFull;
+    v = (v | (v << 4))  & 0x0F0F0F0F0F0F0F0Full;
+    v = (v | (v << 2))  & 0x3333333333333333ull;
+    v = (v | (v << 1))  & 0x5555555555555555ull;
+    return v;
+}
+
+uint64_t mortonEncode(uint32_t x, uint32_t y) {
+    return spread(x) | (spread(y) << 1);
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+static uint64_t refEncode(uint32_t x, uint32_t y) {
+    uint64_t r = 0;
+    for (int i = 0; i < 32; ++i) {
+        r |= (uint64_t)((x >> i) & 1u) << (2 * i);
+        r |= (uint64_t)((y >> i) & 1u) << (2 * i + 1);
+    }
+    return r;
+}
+int main() {
+    struct { uint32_t x, y; uint64_t want; } fixed[] = {
+        {0u, 0u, 0ull},
+        {1u, 0u, 1ull},
+        {0u, 1u, 2ull},
+        {3u, 0u, 5ull},
+        {0u, 3u, 10ull},
+        {0xFFFFFFFFu, 0u, 0x5555555555555555ull},
+        {0u, 0xFFFFFFFFu, 0xAAAAAAAAAAAAAAAAull},
+        {0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFFFFFFFFFull},
+    };
+    for (auto& c : fixed) {
+        uint64_t got = mortonEncode(c.x, c.y);
+        if (got != c.want) {
+            std::printf("mortonEncode(%u,%u)=%llx want %llx\n",
+                        c.x, c.y, (unsigned long long)got, (unsigned long long)c.want);
+            return 1;
+        }
+    }
+    struct { uint32_t x, y; } pairs[] = {
+        {0x12345678u, 0x9ABCDEF0u}, {0xDEADBEEFu, 0xCAFEBABEu},
+        {0x80000000u, 0x00000001u}, {0x00000001u, 0x80000000u}, {12345u, 67890u},
+    };
+    for (auto& p : pairs) {
+        uint64_t got = mortonEncode(p.x, p.y);
+        uint64_t want = refEncode(p.x, p.y);
+        if (got != want) {
+            std::printf("mortonEncode(%x,%x)=%llx want %llx\n",
+                        p.x, p.y, (unsigned long long)got, (unsigned long long)want);
+            return 1;
+        }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The spread is a parallel-prefix computation run in reverse: start with 32 bits packed at the bottom of a 64-bit word and, in each step, split every contiguous block in half and move the upper half left by the block's width — 16, then 8, 4, 2, 1 — so after five steps each original bit sits alone at an even position. The magic masks are the invariant keepers: after the shift-and-OR, each value appears twice (original and shifted); the mask (`0x0000FFFF0000FFFF`, then `0x00FF00FF...`, `0x0F0F...`, `0x3333...`, `0x5555...`) keeps exactly the copy that belongs at each position. Interleaving is then trivial: `x` on the even bits, `y` shifted onto the odd bits, OR them — the two spreads are independent, so a superscalar core overlaps them. Why Morton order matters for latency: a row-major 2D grid puts vertical neighbors a full row apart (guaranteed cache miss for large grids), while Z-order keeps any 2^k x 2^k tile in one contiguous memory range — that locality is why GPUs swizzle textures this way and why spatial indexes (and some order-book-by-(price, venue) grids) use it. On x86 with BMI2 the whole spread is one `pdep` instruction; this ladder is its portable, constexpr-able equivalent, and running it backwards (mask, then compact with shifts) gives you the decode.
+
+## challenge: Reverse the bits of a 64-bit word
+tags: bit-tricks, hot-path
+track: hft
+difficulty: hard
+
+Mirror a 64-bit word: bit 0 swaps with bit 63, bit 1 with bit 62, and so on. Implement `uint64_t reverseBits64(uint64_t v)` with the divide-and-conquer mask ladder — six fixed steps, no per-bit loop, no lookup tables, no builtins. Bit reversal is the index permutation at the heart of the FFT butterfly and appears in CRCs and LFSRs; the ladder technique itself (swap at doubling granularities) is a bit-manipulation staple interviewers reach for.
+
+Constraints: full 64-bit range; O(1) — exactly six shift/mask/OR rounds (or five plus a final rotate); straight-line code.
+
+Example: `reverseBits64(1) == 0x8000000000000000`, `reverseBits64(0x8000000000000000) == 1`, `reverseBits64(0xAAAAAAAAAAAAAAAA) == 0x5555555555555555`, `reverseBits64(0) == 0`.
+
+hint: Swap adjacent bits, then adjacent 2-bit pairs, then nibbles, bytes, 16-bit halves, and finally the two 32-bit halves — reversing blocks at every scale composes into a full mirror.
+hint: Each step is `v = ((v >> k) & M) | ((v & M) << k)` where `M` keeps the low half of every 2k-block: `0x5555...` for k=1, `0x3333...` for k=2, `0x0F0F...` for k=4, `0x00FF...` for k=8, `0x0000FFFF...` for k=16.
+hint: The last step needs no mask at all: `v = (v >> 32) | (v << 32)` swaps the halves in one rotate.
+
+```cpp
+// starter
+#include <cstdint>
+uint64_t reverseBits64(uint64_t v);
+```
+
+```cpp
+uint64_t reverseBits64(uint64_t v) {
+    v = ((v >> 1)  & 0x5555555555555555ull) | ((v & 0x5555555555555555ull) << 1);   // swap bits
+    v = ((v >> 2)  & 0x3333333333333333ull) | ((v & 0x3333333333333333ull) << 2);   // swap pairs
+    v = ((v >> 4)  & 0x0F0F0F0F0F0F0F0Full) | ((v & 0x0F0F0F0F0F0F0F0Full) << 4);   // swap nibbles
+    v = ((v >> 8)  & 0x00FF00FF00FF00FFull) | ((v & 0x00FF00FF00FF00FFull) << 8);   // swap bytes
+    v = ((v >> 16) & 0x0000FFFF0000FFFFull) | ((v & 0x0000FFFF0000FFFFull) << 16);  // swap 16-bit
+    v = (v >> 32) | (v << 32);                                                      // swap halves
+    return v;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+static uint64_t refReverse(uint64_t v) {
+    uint64_t r = 0;
+    for (int i = 0; i < 64; ++i) {
+        r = (r << 1) | (v & 1u);
+        v >>= 1;
+    }
+    return r;
+}
+int main() {
+    struct { uint64_t v, want; } fixed[] = {
+        {0ull, 0ull},
+        {1ull, 0x8000000000000000ull},
+        {0x8000000000000000ull, 1ull},
+        {0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull},
+        {0xAAAAAAAAAAAAAAAAull, 0x5555555555555555ull},
+        {0x5555555555555555ull, 0xAAAAAAAAAAAAAAAAull},
+        {0x00000000000000FFull, 0xFF00000000000000ull},
+    };
+    for (auto& c : fixed) {
+        uint64_t got = reverseBits64(c.v);
+        if (got != c.want) {
+            std::printf("reverseBits64(%llx)=%llx want %llx\n",
+                        (unsigned long long)c.v, (unsigned long long)got, (unsigned long long)c.want);
+            return 1;
+        }
+    }
+    uint64_t vals[] = {0x0123456789ABCDEFull, 0xF0F0F0F0F0F0F0F0ull, 0xDEADBEEFCAFEBABEull, 42ull};
+    for (uint64_t v : vals) {
+        if (reverseBits64(v) != refReverse(v)) { std::printf("mismatch on %llx\n", (unsigned long long)v); return 1; }
+        if (reverseBits64(reverseBits64(v)) != v) { std::puts("reverse must be an involution"); return 1; }
+    }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The key insight is that a full mirror factors into log2(64) = 6 independent block swaps: reversing a 64-bit string equals swapping its two 32-bit halves *and* reversing each half, and that recursion unrolls into "swap adjacent 1-bit blocks, then 2-bit, 4, 8, 16, 32" — in any order, since the steps commute. Each round is the two-mask exchange `((v >> k) & M) | ((v & M) << k)`: `M` selects the low half of every 2k-sized block, so the expression moves high halves down and low halves up simultaneously across the whole word — 64 swaps for the price of 5 ops. The final 32-bit step degenerates to a rotate because the mask would cover exactly half the word. Total: ~28 ALU ops, no branches, no memory — compare a naive 64-iteration loop (~200+ ops with a loop-carried dependency) or a 256-entry byte table (4 cache lines of L1 you'd rather spend on the order book). ARM has `rbit` doing this in one instruction; x86 doesn't, so the ladder is what fast FFT index permutation actually compiles to. The same exchange idiom generalizes: byte-swap (`bswap`) is the last three rounds only, and field-swaps within packed structs use the identical two-mask pattern.
+
+## challenge: Best bid from a price-level bitmap
+tags: order-book, bit-tricks, hot-path
+track: hft
+difficulty: hard
+
+Fast order books track which price levels are occupied with a bitmap: one bit per level, and "best bid" is the highest set bit. Implement `class LevelBitmap` over 1024 price levels (index 0..1023, higher index = higher price = better bid): `void set(int idx)`, `void clear(int idx)`, and `int highest() const` returning the highest set index, or `-1` when empty. Store the levels in sixteen `uint64_t` words. Finding the top bit within a word must be O(log bits) — a fixed halving search, no per-bit loop, no `std::countl_zero`/builtins.
+
+Constraints: `0 <= idx < 1024`; `set`/`clear` are O(1) (word index + mask); `highest` scans at most 16 words top-down and then does a 6-step floor-log2 inside the first non-empty word; `set`/`clear` are idempotent.
+
+Example: after `set(500); set(510); set(3);` → `highest() == 510`; after `clear(510);` → `highest() == 500`; after clearing all → `highest() == -1`.
+
+hint: Level `idx` lives in word `idx >> 6` at bit `idx & 63`: `words[idx >> 6] |= 1ull << (idx & 63)` to set, AND with the complement to clear.
+hint: For `highest()`, walk words from 15 down to 0; the first non-zero word contains the answer: `(w << 6) + floorLog2(words[w])`.
+hint: `floorLog2` by halving: `if (x >> 32) { n += 32; x >>= 32; }` then the same with 16, 8, 4, 2, 1 — six tests pin the top bit's index.
+
+```cpp
+// starter
+#include <cstdint>
+class LevelBitmap {
+public:
+    void set(int idx);      // mark price level idx occupied
+    void clear(int idx);    // mark it empty
+    int highest() const;    // highest occupied level, or -1 if none
+};
+```
+
+```cpp
+static int floorLog2(uint64_t x) {   // x != 0
+    int n = 0;
+    if (x >> 32) { n += 32; x >>= 32; }
+    if (x >> 16) { n += 16; x >>= 16; }
+    if (x >> 8)  { n += 8;  x >>= 8;  }
+    if (x >> 4)  { n += 4;  x >>= 4;  }
+    if (x >> 2)  { n += 2;  x >>= 2;  }
+    if (x >> 1)  { n += 1; }
+    return n;
+}
+
+class LevelBitmap {
+public:
+    void set(int idx)   { words_[idx >> 6] |=  (1ull << (idx & 63)); }
+    void clear(int idx) { words_[idx >> 6] &= ~(1ull << (idx & 63)); }
+    int highest() const {
+        for (int w = kWords - 1; w >= 0; --w) {
+            if (words_[w]) return (w << 6) + floorLog2(words_[w]);
+        }
+        return -1;
+    }
+private:
+    static constexpr int kWords = 16;   // 16 * 64 = 1024 levels
+    uint64_t words_[kWords] = {};
+};
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+static bool expect(const LevelBitmap& b, int want, const char* what) {
+    int got = b.highest();
+    if (got != want) { std::printf("%s: highest()=%d want %d\n", what, got, want); return false; }
+    return true;
+}
+int main() {
+    LevelBitmap b;
+    if (!expect(b, -1, "empty book")) return 1;
+    b.set(0);
+    if (!expect(b, 0, "only level 0")) return 1;
+    b.set(63);
+    if (!expect(b, 63, "top of word 0")) return 1;
+    b.set(64);
+    if (!expect(b, 64, "bottom of word 1")) return 1;
+    b.set(500); b.set(510); b.set(3);
+    if (!expect(b, 510, "several levels")) return 1;
+    b.set(1023);
+    if (!expect(b, 1023, "top level")) return 1;
+    b.clear(1023);
+    if (!expect(b, 510, "clear top falls back")) return 1;
+    b.clear(510); b.clear(500);
+    if (!expect(b, 64, "clear across words")) return 1;
+    b.clear(64);
+    if (!expect(b, 63, "word boundary 64 -> 63")) return 1;
+    b.set(127); b.set(128);
+    if (!expect(b, 128, "127/128 straddle")) return 1;
+    b.clear(128);
+    if (!expect(b, 127, "fall back to 127")) return 1;
+    b.clear(127); b.clear(63); b.clear(3); b.clear(0);
+    if (!expect(b, -1, "emptied book")) return 1;
+    b.clear(5);   // clearing an already-clear level must be harmless
+    if (!expect(b, -1, "idempotent clear")) return 1;
+    b.set(200); b.set(200);   // idempotent set
+    if (!expect(b, 200, "idempotent set")) return 1;
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The bitmap is the classic answer to "how do you get O(1)-ish best-bid without a heap or a tree." A `std::map<price, level>` finds the best in O(log n) with pointer chases across scattered nodes — several cache misses each a hundred cycles. The bitmap is 128 bytes — two cache lines — that stay hot in L1 forever: `set`/`clear` are one shift, one mask, one RMW on a word (`idx >> 6` picks the word, `idx & 63` the bit — the same power-of-two indexing as ring buffers), and `highest()` is a top-down word scan plus a floor-log2. The halving `floorLog2` asks "is anything set in the upper half?" six times, each answer contributing one bit of the index — it's binary search over bit positions, and each test compiles to a shift, test, and conditional add (usually `cmov`). Hardware collapses the whole thing into one `bsr`/`lzcnt` (`std::countl_zero` in C++20), making the in-word part a single cycle. Production books add a *summary* word — bit `w` set iff `words[w] != 0` — so the scan itself becomes one more floor-log2 and `highest()` is truly constant-time; two levels of bitmap cover 4096 levels in three loads. Trade-off to name in an interview: bitmaps excel when the price universe is dense and bounded (equities near the touch); for sparse or unbounded ladders you fall back to trees or hashed levels.
+
+## challenge: Price ladder with incremental best tracking
+tags: order-book, cache, hot-path
+track: hft
+difficulty: hard
+
+The bid side of an order book, stored as a dense ladder: `qty[level]` for levels 0..1023, where a higher index is a better (higher) price. Implement `class BidLadder` with `void apply(int level, int64_t delta)` (add `delta` to the quantity at `level`; the caller guarantees quantity never goes negative), `int bestLevel() const` (highest level with nonzero quantity, `-1` if the book is empty), and `int64_t bestQty() const` (quantity at the best level, `0` if empty). The best must be maintained *incrementally*: `apply` is O(1) except when the current best empties, in which case it walks down to the next occupied level; the getters are O(1) reads.
+
+Constraints: `0 <= level < 1024`; quantities and deltas fit `int64_t`; no scanning in the getters; `apply` must not scan when the update doesn't touch the best (an add below the best, or a partial reduction anywhere).
+
+Example: `apply(500,+100); apply(510,+50);` → best is 510/50. `apply(510,-50);` empties the top → best falls back to 500/100. `apply(500,-100);` → empty book: `bestLevel() == -1`, `bestQty() == 0`.
+
+hint: Keep `int best_` alongside the array. After writing the new quantity: if it's now positive and `level > best_`, the best simply improves to `level`.
+hint: Only one case requires a scan: the quantity at `best_` just hit zero — walk `best_` downward while it points at an empty level (stopping at -1 for an empty book).
+hint: Order the guard carefully: `while (best_ >= 0 && qty_[best_] == 0) --best_;` — check the bound before indexing.
+
+```cpp
+// starter
+#include <cstdint>
+class BidLadder {
+public:
+    void apply(int level, int64_t delta);  // qty[level] += delta; maintain best
+    int bestLevel() const;                 // highest non-empty level, or -1
+    int64_t bestQty() const;               // qty at best, or 0
+};
+```
+
+```cpp
+class BidLadder {
+public:
+    void apply(int level, int64_t delta) {
+        int64_t q = qty_[level] + delta;
+        qty_[level] = q;
+        if (q > 0) {
+            if (level > best_) best_ = level;          // improvement: O(1)
+        } else if (level == best_) {
+            while (best_ >= 0 && qty_[best_] == 0) --best_;   // retreat: walk down
+        }
+    }
+    int bestLevel() const { return best_; }
+    int64_t bestQty() const { return best_ >= 0 ? qty_[best_] : 0; }
+private:
+    static constexpr int kLevels = 1024;
+    int64_t qty_[kLevels] = {};
+    int best_ = -1;
+};
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+static bool expect(const BidLadder& b, int lvl, int64_t qty, const char* what) {
+    if (b.bestLevel() != lvl || b.bestQty() != qty) {
+        std::printf("%s: best=(%d,%lld) want (%d,%lld)\n", what,
+                    b.bestLevel(), (long long)b.bestQty(), lvl, (long long)qty);
+        return false;
+    }
+    return true;
+}
+int main() {
+    BidLadder b;
+    if (!expect(b, -1, 0, "fresh book")) return 1;
+    b.apply(500, 100);
+    if (!expect(b, 500, 100, "first add")) return 1;
+    b.apply(510, 50);
+    if (!expect(b, 510, 50, "better bid arrives")) return 1;
+    b.apply(505, 75);
+    if (!expect(b, 510, 50, "add below best keeps best")) return 1;
+    b.apply(510, 25);
+    if (!expect(b, 510, 75, "add at best updates qty")) return 1;
+    b.apply(510, -25);
+    if (!expect(b, 510, 50, "partial cancel keeps level")) return 1;
+    b.apply(510, -50);
+    if (!expect(b, 505, 75, "top empties, fall back one gap")) return 1;
+    b.apply(505, -75);
+    if (!expect(b, 500, 100, "fall back again")) return 1;
+    b.apply(500, -100);
+    if (!expect(b, -1, 0, "book empties")) return 1;
+    b.apply(0, 5);
+    if (!expect(b, 0, 5, "level 0 works")) return 1;
+    b.apply(1023, 7);
+    if (!expect(b, 1023, 7, "top level works")) return 1;
+    b.apply(1023, -7);
+    if (!expect(b, 0, 5, "long fall back 1023 -> 0")) return 1;
+    b.apply(0, -5);
+    if (!expect(b, -1, 0, "empty again")) return 1;
+    b.apply(300, 10);
+    if (!expect(b, 300, 10, "reuse after empty")) return 1;
+    std::puts("PASS");
+}
+```
+
+**Editorial:** This is the dense-array order book that fast equity feed handlers actually use: map price to a small integer index (price minus a base, divided by tick), keep quantities in a flat array, and carry the best as a cached index. The update taxonomy is the whole design: an add at or above the best and any partial reduction are O(1) — one array write plus a compare; the only structural event is "the best level just emptied," which triggers a downward walk to the next occupied level. That walk looks like the weak spot but rarely is: real markets cluster activity at and near the touch, so the gap below the vanished best is typically 1–2 ticks, and even a long walk streams through a contiguous `int64_t` array at 8 levels per cache line with the prefetcher ahead of you — compare a `std::map` book where *every* best-query chases red-black tree pointers across the heap. The previous challenge's bitmap is the standard upgrade when the walk must be bounded: keep a summary bitmap of occupied levels and the retreat becomes floor-log2 of two words, O(1) worst case. Note also what the guard order buys you: `best_ >= 0 && qty_[best_] == 0` short-circuits before indexing, so the empty-book case needs no sentinel level. Interviewers probe exactly these seams — the asymmetry of improve vs. retreat, and what data layout does to the "bad" case.
+
+## challenge: Modular exponentiation without overflow
+tags: integer-arithmetic, hot-path
+track: hft
+difficulty: hard
+
+Symbol hashing, Lehmer RNG streams, and integrity checks all need `base^exp mod m` for 64-bit operands — but `a * b` overflows `uint64_t` long before the modulus does, silently corrupting the result. Implement two functions with no 128-bit types and no overflow anywhere: `uint64_t mulmod(uint64_t a, uint64_t b, uint64_t m)` computing `(a * b) mod m` by binary (shift-and-add) multiplication, and `uint64_t modpow(uint64_t base, uint64_t exp, uint64_t m)` computing `base^exp mod m` by square-and-multiply on top of it. Define `x^0 == 1` (so `modpow(0, 0, m) == 1`), and any result mod 1 is 0.
+
+Constraints: `1 <= m < 2^63` (this bound is what makes overflow-free doubling possible — know why); any `a`, `b`, `base`, `exp`; `mulmod` is O(64), `modpow` is O(64) multiplies; use conditional subtraction, not `%`, inside the loops.
+
+Example: `modpow(2, 10, 1000) == 24`, `modpow(7, 0, 13) == 1`, `mulmod(2^40, 2^40, 2^61 - 1) == 2^19` (since `2^61 ≡ 1` mod `2^61 - 1`).
+
+hint: Russian-peasant multiplication: reduce `a`, `b` below `m` first; then for each low bit of `b`, conditionally add `a` into the result and double `a`, halving `b` each step — every add is of two values `< m`.
+hint: With `m < 2^63`, both `r + a` and `a + a` are `< 2^64`, so they can't wrap; restore the invariant with `if (x >= m) x -= m;` — one compare-subtract, never a division.
+hint: `modpow` is the same skeleton one level up: start `r = 1 % m` (handles `m == 1`), square `base` each step via `mulmod`, and multiply into `r` when the exponent bit is set.
+
+```cpp
+// starter
+#include <cstdint>
+uint64_t mulmod(uint64_t a, uint64_t b, uint64_t m);   // (a * b) % m, overflow-free
+uint64_t modpow(uint64_t base, uint64_t exp, uint64_t m);  // base^exp % m
+```
+
+```cpp
+uint64_t mulmod(uint64_t a, uint64_t b, uint64_t m) {
+    a %= m;
+    b %= m;
+    uint64_t r = 0;
+    while (b) {
+        if (b & 1) {
+            r += a;                    // r, a < m < 2^63: no wrap
+            if (r >= m) r -= m;
+        }
+        a += a;                        // double, staying reduced
+        if (a >= m) a -= m;
+        b >>= 1;
+    }
+    return r;
+}
+
+uint64_t modpow(uint64_t base, uint64_t exp, uint64_t m) {
+    uint64_t r = 1 % m;                // m == 1 -> everything is 0
+    base %= m;
+    while (exp) {
+        if (exp & 1) r = mulmod(r, base, m);
+        base = mulmod(base, base, m);
+        exp >>= 1;
+    }
+    return r;
+}
+```
+
+```cpp
+// harness
+#include <cstdio>
+#include <cstdint>
+//__USER__
+static uint64_t naivePow(uint64_t base, uint64_t exp, uint64_t m) {
+    // Only called with small operands: products stay far below 2^64.
+    uint64_t r = 1 % m;
+    base %= m;
+    for (uint64_t i = 0; i < exp; ++i) r = (r * base) % m;
+    return r;
+}
+int main() {
+    if (modpow(2, 10, 1000) != 24) { std::puts("2^10 mod 1000 must be 24"); return 1; }
+    if (modpow(7, 0, 13) != 1) { std::puts("x^0 must be 1"); return 1; }
+    if (modpow(5, 117, 1) != 0) { std::puts("mod 1 must be 0"); return 1; }
+    if (mulmod(0, 12345, 97) != 0) { std::puts("0 * x must be 0"); return 1; }
+    if (mulmod((1ull << 40), (1ull << 40), (1ull << 61) - 1) != (1ull << 19)) {
+        std::puts("2^80 mod (2^61-1) must be 2^19"); return 1;
+    }
+    for (uint64_t b = 0; b < 8; ++b) {
+        for (uint64_t e = 0; e < 8; ++e) {
+            uint64_t got = modpow(b, e, 1000003ull);
+            uint64_t want = naivePow(b, e, 1000003ull);
+            if (got != want) {
+                std::printf("modpow(%llu,%llu)=%llu want %llu\n",
+                            (unsigned long long)b, (unsigned long long)e,
+                            (unsigned long long)got, (unsigned long long)want);
+                return 1;
+            }
+        }
+    }
+    // Fermat: for prime p, 2^(p-1) == 1 (mod p)
+    if (modpow(2, 1000000006ull, 1000000007ull) != 1) { std::puts("Fermat check failed"); return 1; }
+    // Big modulus near 2^62: x^(a+b) == x^a * x^b (mod m) must hold exactly
+    uint64_t m0 = (1ull << 62) + 12345ull;
+    uint64_t x = 0x123456789ABCDEFull;
+    uint64_t lhs = modpow(x, 1000003ull + 777777ull, m0);
+    uint64_t rhs = mulmod(modpow(x, 1000003ull, m0), modpow(x, 777777ull, m0), m0);
+    if (lhs != rhs) { std::puts("exponent addition law violated at 2^62 scale"); return 1; }
+    std::puts("PASS");
+}
+```
+
+**Editorial:** The overflow analysis is the whole challenge. Once `a` and `b` are reduced below `m`, the loop maintains `r < m` and `a < m` as invariants; with `m < 2^63`, both `r + a` and `a + a` are strictly below `2^64`, so unsigned addition can't wrap — and since each sum is below `2m`, a single conditional subtract restores the invariant without ever touching the divider (a 64-bit `div` is 20–40 cycles; the compare-subtract pair is 1–2 and usually compiles to `cmov`). That bound is exactly why the contract stops at `2^63`: one bit of headroom is the price of the doubling trick. `mulmod` is Russian-peasant multiplication — decompose `b` into powers of two, accumulate `a * 2^i mod m` for each set bit — and `modpow` is the identical decomposition one level up: square-and-multiply over the exponent's bits, 64 squarings worst case, each of which is a 64-step mulmod, giving ~4096 simple ops for a full 64-bit exponentiation. `r = 1 % m` quietly handles the degenerate `m == 1` (everything is 0) and the `0^0 == 1` convention falls out of the loop never executing. In production you'd use `unsigned __int128` (gcc/clang) or Montgomery multiplication to make each product O(1); the shift-add ladder is the fully portable fallback — and the version you can write on a whiteboard while explaining, invariant by invariant, why no intermediate can ever overflow.
+
 ## challenge: Integer log2 (floor)
 tags: bit-tricks, fast-math
 track: hft

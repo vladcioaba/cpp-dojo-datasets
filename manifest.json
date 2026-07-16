@@ -1,5 +1,5 @@
 {
- "count": 688,
+ "count": 696,
  "cards": [
   {
    "topic": "cpp-core",
@@ -4448,6 +4448,70 @@
    "track": "hft",
    "level": "medium",
    "title": "Round to powers of two, both ways"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_11_submask-iteration_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Enumerate every submask"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_12_overflow-safe-midpoint_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Midpoint without overflow"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_13_aligned-bump-allocator_medium.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "medium",
+   "title": "Aligned bump allocator"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_14_morton-encode-64_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Morton encode two 32-bit coordinates"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_15_bit-reverse-64_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Reverse the bits of a 64-bit word"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_16_bitmap-best-bid_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Best bid from a price-level bitmap"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_17_price-ladder-update_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Price ladder with incremental best tracking"
+  },
+  {
+   "topic": "hft",
+   "file": "hft/ll2_18_modpow-mulmod_hard.md",
+   "type": "challenge",
+   "track": "hft",
+   "level": "hard",
+   "title": "Modular exponentiation without overflow"
   },
   {
    "topic": "hft",
