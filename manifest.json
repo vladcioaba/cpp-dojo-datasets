@@ -1,5 +1,5 @@
 {
- "count": 696,
+ "count": 751,
  "cards": [
   {
    "topic": "cpp-core",
@@ -379,11 +379,331 @@
   },
   {
    "topic": "cpp-core",
+   "file": "cpp-core/mt_lessons.md",
+   "type": "fact",
+   "track": "core",
+   "level": "lessons",
+   "title": "Threads share everything — that is the power and the problem"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_01_mutex_counter_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "a counter four threads can trust"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_02_atomic_counter_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "lock-free ticket counter"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_03_cv_handoff_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "one-slot channel handoff"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_04_bounded_buffer_hard.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "hard",
+   "title": "bounded buffer under pressure"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_05_async_parallel_sum_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "split the sum with std::async"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_06_promise_future_pipeline_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "promise/future relay"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_07_call_once_init_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "build it once — call_once"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_08_shared_mutex_map_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "read-mostly phone book"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_09_jthread_stop_token_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "a worker that stops when asked"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_10_scoped_lock_transfer_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "two-mutex transfer without deadlock"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_11_fix_data_race_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "fix: the hit counter comes up short"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_12_fix_abba_deadlock_hard.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "hard",
+   "title": "fix: the deadlock fix that loses money"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/mtc_13_acquire_release_flag_hard.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "hard",
+   "title": "publish the payload — acquire/release"
+  },
+  {
+   "topic": "cpp-core",
    "file": "cpp-core/review.md",
    "type": "quiz",
    "track": "core",
    "level": "easy",
    "title": "review: the welcome email"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/sp_lessons.md",
+   "type": "fact",
+   "track": "core",
+   "level": "lessons",
+   "title": "Ownership is the question; RAII is the answer"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/spc_01_tiny_unique_ptr_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "build a tiny UniquePtr from scratch"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/spc_02_handle_deleter_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "unique_ptr for a C-style handle"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/spc_03_pimpl_tracker_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "pImpl with unique_ptr"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/spc_04_shape_factory_downcast_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "factory returns unique_ptr, observers peek via get()"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/spc_05_aliasing_engine_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "hand out a member with the aliasing constructor"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/spc_06_weak_texture_cache_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "memo cache that doesn't pin its entries"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/spc_07_parent_child_cycle_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "fix: the parent-child pair that never dies"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/spc_08_shared_from_this_queue_hard.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "hard",
+   "title": "a worker that schedules itself — and survives it"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/spc_09_cow_string_hard.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "hard",
+   "title": "copy-on-write string, driven by use_count"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/spc_10_double_delete_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "fix: two owners, one session, one crash"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/std17_quizzes.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "easy",
+   "title": "What does this print?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/std20_quizzes.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "medium",
+   "title": "What does this print?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/std23_quizzes.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "medium",
+   "title": "What does this print?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tpl_lessons.md",
+   "type": "fact",
+   "track": "core",
+   "level": "lessons",
+   "title": "Function templates — write it once, deduce the rest"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tplc_01_generic_clamp_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "a clamp that works for any ordered type"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tplc_02_fold_sum_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "sum any number of arguments with one fold"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tplc_03_all_of_fold_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "does the value pass every check?"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tplc_04_tuple_get_hard.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "hard",
+   "title": "get<I> for a hand-rolled tuple"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tplc_05_constexpr_factorial_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "factorial computed by the compiler"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tplc_06_is_container_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "is it a container? ask a concept"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tplc_07_ctad_pair_guide_easy.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "easy",
+   "title": "teach Pair that a literal means std::string"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tplc_08_if_constexpr_dispatch_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "one template, three formats"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tplc_09_crtp_counter_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "count live instances per type with CRTP"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tplc_10_concept_sort_medium.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "medium",
+   "title": "a sort wrapper that rejects the unsortable"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/tplc_11_template_template_hard.md",
+   "type": "challenge",
+   "track": "core",
+   "level": "hard",
+   "title": "convert to any container — template template parameters"
   },
   {
    "topic": "design",
@@ -4754,6 +5074,70 @@
    "title": "Branchless count of elements >= threshold"
   },
   {
+   "topic": "networking",
+   "file": "networking/cpp_lessons.md",
+   "type": "fact",
+   "track": "core",
+   "level": "lessons",
+   "title": "The sockets API is five calls"
+  },
+  {
+   "topic": "networking",
+   "file": "networking/cpp_quizzes.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "quizzes",
+   "title": "What does a successful accept() return?"
+  },
+  {
+   "topic": "networking",
+   "file": "networking/netc_01_ipv4-header-parse_easy.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "easy",
+   "title": "Parse an IPv4 header"
+  },
+  {
+   "topic": "networking",
+   "file": "networking/netc_02_internet-checksum_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Internet checksum (RFC 1071)"
+  },
+  {
+   "topic": "networking",
+   "file": "networking/netc_03_length-prefixed-framing_medium.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "medium",
+   "title": "Length-prefixed message framing"
+  },
+  {
+   "topic": "networking",
+   "file": "networking/netc_04_varint-codec_hard.md",
+   "type": "challenge",
+   "track": "python",
+   "level": "hard",
+   "title": "Varint encode/decode (protobuf-style)"
+  },
+  {
+   "topic": "networking",
+   "file": "networking/py_lessons.md",
+   "type": "fact",
+   "track": "python",
+   "level": "lessons",
+   "title": "The socket module is the C API with a Python accent"
+  },
+  {
+   "topic": "networking",
+   "file": "networking/py_quizzes.md",
+   "type": "quiz",
+   "track": "python",
+   "level": "quizzes",
+   "title": "sock.send(payload) returned 5, but len(payload) is 100. What happened?"
+  },
+  {
    "topic": "python",
    "file": "python/01_two-sum_easy.md",
    "type": "challenge",
@@ -5568,6 +5952,62 @@
    "track": "core",
    "level": "snippet",
    "title": "2026-07-06 — seed — The loop that never ends"
+  },
+  {
+   "topic": "toolchain",
+   "file": "toolchain/cmake_lessons.md",
+   "type": "fact",
+   "track": "core",
+   "level": "lessons",
+   "title": "CMake doesn't build your code — it generates the thing that does"
+  },
+  {
+   "topic": "toolchain",
+   "file": "toolchain/compiler_lessons.md",
+   "type": "fact",
+   "track": "core",
+   "level": "lessons",
+   "title": "Four stages stand between your .cpp and a running binary"
+  },
+  {
+   "topic": "toolchain",
+   "file": "toolchain/debugging_lessons.md",
+   "type": "fact",
+   "track": "core",
+   "level": "lessons",
+   "title": "Debugging is a protocol — reproduce, minimize, bisect, change one thing"
+  },
+  {
+   "topic": "toolchain",
+   "file": "toolchain/debugging_quizzes.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "medium",
+   "title": "Match each fault address to its bug class"
+  },
+  {
+   "topic": "toolchain",
+   "file": "toolchain/ecosystem_lessons.md",
+   "type": "fact",
+   "track": "core",
+   "level": "lessons",
+   "title": "Sanitizers are runtime bug detectors — one recompile, four families"
+  },
+  {
+   "topic": "toolchain",
+   "file": "toolchain/interpreter_lessons.md",
+   "type": "fact",
+   "track": "python",
+   "level": "lessons",
+   "title": "CPython compiles your code too — just not to machine code"
+  },
+  {
+   "topic": "toolchain",
+   "file": "toolchain/quizzes.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "concept",
+   "title": "Both files compile, the build still fails — which stage, and why?"
   }
  ]
 }
