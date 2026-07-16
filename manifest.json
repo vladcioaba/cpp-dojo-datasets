@@ -1,5 +1,5 @@
 {
- "count": 663,
+ "count": 664,
  "cards": [
   {
    "topic": "cpp-core",
@@ -272,6 +272,14 @@
    "track": "core",
    "level": "drill",
    "title": "Move constructor"
+  },
+  {
+   "topic": "cpp-core",
+   "file": "cpp-core/compiles.md",
+   "type": "quiz",
+   "track": "core",
+   "level": "easy",
+   "title": "Does std::max(1, 2.5) compile?"
   },
   {
    "topic": "cpp-core",

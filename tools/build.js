@@ -22,7 +22,11 @@ const cards = [];
 for (const topic of TOPICS.filter(t => t !== "skilltrees").sort()) {
   const files = fs.readdirSync(path.join(ROOT, topic)).filter(f => f.endsWith(".md")).sort();
   for (const file of files) {
-    const body = fs.readFileSync(path.join(ROOT, topic, file), "utf8").replace(/\s+$/, "") + "\n";
+    let body = fs.readFileSync(path.join(ROOT, topic, file), "utf8").replace(/\s+$/, "") + "\n";
+    // tolerate a preamble (H1, intro prose) — cards start at the first "## type:"
+    const start = body.search(/^##\s+\w+:/m);
+    if (start === -1) { console.warn(`skip (no card header): ${topic}/${file}`); continue; }
+    body = body.slice(start);
     const m = body.match(/^##\s+(\w+):\s*(.+)/);
     if (!m) continue;
     const track = (body.match(/^track:\s*(\S+)/m) || [])[1] || "core";
